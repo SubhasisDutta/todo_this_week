@@ -132,6 +132,56 @@ async function deleteTask(taskId) {
 
 // --- End of Task Data Structure and Storage ---
 
+// --- Info Message Functionality ---
+let infoMessageTimeout = null; // To manage the timeout for hiding the message
+
+function showInfoMessage(message, type = 'info', duration = 3000) {
+    const messageArea = document.getElementById('info-message-area');
+    if (!messageArea) {
+        console.error("Info message area not found!");
+        // Fallback to alert if message area is missing, though it shouldn't be.
+        alert(message);
+        return;
+    }
+
+    // Clear any existing message timeout to prevent premature hiding if called again quickly
+    if (infoMessageTimeout) {
+        clearTimeout(infoMessageTimeout);
+    }
+
+    // Set message content
+    messageArea.textContent = message;
+
+    // Set message type class
+    // Remove previous type classes before adding the new one
+    messageArea.classList.remove('success', 'error', 'info');
+    messageArea.classList.add(type); // e.g., 'success', 'error', 'info'
+
+    // Make the message area visible
+    // The 'display: none' from HTML is overridden by adding 'visible' which sets opacity and max-height
+    messageArea.style.display = 'block'; // Make sure it's not display:none before animation
+    requestAnimationFrame(() => { // Ensure display:block is applied before starting transition
+        messageArea.classList.add('visible');
+    });
+
+
+    // Set timeout to hide the message
+    infoMessageTimeout = setTimeout(() => {
+        messageArea.classList.remove('visible');
+        // Wait for transition to finish before setting display: none
+        // The transition duration is 0.5s (500ms)
+        setTimeout(() => {
+            if (!messageArea.classList.contains('visible')) { // Check if it wasn't shown again quickly
+                 messageArea.style.display = 'none';
+                 messageArea.textContent = ''; // Clear content
+                 messageArea.classList.remove(type); // Clean up type class
+            }
+        }, 500); // Match this to CSS transition duration
+        infoMessageTimeout = null;
+    }, duration);
+}
+// --- End of Info Message Functionality ---
+
 // --- Task Rendering Functions ---
 
 function renderTasks(tabName = 'display') {
@@ -531,11 +581,11 @@ function setupInlineTaskEditingListeners() {
 
             // Validation
             if (!newTitle) {
-                alert("Task title cannot be empty.");
+                showInfoMessage("Task title cannot be empty.", "error");
                 return;
             }
             if (newPriority === 'CRITICAL' && !newDeadline) {
-                alert("Deadline is required for CRITICAL tasks.");
+                showInfoMessage("Deadline is required for CRITICAL tasks.", "error");
                 return;
             }
             if (newPriority !== 'CRITICAL') {
@@ -575,9 +625,10 @@ function setupInlineTaskEditingListeners() {
                 renderTasks('display');
                 renderTasks('home');
                 renderTasks('work');
+                showInfoMessage("Task updated successfully!", "success");
                 console.log("Task updated successfully and lists refreshed.");
             } else {
-                alert("Failed to update task. Please try again.");
+                showInfoMessage("Failed to update task. Please try again.", "error");
             }
         }
     });
@@ -782,12 +833,12 @@ document.addEventListener('DOMContentLoaded', function() {
         let deadline = taskDeadlineInput.value;
 
         if (!title) {
-            alert("Task title is required.");
+            showInfoMessage("Task title is required.", "error");
             return;
         }
 
         if (priority === 'CRITICAL' && !deadline) {
-            alert("Deadline is required for CRITICAL tasks.");
+            showInfoMessage("Deadline is required for CRITICAL tasks.", "error");
             return;
         }
 
@@ -797,24 +848,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
         console.log("Adding task:", { title, url, priority, deadline, type });
 
-        await addNewTask(title, url, priority, deadline, type);
+        const newTask = await addNewTask(title, url, priority, deadline, type);
 
-        // Clear form fields
-        taskTitleInput.value = '';
-        taskUrlInput.value = '';
-        taskPriorityInput.value = 'SOMEDAY'; // Reset to default
-        taskDeadlineInput.value = '';
-        taskTypeInput.value = 'home'; // Reset to default
-        taskDeadlineGroup.style.display = 'none'; // Hide deadline field
+        if (newTask) { // Check if task was added successfully
+            taskTitleInput.value = '';
+            taskUrlInput.value = '';
+            taskPriorityInput.value = 'SOMEDAY'; // Reset to default
+            taskDeadlineInput.value = '';
+            taskTypeInput.value = 'home'; // Reset to default
+            taskDeadlineGroup.style.display = 'none'; // Hide deadline field
 
-        alert("Task added successfully!");
-        // Later, we'll refresh the task lists here
-        // renderTasksInEditTab(); // Placeholder for future function
-        // renderTasksInDisplayTab(); // Placeholder for future function
-        renderTasks('display'); // Refresh display tab
-        renderTasks('edit');    // Refresh edit tab
-        renderTasks('home');    // Refresh home tab
-        renderTasks('work');    // Refresh work tab
+            showInfoMessage("Task added successfully!", "success");
+            renderTasks('display'); // Refresh display tab
+            renderTasks('edit');    // Refresh edit tab
+            renderTasks('home');    // Refresh home tab
+            renderTasks('work');    // Refresh work tab
+        } else {
+            showInfoMessage("Failed to add task. Please try again.", "error");
+        }
     });
     // --- End of Add Task Functionality ---
 

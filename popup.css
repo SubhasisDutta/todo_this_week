@@ -348,3 +348,46 @@ h2 {
 
 /* Hide original task content when .editing-task-item is active and form is shown */
 /* This is now handled by JS (setting display: none) */
+
+/* Info Message Area Styling */
+#info-message-area {
+    padding: 10px 15px;
+    margin-bottom: 15px; /* Space between message and tabs */
+    border-radius: 8px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Subtle shadow for a bit of depth */
+    opacity: 0; /* Start hidden for fade-in effect */
+    max-height: 0; /* Start with no height for smooth transition */
+    overflow: hidden;
+    transition: opacity 0.5s ease-in-out, max-height 0.5s ease-in-out, padding 0.5s ease-in-out, margin-bottom 0.5s ease-in-out;
+    /* display: none; will be controlled by JS, opacity/max-height for transitions */
+}
+
+#info-message-area.visible {
+    opacity: 1;
+    max-height: 100px; /* Adjust as needed, should be enough for typical messages */
+    padding: 10px 15px; /* Restore padding when visible */
+    margin-bottom: 15px; /* Restore margin when visible */
+    /* display: block; will be handled by JS if needed, but opacity/max-height often enough */
+}
+
+/* Message Type Specific Styles */
+#info-message-area.success {
+    background-color: #d4edda; /* Light green for success (Bootstrap success color) */
+    color: #155724; /* Dark green text */
+    border: 1px solid #c3e6cb;
+}
+
+#info-message-area.error {
+    background-color: #f8d7da; /* Light red for error (Bootstrap danger color) */
+    color: #721c24; /* Dark red text */
+    border: 1px solid #f5c6cb;
+}
+
+#info-message-area.info {
+    background-color: #d1ecf1; /* Light blue for info (Bootstrap info color) */
+    color: #0c5460; /* Dark blue text */
+    border: 1px solid #bee5eb;
+}
