@@ -500,6 +500,10 @@ function setupInlineTaskEditingListeners() {
                             <option value="work" ${task.type === 'work' ? 'selected' : ''}>Work</option>
                         </select>
                     </div>
+                    <div class="form-group-inline form-group-inline-checkbox">
+                        <label for="edit-task-completed-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}">Completed:</label>
+                        <input type="checkbox" id="edit-task-completed-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}" class="edit-task-completed" ${task.completed ? 'checked' : ''} style="width: auto; margin-right: 5px;">
+                    </div>
                     <div class="inline-edit-actions">
                         <button class="neumorphic-btn save-inline-btn">Save</button>
                         <button class="neumorphic-btn cancel-inline-btn">Cancel</button>
@@ -578,6 +582,7 @@ function setupInlineTaskEditingListeners() {
             const newPriority = editForm.querySelector('.edit-task-priority').value;
             let newDeadline = editForm.querySelector('.edit-task-deadline').value;
             const newType = editForm.querySelector('.edit-task-type').value;
+            const newCompleted = editForm.querySelector('.edit-task-completed').checked; // Get completed status
 
             // Validation
             if (!newTitle) {
@@ -599,7 +604,8 @@ function setupInlineTaskEditingListeners() {
                 url: newUrl,
                 priority: newPriority,
                 deadline: newDeadline,
-                type: newType
+                type: newType,
+                completed: newCompleted // Add the new completed status
             };
 
             const success = await updateTask(updatedTask);
@@ -634,6 +640,147 @@ function setupInlineTaskEditingListeners() {
     });
 }
 // --- End of Inline Task Editing Functionality ---
+
+// --- Drag and Drop Task Reordering (Display Tab - Within Priority) ---
+// `draggedTaskElement` is already declared globally from the Edit tab D&D implementation.
+
+function setupDisplayTabDragAndDropListeners() {
+    const displayTaskListContainer = document.getElementById('display-task-list');
+    if (!displayTaskListContainer) return;
+
+    displayTaskListContainer.addEventListener('dragstart', function(event) {
+        if (event.target.classList.contains('task-item')) {
+            // Ensure it's not an inline edit form element if that were possible here
+            if (event.target.querySelector('.inline-edit-form')) return;
+
+            draggedTaskElement = event.target;
+            event.dataTransfer.setData('text/plain', event.target.getAttribute('data-task-id'));
+            event.target.style.opacity = '0.5';
+        }
+    });
+
+    displayTaskListContainer.addEventListener('dragover', function(event) {
+        event.preventDefault(); // Necessary to allow dropping
+        const taskItemOver = event.target.closest('.task-item');
+        if (taskItemOver && draggedTaskElement && taskItemOver !== draggedTaskElement) {
+            // Optional: visual cue for valid drop target (e.g., if same priority)
+            // For now, no specific visual cue here beyond default browser behavior.
+        }
+    });
+
+    displayTaskListContainer.addEventListener('drop', async function(event) {
+        event.preventDefault();
+        if (!draggedTaskElement) return;
+
+        const targetTaskElement = event.target.closest('.task-item');
+
+        // Reset opacity as operation is finishing or aborting
+        draggedTaskElement.style.opacity = '1';
+
+        if (!targetTaskElement || targetTaskElement === draggedTaskElement) {
+            draggedTaskElement = null;
+            return; // Dropped on self or not on a task item
+        }
+
+        const draggedTaskId = draggedTaskElement.getAttribute('data-task-id');
+        const targetTaskId = targetTaskElement.getAttribute('data-task-id');
+
+        getTasks(tasks => {
+            const draggedTask = tasks.find(t => t.id === draggedTaskId);
+            const targetTask = tasks.find(t => t.id === targetTaskId);
+
+            if (!draggedTask || !targetTask) {
+                console.error("Drag or target task not found for Display D&D.");
+                draggedTaskElement = null;
+                return;
+            }
+
+            // **CONSTRAINT: Check if tasks are in the same C/I/S priority group**
+            if (draggedTask.priority !== targetTask.priority) {
+                showInfoMessage("Tasks can only be reordered within the same priority group.", "error");
+                draggedTaskElement = null;
+                return; // Not allowed to drop here
+            }
+
+            // DOM Reordering
+            const taskElements = Array.from(displayTaskListContainer.children).filter(el => el.classList.contains('task-item'));
+            const draggedIndexInDOM = taskElements.indexOf(draggedTaskElement);
+            const targetIndexInDOM = taskElements.indexOf(targetTaskElement);
+
+            if (draggedIndexInDOM < targetIndexInDOM) {
+                targetTaskElement.parentNode.insertBefore(draggedTaskElement, targetTaskElement.nextSibling);
+            } else {
+                targetTaskElement.parentNode.insertBefore(draggedTaskElement, targetTaskElement);
+            }
+
+            // Update displayOrder for tasks within this specific priority group
+            const currentPriorityGroup = draggedTask.priority;
+            // const tasksInGroup = tasks.filter(t => t.priority === currentPriorityGroup).sort((a,b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+
+            const reorderedTaskIdsInDOM = Array.from(displayTaskListContainer.children)
+                                             .filter(el => el.classList.contains('task-item') && tasks.find(t => t.id === el.getAttribute('data-task-id'))?.priority === currentPriorityGroup)
+                                             .map(el => el.getAttribute('data-task-id'));
+
+            let displayOrderChanged = false;
+            reorderedTaskIdsInDOM.forEach((taskId, newIndexInGroup) => {
+                const taskToUpdate = tasks.find(t => t.id === taskId); // Find in the main 'tasks' array
+                if (taskToUpdate && taskToUpdate.displayOrder !== newIndexInGroup) { // Compare with a simple sequence within the group
+                    taskToUpdate.displayOrder = newIndexInGroup; // Assign new order within the group
+                    displayOrderChanged = true;
+                }
+            });
+
+            // Note: The above displayOrder assignment (0, 1, 2...) is *within the group*.
+            // To maintain global uniqueness and proper secondary sort, displayOrder might need a more complex update
+            // if tasks from different groups can have overlapping displayOrder values.
+            // A simpler approach for now: just re-sequence ALL tasks' displayOrder after a valid D&D in Display.
+            // This is less ideal than the Edit tab's D&D which re-sequences everything.
+            // Let's refine the displayOrder update to be global, similar to Edit tab's D&D,
+            // but the drop is only allowed if priorities match.
+
+            // Refined displayOrder update (Global re-sequencing after valid drop):
+            // This part is identical to Edit Tab's D&D logic for updating displayOrder globally
+            // The constraint is applied *before* this logic.
+            // const allTaskItemsAfterDrop = Array.from(document.querySelectorAll('#display-task-list .task-item, #edit-task-list .task-item')); // Get all items from both relevant lists
+
+            // This approach is flawed as DOM order in Display tab is already sorted by C/I/S.
+            // We need to update `displayOrder` for the affected priority group,
+            // then re-sort all tasks and assign new sequential `displayOrder` to maintain overall consistency
+            // if `displayOrder` is meant to be globally unique and sequential.
+
+            // Let's simplify: The `displayOrder` will be re-assigned to tasks within the *same priority group*
+            // based on their new order. Other tabs will use C/I/S then this `displayOrder`.
+            // This means `displayOrder` values are relative to their priority group.
+
+            if (displayOrderChanged) {
+                // To make displayOrder values unique across groups but still sortable within them,
+                // we might need to prefix them or use a larger range.
+                // For now, let's assume displayOrder values are relative within the group,
+                // and the secondary sort `(a.displayOrder || 0) - (b.displayOrder || 0)` works okay.
+                saveTasks(tasks, (success) => {
+                    if (success) {
+                        showInfoMessage("Task order updated.", "success");
+                        renderTasks('display'); // Re-render current tab
+                        renderTasks('edit');    // Edit tab also uses displayOrder
+                        renderTasks('home');    // Home/Work also use displayOrder for secondary sort
+                        renderTasks('work');
+                    } else {
+                        showInfoMessage("Failed to save new task order.", "error");
+                        renderTasks('display'); // Revert to old order
+                    }
+                });
+            }
+            draggedTaskElement = null;
+        });
+    });
+
+    displayTaskListContainer.addEventListener('dragend', function(event) {
+        if (draggedTaskElement) {
+            draggedTaskElement.style.opacity = '1';
+        }
+        draggedTaskElement = null;
+    });
+}
 
 // --- Drag and Drop Task Reordering (Edit Tab) ---
 let draggedTaskElement = null; // To store the element being dragged
@@ -879,8 +1026,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     setupTaskDeletionListener();
     setupInlineTaskEditingListeners();
-    setupDragAndDropListeners(); // Add this call
+    setupDragAndDropListeners(); // For Edit tab
+    setupDisplayTabDragAndDropListeners(); // For Display tab <<<< NEW CALL
 
     // console.log("Task Manager Loaded. Task completion listeners set up."); // Previous log
-    console.log("Task Manager Loaded. Completion, deletion, inline edit, and D&D listeners set up.");
+    console.log("Task Manager Loaded. All listeners including Display D&D set up.");
 });

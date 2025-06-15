@@ -349,6 +349,16 @@ h2 {
 /* Hide original task content when .editing-task-item is active and form is shown */
 /* This is now handled by JS (setting display: none) */
 
+.form-group-inline-checkbox {
+    flex-direction: row; /* Align label and checkbox on the same line */
+    align-items: center; /* Vertically align items in the row */
+}
+
+.form-group-inline-checkbox label {
+    margin-bottom: 0; /* Remove default bottom margin if label is block */
+    margin-right: 10px; /* Space between label and checkbox */
+}
+
 /* Info Message Area Styling */
 #info-message-area {
     padding: 10px 15px;
