@@ -8,6 +8,7 @@
 </head>
 <body>
     <div class="container">
+        <div id="info-message-area" class="info-message" style="display: none;"></div> <!-- Added this line -->
         <div class="tabs">
             <button class="tab-link active" data-tab="display">Display</button>
             <button class="tab-link" data-tab="edit">Edit</button>
@@ -16,7 +17,6 @@
         </div>
 
         <div id="display" class="tab-content active">
-            <h2>Display Tasks</h2>
             <div id="display-task-list">
                 <!-- Tasks will be listed here -->
                 <p>No active tasks. Add some in the Edit tab!</p>
@@ -24,7 +24,6 @@
         </div>
 
         <div id="edit" class="tab-content">
-            <h2>Edit Tasks</h2>
             <div class="add-task-form">
                 <h3>Add New Task</h3>
                 <div class="form-group">
@@ -65,7 +64,6 @@
         </div>
 
         <div id="home" class="tab-content">
-            <h2>Home Tasks</h2>
             <div id="home-task-list">
                 <!-- Home tasks will be listed here -->
                 <p>No active home tasks.</p>
@@ -73,7 +71,6 @@
         </div>
 
         <div id="work" class="tab-content">
-            <h2>Work Tasks</h2>
             <div id="work-task-list">
                 <!-- Work tasks will be listed here -->
                 <p>No active work tasks.</p>

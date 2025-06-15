@@ -1,14 +1,16 @@
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
-    background-color: #e0e5ec; /* Neumorphic background */
+    background-color: #e0e5ec;
     color: #333;
-    width: 400px; /* Typical popup width */
-    padding: 10px;
+    width: 400px;
+    min-height: 450px; /* Ensure enough height for content */
+    padding: 0; /* Remove body padding if container has it */
 }
 
 .container {
-    padding: 15px;
+    padding: 20px; /* Uniform padding for the main content area */
+    height: 100%;
 }
 
 h1 {
@@ -85,6 +87,7 @@ h1 {
 
 .neumorphic-btn:active {
     box-shadow: inset 2px 2px 5px #babecc, inset -2px -2px 5px #ffffff;
+    transform: translateY(1px) translateX(1px); /* Slight press down effect */
 }
 
 /* Placeholder for h2 styling */
@@ -132,6 +135,14 @@ h2 {
     outline: none;
 }
 
+.neumorphic-input:focus,
+.neumorphic-select:focus {
+    box-shadow: inset 2px 2px 4px #babecc,
+                inset -2px -2px 4px #ffffff,
+                0 0 0 2px #d1d9e6; /* Subtle outer glow or border change */
+    outline: none; /* Ensure no default browser outline */
+}
+
 .neumorphic-input::placeholder {
     color: #888;
 }
@@ -161,16 +172,55 @@ h2 {
     transition: all 0.3s ease;
 }
 
+.task-item:hover {
+    background-color: #d9e0e8; /* Slightly lighter/different background */
+    /* Keep shadow subtle or unchanged on hover to avoid too much movement */
+}
+
 .task-item:last-child {
     margin-bottom: 0;
 }
 
-.task-item input[type="checkbox"] {
-    margin-right: 10px;
-    /* Basic styling for checkbox, can be enhanced with custom Neumorphic checkbox later */
-    min-width: 18px; /* Ensure checkbox doesn't shrink too much */
-    min-height: 18px;
+/* Custom Neumorphic Checkbox */
+.task-item input[type="checkbox"].task-complete-checkbox {
+    opacity: 0; /* Hide the original checkbox */
+    position: absolute; /* Take it out of flow */
+    width: 0;
+    height: 0;
+}
+
+.task-item .neumorphic-checkbox-label {
     cursor: pointer;
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    background-color: #ffffff; /* White background */
+    border-radius: 5px; /* Softly rounded corners */
+    box-shadow: 3px 3px 6px #babecc, -3px -3px 6px #ffffff; /* Outer shadow */
+    position: relative;
+    margin-right: 12px; /* Space it from the title */
+    transition: all 0.2s ease-in-out;
+}
+
+.task-item input[type="checkbox"].task-complete-checkbox:checked + .neumorphic-checkbox-label {
+    box-shadow: inset 2px 2px 4px #babecc, inset -2px -2px 4px #ffffff; /* Inner shadow for pressed state */
+    background-color: #ffffff; /* White background also when checked */
+}
+
+.task-item input[type="checkbox"].task-complete-checkbox:checked + .neumorphic-checkbox-label::after {
+    content: '\2713'; /* Checkmark character */
+    font-size: 14px;
+    color: #333; /* Checkmark color */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-weight: bold;
+}
+
+.task-item input[type="checkbox"].task-complete-checkbox:focus + .neumorphic-checkbox-label {
+    /* Optional: add a focus style if needed, e.g., a subtle outer ring */
+    /* box-shadow: 0 0 0 2px #007bff40, 3px 3px 6px #babecc, -3px -3px 6px #ffffff; */
 }
 
 .task-title {
@@ -188,10 +238,23 @@ h2 {
     text-decoration: underline;
 }
 
-.task-deadline-display {
-    font-size: 0.8em;
-    color: #777;
-    margin-left: 10px;
+.task-deadline-display { /* Base style, already exists but can be ensured */
+    font-size: 0.8em; /* Keep or adjust as needed */
+    /* color: #777; */ /* Base color will be overridden by specific states */
+    margin-left: 10px; /* Keep or adjust as needed */
+    font-weight: bold; /* Make deadline status more prominent */
+}
+
+.task-deadline-display.deadline-future {
+    color: #007bff; /* Blue for future tasks */
+}
+
+.task-deadline-display.deadline-today {
+    color: #e83e8c; /* Pink/Magenta for tasks due today */
+}
+
+.task-deadline-display.deadline-overdue {
+    color: #dc3545; /* Red for overdue tasks */
 }
 
 /* Priority Styling */
@@ -222,4 +285,132 @@ h2 {
     text-align: center;
     color: #777;
     margin-top: 20px;
+}
+
+/* Styling for completed tasks in the Edit tab */
+.task-item.task-completed-edit {
+    background-color: #d4edda; /* A light green background */
+    border-left-color: #28a745; /* A darker green for the existing priority border, or a new distinct border */
+}
+
+.task-item.task-completed-edit .task-title,
+.task-item.task-completed-edit .task-title a {
+    color: #155724; /* Darker green text for better readability */
+    text-decoration: line-through; /* Common styling for completed tasks */
+}
+
+/* Ensure priority border still has some effect or adjust as needed */
+.task-item.task-completed-edit.priority-CRITICAL {
+    border-left-color: #28a745; /* Override critical red with green if desired, or blend */
+}
+.task-item.task-completed-edit.priority-IMPORTANT {
+    border-left-color: #28a745; /* Override important yellow with green if desired, or blend */
+}
+.task-item.task-completed-edit.priority-SOMEDAY {
+    border-left-color: #28a745; /* Override someday purple with green if desired, or blend */
+}
+
+/* If you want to keep the original priority color visible alongside green,
+   you might need a more complex border or a right-border for completion status.
+   For simplicity, this example makes the left border green for completed tasks.
+   Alternatively, remove the border-left-color overrides above to keep priority color
+   and just rely on background and text strikethrough. */
+
+/* Inline Edit Form Styling */
+.task-item.editing-task-item {
+    /* Optional: slightly change background or border when in edit mode */
+    background-color: #f0f3f7;
+}
+
+.inline-edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px 0; /* Add some padding inside the task item */
+    width: 100%;
+}
+
+.form-group-inline {
+    display: flex;
+    flex-direction: column; /* Stack label and input */
+    gap: 5px;
+}
+
+.form-group-inline label {
+    font-size: 0.9em;
+    color: #555;
+    font-weight: normal;
+}
+
+.form-group-inline .neumorphic-input,
+.form-group-inline .neumorphic-select {
+    width: calc(100% - 22px); /* Match existing input style width */
+}
+
+.inline-edit-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    justify-content: flex-end; /* Align buttons to the right */
+}
+
+.inline-edit-actions .neumorphic-btn {
+    padding: 8px 12px;
+    font-size: 0.9em;
+}
+
+/* Hide original task content when .editing-task-item is active and form is shown */
+/* This is now handled by JS (setting display: none) */
+
+.form-group-inline-checkbox {
+    flex-direction: row; /* Align label and checkbox on the same line */
+    align-items: center; /* Vertically align items in the row */
+}
+
+.form-group-inline-checkbox label {
+    margin-bottom: 0; /* Remove default bottom margin if label is block */
+    margin-right: 10px; /* Space between label and checkbox */
+}
+
+/* Info Message Area Styling */
+#info-message-area {
+    padding: 10px 15px;
+    margin-bottom: 15px; /* Space between message and tabs */
+    border-radius: 8px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Subtle shadow for a bit of depth */
+    opacity: 0; /* Start hidden for fade-in effect */
+    max-height: 0; /* Start with no height for smooth transition */
+    overflow: hidden;
+    transition: opacity 0.5s ease-in-out, max-height 0.5s ease-in-out, padding 0.5s ease-in-out, margin-bottom 0.5s ease-in-out;
+    /* display: none; will be controlled by JS, opacity/max-height for transitions */
+}
+
+#info-message-area.visible {
+    opacity: 1;
+    max-height: 100px; /* Adjust as needed, should be enough for typical messages */
+    padding: 10px 15px; /* Restore padding when visible */
+    margin-bottom: 15px; /* Restore margin when visible */
+    /* display: block; will be handled by JS if needed, but opacity/max-height often enough */
+}
+
+/* Message Type Specific Styles */
+#info-message-area.success {
+    background-color: #d4edda; /* Light green for success (Bootstrap success color) */
+    color: #155724; /* Dark green text */
+    border: 1px solid #c3e6cb;
+}
+
+#info-message-area.error {
+    background-color: #f8d7da; /* Light red for error (Bootstrap danger color) */
+    color: #721c24; /* Dark red text */
+    border: 1px solid #f5c6cb;
+}
+
+#info-message-area.info {
+    background-color: #d1ecf1; /* Light blue for info (Bootstrap info color) */
+    color: #0c5460; /* Dark blue text */
+    border: 1px solid #bee5eb;
 }
