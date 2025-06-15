@@ -238,10 +238,23 @@ h2 {
     text-decoration: underline;
 }
 
-.task-deadline-display {
-    font-size: 0.8em;
-    color: #777;
-    margin-left: 10px;
+.task-deadline-display { /* Base style, already exists but can be ensured */
+    font-size: 0.8em; /* Keep or adjust as needed */
+    /* color: #777; */ /* Base color will be overridden by specific states */
+    margin-left: 10px; /* Keep or adjust as needed */
+    font-weight: bold; /* Make deadline status more prominent */
+}
+
+.task-deadline-display.deadline-future {
+    color: #007bff; /* Blue for future tasks */
+}
+
+.task-deadline-display.deadline-today {
+    color: #e83e8c; /* Pink/Magenta for tasks due today */
+}
+
+.task-deadline-display.deadline-overdue {
+    color: #dc3545; /* Red for overdue tasks */
 }
 
 /* Priority Styling */
