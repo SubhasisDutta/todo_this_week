@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Task Manager</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <div class="tabs">
+            <button class="tab-link active" data-tab="display">Display</button>
+            <button class="tab-link" data-tab="edit">Edit</button>
+            <button class="tab-link" data-tab="home">Home</button>
+            <button class="tab-link" data-tab="work">Work</button>
+        </div>
+
+        <div id="display" class="tab-content active">
+            <h2>Display Tasks</h2>
+            <div id="display-task-list">
+                <!-- Tasks will be listed here -->
+                <p>No active tasks. Add some in the Edit tab!</p>
+            </div>
+        </div>
+
+        <div id="edit" class="tab-content">
+            <h2>Edit Tasks</h2>
+            <div class="add-task-form">
+                <h3>Add New Task</h3>
+                <div class="form-group">
+                    <label for="task-title">Title:</label>
+                    <input type="text" id="task-title" class="neumorphic-input" placeholder="Enter task title">
+                </div>
+                <div class="form-group">
+                    <label for="task-url">URL (Optional):</label>
+                    <input type="url" id="task-url" class="neumorphic-input" placeholder="Enter URL">
+                </div>
+                <div class="form-group">
+                    <label for="task-priority">Priority:</label>
+                    <select id="task-priority" class="neumorphic-select">
+                        <option value="SOMEDAY">Someday</option>
+                        <option value="IMPORTANT">Important</option>
+                        <option value="CRITICAL">Critical</option>
+                    </select>
+                </div>
+                <div class="form-group" id="task-deadline-group" style="display: none;">
+                    <label for="task-deadline">Deadline (for Critical):</label>
+                    <input type="date" id="task-deadline" class="neumorphic-input">
+                </div>
+                <div class="form-group">
+                    <label for="task-type">Type:</label>
+                    <select id="task-type" class="neumorphic-select">
+                        <option value="home">Home</option>
+                        <option value="work">Work</option>
+                    </select>
+                </div>
+                <button id="add-task-btn" class="neumorphic-btn">Add Task</button>
+            </div>
+            <hr class="neumorphic-divider">
+            <h3>Current Tasks</h3>
+            <div id="edit-task-list">
+                <!-- Tasks will be listed here for editing/deleting -->
+                <p>No tasks yet. Add one above!</p>
+            </div>
+        </div>
+
+        <div id="home" class="tab-content">
+            <h2>Home Tasks</h2>
+            <div id="home-task-list">
+                <!-- Home tasks will be listed here -->
+                <p>No active home tasks.</p>
+            </div>
+        </div>
+
+        <div id="work" class="tab-content">
+            <h2>Work Tasks</h2>
+            <div id="work-task-list">
+                <!-- Work tasks will be listed here -->
+                <p>No active work tasks.</p>
+            </div>
+        </div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>
