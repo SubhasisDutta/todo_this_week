@@ -3,7 +3,7 @@ body {
     margin: 0;
     background-color: #e0e5ec;
     color: #333;
-    width: 400px;
+    width: 500px; /* Changed to 500px */
     min-height: 450px; /* Ensure enough height for content */
     padding: 0; /* Remove body padding if container has it */
 }
