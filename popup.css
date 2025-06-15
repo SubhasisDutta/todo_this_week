@@ -373,6 +373,46 @@ h2 {
 }
 
 /* Info Message Area Styling */
+
+/* Container for action buttons within a task item (Edit tab) */
+.task-item-actions {
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Common style for small action buttons in task list */
+.task-item .neumorphic-btn.move-task-up-btn,
+.task-item .neumorphic-btn.move-task-down-btn,
+.task-item .neumorphic-btn.edit-task-btn-list, /* Target edit button in list */
+.task-item .neumorphic-btn.delete-task-btn-list { /* Target delete button in list */
+    font-size: 0.9em;
+    padding: 4px 7px;
+    min-width: auto;
+    line-height: 1.2; /* Adjusted for better vertical centering of text/arrows */
+    margin-left: 5px; /* Default margin for all action buttons */
+}
+
+/* Specific first button margin (if actions container is first, or first button in it) */
+.task-item .neumorphic-btn.move-task-up-btn:first-child,
+.task-item .neumorphic-btn.edit-task-btn-list:first-child { /* If Edit is first due to no Up/Down */
+    /* margin-left: 10px; */ /* Provide more leading space if it's the start of all buttons */
+    /* Or ensure the parent of all buttons (taskItem) has padding on the right of text content */
+}
+
+
+/* Specific color for delete button if not already handled by its own class */
+.task-item .neumorphic-btn.delete-task-btn-list {
+    background-color: #e74c3c; /* Softer red */
+    color: white;
+}
+.task-item .neumorphic-btn.delete-task-btn-list:hover {
+    background-color: #c0392b;
+}
+.task-item .neumorphic-btn.delete-task-btn-list:active {
+    background-color: #a93226;
+    box-shadow: inset 2px 2px 5px #8c2a20, inset -2px -2px 5px #c84a3c;
+}
+
 #info-message-area {
     padding: 10px 15px;
     margin-bottom: 15px; /* Space between message and tabs */
