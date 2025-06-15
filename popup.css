@@ -194,7 +194,7 @@ h2 {
     display: inline-block;
     width: 20px;
     height: 20px;
-    background-color: #e0e5ec; /* Neumorphic background */
+    background-color: #ffffff; /* White background */
     border-radius: 5px; /* Softly rounded corners */
     box-shadow: 3px 3px 6px #babecc, -3px -3px 6px #ffffff; /* Outer shadow */
     position: relative;
@@ -204,7 +204,7 @@ h2 {
 
 .task-item input[type="checkbox"].task-complete-checkbox:checked + .neumorphic-checkbox-label {
     box-shadow: inset 2px 2px 4px #babecc, inset -2px -2px 4px #ffffff; /* Inner shadow for pressed state */
-    background-color: #cad2d9; /* Slightly different background when checked */
+    background-color: #ffffff; /* White background also when checked */
 }
 
 .task-item input[type="checkbox"].task-complete-checkbox:checked + .neumorphic-checkbox-label::after {
