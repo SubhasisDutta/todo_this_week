@@ -482,3 +482,54 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
     display: block;
     margin-bottom: 5px;
 }
+
+/* Styles for three-column layout in manager.html */
+.manager-page .tasks-display-area {
+    display: flex;
+    justify-content: space-between; /* Distribute space between columns */
+    gap: 20px; /* Space between columns */
+    margin-top: 20px;
+}
+
+.manager-page .priority-column {
+    flex: 1; /* Each column takes equal width */
+    min-width: 0; /* Allows columns to shrink if needed */
+    /* background-color: #f0f0f0; /* Optional: background for columns */
+    /* border: 1px solid #ccc; /* Optional: border for columns */
+    /* border-radius: 8px; /* Optional: rounded corners for columns */
+    /* padding: 10px; /* Optional: padding within columns */
+}
+
+.manager-page .priority-column h3 {
+    text-align: center;
+    margin-bottom: 10px;
+    color: #333;
+    font-size: 1.2em;
+}
+
+.manager-page .priority-column .task-list {
+    /* The .task-list already has some styling like neumorphic-inset-card */
+    /* Ensure it behaves well within a flex column */
+    min-height: 200px; /* Minimum height for empty lists */
+    /* max-height will be naturally handled by content or could be set if scrolling per column is desired */
+}
+
+/* Ensure task items themselves are styled as before */
+.manager-page .task-item {
+    /* Existing task-item styles from popup.css should apply */
+    /* Add any specific overrides for manager page if needed */
+    margin-bottom: 10px; /* Ensure spacing between tasks in columns */
+}
+
+/* Responsive adjustments for smaller screens if columns become too narrow */
+@media (max-width: 768px) {
+    .manager-page .tasks-display-area {
+        flex-direction: column; /* Stack columns vertically on smaller screens */
+        gap: 30px; /* Adjust gap for vertical stacking */
+    }
+
+    .manager-page .priority-column {
+        flex: none; /* Reset flex behavior for vertical stacking */
+        width: 100%; /* Each column takes full width when stacked */
+    }
+}

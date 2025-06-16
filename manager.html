@@ -44,10 +44,25 @@
             <button id="add-task-btn" class="neumorphic-btn">Add Task</button>
         </div>
 
-        <h2>Edit Tasks</h2>
-        <div id="edit-task-list" class="task-list neumorphic-inset-card">
-            <!-- Tasks will be rendered here by manager.js -->
-            <p>Loading tasks...</p>
+        <div class="tasks-display-area">
+            <div class="priority-column">
+                <h3>Critical</h3>
+                <div id="critical-tasks-list" class="task-list neumorphic-inset-card">
+                    <!-- Critical tasks will be rendered here -->
+                </div>
+            </div>
+            <div class="priority-column">
+                <h3>Important</h3>
+                <div id="important-tasks-list" class="task-list neumorphic-inset-card">
+                    <!-- Important tasks will be rendered here -->
+                </div>
+            </div>
+            <div class="priority-column">
+                <h3>Someday</h3>
+                <div id="someday-tasks-list" class="task-list neumorphic-inset-card">
+                    <!-- Someday tasks will be rendered here -->
+                </div>
+            </div>
         </div>
     </div>
 
