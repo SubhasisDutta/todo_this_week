@@ -3,7 +3,11 @@
   "name": "Weekly Task Manager",
   "version": "0.1.0",
   "description": "A simple extension to manage your weekly tasks.",
-  "permissions": ["storage", "tabs"],
+  "permissions": ["storage", "tabs", "identity"],
+  "oauth2": {
+    "client_id": "YOUR_CLIENT_ID", // TODO: Replace with your actual client ID
+    "scopes": ["https://www.googleapis.com/auth/spreadsheets"]
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -16,5 +20,8 @@
     "16": "images/icon16.png",
     "48": "images/icon48.png",
     "128": "images/icon128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src https://accounts.google.com/*;"
   }
 }

@@ -78,6 +78,10 @@ async function addNewTask(title, url, priority, deadline, type) {
 
             saveTasks(tasks, (success) => {
                 if (success) {
+                    if (typeof window.syncNewTaskToSheet === 'function' && window.USER_HAS_AUTHORIZED && window.googleSheetId) {
+                        console.log("Attempting to sync new task to sheet from task_utils.js");
+                        window.syncNewTaskToSheet(newTask).catch(err => console.error("Sheet sync for new task failed:", err));
+                    }
                     resolve(newTask);
                 } else {
                     resolve(null); // Indicate failure
@@ -102,8 +106,21 @@ async function updateTask(updatedTask) {
         getTasks(tasks => {
             const taskIndex = tasks.findIndex(task => task.id === updatedTask.id);
             if (taskIndex > -1) {
+                const originalTaskData = { ...tasks[taskIndex] }; // Capture original for potential rollback or detailed logging
                 tasks[taskIndex] = updatedTask;
-                saveTasks(tasks, (success) => resolve(success)); // Pass boolean success
+                saveTasks(tasks, (success) => {
+                    if (success) {
+                        if (typeof window.syncUpdatedTaskToSheet === 'function' && window.USER_HAS_AUTHORIZED && window.googleSheetId) {
+                            console.log("Attempting to sync updated task to sheet from task_utils.js");
+                            window.syncUpdatedTaskToSheet(updatedTask).catch(err => console.error("Sheet sync for updated task failed:", err));
+                        }
+                    } else {
+                        // If save failed, consider reverting tasks[taskIndex] to originalTaskData if necessary,
+                        // though current structure doesn't easily support it without re-fetch or more complex state.
+                        console.error("Local save failed for updated task. Sheet sync will not be attempted.");
+                    }
+                    resolve(success);
+                });
             } else {
                 resolve(false); // Task not found
             }
@@ -115,17 +132,21 @@ async function updateTask(updatedTask) {
 async function deleteTask(taskId) {
     return new Promise((resolve) => {
         getTasks(tasks => {
-            const initialTaskCount = tasks.length;
-            const filteredTasks = tasks.filter(task => task.id !== taskId);
-
-            if (filteredTasks.length === initialTaskCount) {
+            const taskToDelete = tasks.find(task => task.id === taskId);
+            if (!taskToDelete) {
                 console.warn(`Task with ID ${taskId} not found for deletion.`);
-                resolve(false); // Indicate task not found or no change
+                resolve(false); // Indicate task not found
                 return;
             }
 
+            const filteredTasks = tasks.filter(task => task.id !== taskId);
+
             saveTasks(filteredTasks, (success) => {
                 if (success) {
+                    if (typeof window.syncDeletedTaskToSheet === 'function' && window.USER_HAS_AUTHORIZED && window.googleSheetId) {
+                        console.log("Attempting to sync deleted task to sheet from task_utils.js");
+                        window.syncDeletedTaskToSheet(taskToDelete).catch(err => console.error("Sheet sync for deleted task failed:", err));
+                    }
                     resolve(true);
                 } else {
                     resolve(false); // Indicate failure

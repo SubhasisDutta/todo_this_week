@@ -5,12 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Task Manager - Full View</title>
     <link rel="stylesheet" href="popup.css">
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoadedCallback()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoadedCallback()"></script>
 </head>
 <body class="manager-page">
     <div class="container">
         <h1>Task Manager - All Tasks</h1>
 
         <div id="info-message-area" class="info-message" style="display: none;"></div>
+
+        <div class="google-sheet-container neumorphic-card">
+            <h2>Google Sheets Integration</h2>
+            <div class="form-group">
+                <label for="sheet-url">Google Sheet Link/ID:</label>
+                <input type="text" id="sheet-url" class="neumorphic-input" placeholder="Paste Google Sheet Link or ID here">
+            </div>
+            <button id="connect-sheet-btn" class="neumorphic-btn">Connect to Google Sheet</button>
+            <button id="disconnect-sheet-btn" class="neumorphic-btn" style="display:none;">Disconnect from Sheet</button>
+            <button id="export-to-sheet-btn" class="neumorphic-btn" style="display:none;">Export Tasks to Sheet</button>
+            <button id="import-from-sheet-btn" class="neumorphic-btn" style="display:none;">Import Tasks from Sheet</button>
+            <div id="sheet-status" class="info-message">Not Connected</div>
+        </div>
 
         <div class="task-form-container neumorphic-card">
             <h2>Add New Task</h2>
@@ -67,6 +82,7 @@
     </div>
 
     <script src="task_utils.js"></script> <!-- To be created -->
+    <script src="sheets_utils.js"></script>
     <script src="manager.js"></script>   <!-- To be created -->
 </body>
 </html>
