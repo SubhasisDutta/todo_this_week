@@ -446,7 +446,7 @@ function setupManagerEventListeners() {
         else if (moveDownBtn) { taskId = moveDownBtn.getAttribute('data-task-id'); direction = 'down'; }
 
         if (taskId && direction) {
-            const currentlyEditing = editTaskListContainer.querySelector('.editing-task-item');
+            const currentlyEditing = tasksDisplayArea.querySelector('.editing-task-item'); // Check within the whole area
             if (currentlyEditing) {
                 showInfoMessage("Please save or cancel current edit before reordering.", "info", 3000, document);
                 return;
@@ -457,32 +457,45 @@ function setupManagerEventListeners() {
 }
 
 async function handleManagerMoveTask(taskId, direction) {
-    getTasks(tasks => {
-        const sortedTasks = [...tasks].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-        const taskIndex = sortedTasks.findIndex(t => t.id === taskId);
+    getTasks(allTasks => { // Changed 'tasks' to 'allTasks' for clarity
+        const taskToMove = allTasks.find(t => t.id === taskId);
+        if (!taskToMove) {
+            showInfoMessage("Error: Task to move not found.", "error", 3000, document);
+            return;
+        }
+        const currentPriority = taskToMove.priority;
+        const sortedSamePriorityTasks = allTasks
+            .filter(t => t.priority === currentPriority)
+            .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
 
-        if (taskIndex === -1) {
-            showInfoMessage("Error: Task not found.", "error", 3000, document); return;
+        const currentIndexInLane = sortedSamePriorityTasks.findIndex(t => t.id === taskId);
+
+        let targetIndexInLane = -1;
+        if (direction === 'up' && currentIndexInLane > 0) {
+            targetIndexInLane = currentIndexInLane - 1;
+        } else if (direction === 'down' && currentIndexInLane < sortedSamePriorityTasks.length - 1) {
+            targetIndexInLane = currentIndexInLane + 1;
+        } else {
+            console.warn("Cannot move task further in this direction or invalid index.");
+            return; // Cannot move
         }
 
-        let otherTaskIndex = -1;
-        if (direction === 'up' && taskIndex > 0) otherTaskIndex = taskIndex - 1;
-        else if (direction === 'down' && taskIndex < sortedTasks.length - 1) otherTaskIndex = taskIndex + 1;
-        else return; // Cannot move further
+        const taskToSwapWithId = sortedSamePriorityTasks[targetIndexInLane].id;
+        // Find the actual task objects from the main allTasks array to modify them
+        const originalTaskToMove = allTasks.find(t => t.id === taskToMove.id); // Already have taskToMove, but ensure it's from allTasks
+        const taskToSwapWith = allTasks.find(t => t.id === taskToSwapWithId);
 
-        const taskToMove = tasks.find(t => t.id === sortedTasks[taskIndex].id);
-        const taskToSwapWith = tasks.find(t => t.id === sortedTasks[otherTaskIndex].id);
-
-        if (!taskToMove || !taskToSwapWith) {
-            showInfoMessage("Error finding tasks to swap.", "error", 3000, document); return;
+        if (!originalTaskToMove || !taskToSwapWith) {
+            showInfoMessage("Error finding tasks to swap in the main list.", "error", 3000, document);
+            return;
         }
 
         // Swap displayOrder
-        const tempDisplayOrder = taskToMove.displayOrder;
-        taskToMove.displayOrder = taskToSwapWith.displayOrder;
+        const tempDisplayOrder = originalTaskToMove.displayOrder;
+        originalTaskToMove.displayOrder = taskToSwapWith.displayOrder;
         taskToSwapWith.displayOrder = tempDisplayOrder;
 
-        saveTasks(tasks, (success, errorMsg) => {
+        saveTasks(allTasks, (success, errorMsg) => {
             if (success) {
                 showInfoMessage(`Task moved ${direction}.`, "success", 3000, document);
             } else {
