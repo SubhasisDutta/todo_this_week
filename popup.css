@@ -489,6 +489,7 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
     justify-content: space-between; /* Distribute space between columns */
     gap: 20px; /* Space between columns */
     margin-top: 20px;
+    width: 1560px;
 }
 
 .manager-page .priority-column {
