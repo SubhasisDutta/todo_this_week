@@ -888,9 +888,9 @@ document.addEventListener('DOMContentLoaded', function() {
     setupDisplayTabDragAndDropListeners();
     setupMoveTaskButtonListeners();
 
-    let finalLogMessage = "Task Manager Loaded. All listeners set up.";
+    let finalLogMessage = "Task Manager Loaded. Listeners initialized.";
     if (typeof setupMoveTaskButtonListeners === 'function') {
-        finalLogMessage = "Task Manager Loaded. All listeners including Move Task buttons set up.";
+        finalLogMessage = "Task Manager Loaded. Move Task listeners also initialized.";
     }
     console.log(finalLogMessage);
 });
