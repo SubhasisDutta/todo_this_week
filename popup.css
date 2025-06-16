@@ -454,3 +454,31 @@ h2 {
     color: #0c5460; /* Dark blue text */
     border: 1px solid #bee5eb;
 }
+
+/* Styles moved from manager.html */
+body.manager-page { /* Assuming we can add class="manager-page" to body in manager.html */
+    padding: 20px;
+    font-size: 16px;
+}
+.manager-page .container { /* Scope container within manager-page */
+    width: 80%;
+    max-width: 900px;
+    margin: 0 auto;
+}
+.manager-page #edit-task-list { /* Scope edit-task-list */
+    max-height: none;
+}
+.manager-page .task-form-container { /* Scope task-form-container */
+    margin-bottom: 30px;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+}
+.manager-page .form-group { /* Scope form-group */
+    margin-bottom: 15px;
+}
+.manager-page .form-group label { /* Scope form-group label */
+    display: block;
+    margin-bottom: 5px;
+}

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager - Full View</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body class="manager-page">
+    <div class="container">
+        <h1>Task Manager - All Tasks</h1>
+
+        <div id="info-message-area" class="info-message" style="display: none;"></div>
+
+        <div class="task-form-container neumorphic-card">
+            <h2>Add New Task</h2>
+            <div class="form-group">
+                <label for="task-title">Task Title:</label>
+                <input type="text" id="task-title" class="neumorphic-input" placeholder="Enter task title">
+            </div>
+            <div class="form-group">
+                <label for="task-url">Task URL (Optional):</label>
+                <input type="url" id="task-url" class="neumorphic-input" placeholder="http://example.com">
+            </div>
+            <div class="form-group">
+                <label for="task-priority">Priority:</label>
+                <select id="task-priority" class="neumorphic-select">
+                    <option value="SOMEDAY">Someday</option>
+                    <option value="IMPORTANT">Important</option>
+                    <option value="CRITICAL">Critical</option>
+                </select>
+            </div>
+            <div class="form-group" id="task-deadline-group" style="display: none;">
+                <label for="task-deadline">Deadline (for Critical tasks):</label>
+                <input type="date" id="task-deadline" class="neumorphic-input">
+            </div>
+            <div class="form-group">
+                <label for="task-type">Type:</label>
+                <select id="task-type" class="neumorphic-select">
+                    <option value="home">Home</option>
+                    <option value="work">Work</option>
+                </select>
+            </div>
+            <button id="add-task-btn" class="neumorphic-btn">Add Task</button>
+        </div>
+
+        <h2>Edit Tasks</h2>
+        <div id="edit-task-list" class="task-list neumorphic-inset-card">
+            <!-- Tasks will be rendered here by manager.js -->
+            <p>Loading tasks...</p>
+        </div>
+    </div>
+
+    <script src="task_utils.js"></script> <!-- To be created -->
+    <script src="manager.js"></script>   <!-- To be created -->
+</body>
+</html>

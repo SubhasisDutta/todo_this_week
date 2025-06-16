@@ -1,181 +1,5 @@
 // popup.js
 
-// --- Task Data Structure and Storage ---
-
-// Define the Task class (or a factory function if preferred)
-class Task {
-    constructor(id, title, url = '', priority = 'SOMEDAY', completed = false, deadline = null, type = 'home', displayOrder = 0) { // Added displayOrder
-        this.id = id || `task_${new Date().getTime()}_${Math.random().toString(36).substr(2, 9)}`;
-        this.title = title;
-        this.url = url;
-        this.priority = priority;
-        this.completed = completed;
-        this.deadline = deadline;
-        this.type = type;
-        this.displayOrder = displayOrder; // New property
-    }
-}
-
-// Function to get all tasks from storage
-function getTasks(callback) {
-    chrome.storage.local.get({ tasks: [] }, (result) => {
-        if (chrome.runtime.lastError) {
-            console.error("Error getting tasks:", chrome.runtime.lastError.message || chrome.runtime.lastError);
-            callback([]);
-        } else {
-            let needsSave = false;
-            const tasks = result.tasks.map((taskData, index) => {
-                if (typeof taskData.displayOrder === 'undefined') {
-                    taskData.displayOrder = index; // Assign based on current array order
-                    needsSave = true;
-                }
-                // Ensure tasks are instances of Task or have the full structure
-                return Object.assign(new Task(taskData.id, ''), taskData);
-            });
-
-            if (needsSave) {
-                // Save tasks back to storage if any displayOrder was backfilled
-                // This is an auto-migration step.
-                saveTasks(tasks, (success) => {
-                    if (!success) console.error("Failed to save tasks after backfilling displayOrder.");
-                    // Proceed with callback regardless of this save's success for now,
-                    // or handle more gracefully.
-                    callback(tasks);
-                });
-            } else {
-                callback(tasks);
-            }
-        }
-    });
-}
-
-// Function to save all tasks to storage
-function saveTasks(tasks, callback) {
-    chrome.storage.local.set({ tasks: tasks }, () => {
-        if (chrome.runtime.lastError) {
-            console.error("Error saving tasks:", chrome.runtime.lastError.message || chrome.runtime.lastError); // Log error message
-            if (callback) callback(false, chrome.runtime.lastError.message);
-        } else {
-            console.log("Tasks saved successfully.");
-            if (callback) callback(true);
-        }
-    });
-}
-
-// Example of adding a new task (will be used later)
-async function addNewTask(title, url, priority, deadline, type) {
-    return new Promise((resolve) => {
-        getTasks(tasks => {
-            // Assign displayOrder relative to the task's C/I/S priority group
-            const tasksInSamePriorityGroup = tasks.filter(task => task.priority === priority);
-            let newDisplayOrder = 0;
-            if (tasksInSamePriorityGroup.length > 0) {
-                newDisplayOrder = Math.max(...tasksInSamePriorityGroup.map(t => t.displayOrder || 0)) + 1;
-            }
-
-            const newTask = new Task(null, title, url, priority, false, deadline, type, newDisplayOrder);
-            tasks.push(newTask);
-
-            saveTasks(tasks, (success) => {
-                if (success) {
-                    resolve(newTask);
-                } else {
-                    resolve(null);
-                }
-            });
-        });
-    });
-}
-
-// Example of getting a task by ID (will be used later)
-async function getTaskById(taskId) {
-    return new Promise((resolve) => {
-        getTasks(tasks => {
-            resolve(tasks.find(task => task.id === taskId));
-        });
-    });
-}
-
-// Example of updating a task (will be used later)
-async function updateTask(updatedTask) {
-    return new Promise((resolve) => {
-        getTasks(tasks => {
-            const taskIndex = tasks.findIndex(task => task.id === updatedTask.id);
-            if (taskIndex > -1) {
-                tasks[taskIndex] = updatedTask;
-                saveTasks(tasks, () => resolve(true));
-            } else {
-                resolve(false); // Task not found
-            }
-        });
-    });
-}
-
-// Example of deleting a task (will be used later)
-async function deleteTask(taskId) {
-    return new Promise((resolve) => {
-        getTasks(tasks => {
-            const initialTaskCount = tasks.length;
-            const filteredTasks = tasks.filter(task => task.id !== taskId);
-
-            if (filteredTasks.length === initialTaskCount) {
-                console.warn(`Task with ID ${taskId} not found for deletion.`);
-                resolve(false);
-                return;
-            }
-
-            saveTasks(filteredTasks, (success, error) => {
-                if (success) {
-                    resolve(true);
-                } else {
-                    console.error(`Failed to save after deleting task ${taskId}. Error: ${error}`);
-                    resolve(false);
-                }
-            });
-        });
-    });
-}
-
-// --- End of Task Data Structure and Storage ---
-
-// --- Info Message Functionality ---
-let infoMessageTimeout = null;
-
-function showInfoMessage(message, type = 'info', duration = 3000) {
-    const messageArea = document.getElementById('info-message-area');
-    if (!messageArea) {
-        console.error("Info message area not found!");
-        alert(message);
-        return;
-    }
-
-    if (infoMessageTimeout) {
-        clearTimeout(infoMessageTimeout);
-    }
-
-    messageArea.textContent = message;
-    messageArea.classList.remove('success', 'error', 'info');
-    messageArea.classList.add(type);
-
-    messageArea.style.display = 'block';
-    requestAnimationFrame(() => {
-        messageArea.classList.add('visible');
-    });
-
-    infoMessageTimeout = setTimeout(() => {
-        messageArea.classList.remove('visible');
-        setTimeout(() => {
-            if (!messageArea.classList.contains('visible')) {
-                 messageArea.style.display = 'none';
-                 messageArea.textContent = '';
-                 messageArea.classList.remove(type);
-            }
-        }, 500);
-        infoMessageTimeout = null;
-    }, duration);
-}
-// --- End of Info Message Functionality ---
-
 // --- Task Rendering Functions ---
 
 function renderTasks(tabName = 'display') {
@@ -421,7 +245,7 @@ function setupTaskDeletionListener() {
                 renderTasks('home');
                 renderTasks('work');
             } else {
-                showInfoMessage(`Failed to delete task ${taskId}.`, "error");
+                showInfoMessage(`Failed to delete task ${taskId}.`, "error", 3000, document);
             }
         }
     });
@@ -521,8 +345,8 @@ function setupInlineTaskEditingListeners() {
             let newDeadline = editForm.querySelector('.edit-task-deadline').value;
             const newType = editForm.querySelector('.edit-task-type').value;
             const newCompleted = editForm.querySelector('.edit-task-completed').checked;
-            if (!newTitle) { showInfoMessage("Task title cannot be empty.", "error"); return; }
-            if (newPriority === 'CRITICAL' && !newDeadline) { showInfoMessage("Deadline is required for CRITICAL tasks.", "error"); return; }
+            if (!newTitle) { showInfoMessage("Task title cannot be empty.", "error", 3000, document); return; }
+            if (newPriority === 'CRITICAL' && !newDeadline) { showInfoMessage("Deadline is required for CRITICAL tasks.", "error", 3000, document); return; }
             if (newPriority !== 'CRITICAL') newDeadline = null;
             const updatedTask = { ...originalTaskDataBeforeEdit, title: newTitle, url: newUrl, priority: newPriority, deadline: newDeadline, type: newType, completed: newCompleted };
             const success = await updateTask(updatedTask);
@@ -541,9 +365,9 @@ function setupInlineTaskEditingListeners() {
                 if(existingActionsContainer) existingActionsContainer.style.display = '';
                 originalTaskDataBeforeEdit = null;
                 renderTasks('edit'); renderTasks('display'); renderTasks('home'); renderTasks('work');
-                showInfoMessage("Task updated successfully!", "success");
+                showInfoMessage("Task updated successfully!", "success", 3000, document);
             } else {
-                showInfoMessage("Failed to update task. Please try again.", "error");
+                showInfoMessage("Failed to update task. Please try again.", "error", 3000, document);
             }
         }
     });
@@ -585,7 +409,7 @@ function setupDisplayTabDragAndDropListeners() {
                 draggedTaskElementDisplay = null; return;
             }
             if (draggedTask.priority !== targetTask.priority) {
-                showInfoMessage("Tasks can only be reordered within the same priority group.", "error");
+                showInfoMessage("Tasks can only be reordered within the same priority group.", "error", 3000, document);
                 draggedTaskElementDisplay = null; return;
             }
             const taskElements = Array.from(displayTaskListContainer.children).filter(el => el.classList.contains('task-item'));
@@ -611,10 +435,10 @@ function setupDisplayTabDragAndDropListeners() {
             if (displayOrderChanged) {
                 saveTasks(tasks, (success) => {
                     if (success) {
-                        showInfoMessage("Task order updated.", "success");
+                        showInfoMessage("Task order updated.", "success", 3000, document);
                         renderTasks('display'); renderTasks('edit'); renderTasks('home'); renderTasks('work');
                     } else {
-                        showInfoMessage("Failed to save new task order.", "error");
+                        showInfoMessage("Failed to save new task order.", "error", 3000, document);
                         renderTasks('display');
                     }
                 });
@@ -680,10 +504,10 @@ function setupDragAndDropListeners() {
             if (displayOrderChanged) {
                 saveTasks(tasks, (success) => {
                     if (success) {
-                        showInfoMessage("Task order updated.", "success");
+                        showInfoMessage("Task order updated.", "success", 3000, document);
                         renderTasks('edit'); renderTasks('display'); renderTasks('home'); renderTasks('work');
                     } else {
-                        showInfoMessage("Failed to save new task order.", "error");
+                        showInfoMessage("Failed to save new task order.", "error", 3000, document);
                         renderTasks('edit');
                     }
                 });
@@ -728,7 +552,7 @@ function setupMoveTaskButtonListeners() {
         if (taskId && direction) {
             const currentlyEditing = editTaskListContainer.querySelector('.editing-task-item');
             if (currentlyEditing) {
-                showInfoMessage("Please save or cancel the current task edit before reordering.", "info");
+                showInfoMessage("Please save or cancel the current task edit before reordering.", "info", 3000, document);
                 return;
             }
             await handleMoveTask(taskId, direction);
@@ -739,7 +563,7 @@ function setupMoveTaskButtonListeners() {
 async function handleMoveTask(taskId, direction) {
     if (!taskId || !direction) {
         console.error("Task ID or direction missing for handleMoveTask.");
-        showInfoMessage("Cannot move task: ID or direction missing.", "error"); // User feedback
+        showInfoMessage("Cannot move task: ID or direction missing.", "error", 3000, document); // User feedback
         return;
     }
 
@@ -748,7 +572,7 @@ async function handleMoveTask(taskId, direction) {
         const taskIndex = sortedTasks.findIndex(t => t.id === taskId);
 
         if (taskIndex === -1) {
-            showInfoMessage("Error: Task not found for moving.", "error");
+            showInfoMessage("Error: Task not found for moving.", "error", 3000, document);
             return;
         }
 
@@ -778,7 +602,7 @@ async function handleMoveTask(taskId, direction) {
         const taskToSwapWith = tasks.find(t => t.id === sortedTasks[otherTaskIndex].id);
 
         if (!taskToMove || !taskToSwapWith) {
-            showInfoMessage("Error finding tasks to swap. Please try again.", "error");
+            showInfoMessage("Error finding tasks to swap. Please try again.", "error", 3000, document);
             console.error("Critical Error: taskToMove or taskToSwapWith not found in original tasks array during move operation.");
             return;
         }
@@ -789,13 +613,13 @@ async function handleMoveTask(taskId, direction) {
 
         saveTasks(tasks, (success, errorMsg) => {
             if (success) {
-                showInfoMessage(`Task moved ${direction}.`, "success");
+                showInfoMessage(`Task moved ${direction}.`, "success", 3000, document);
                 renderTasks('edit');
                 renderTasks('display');
                 renderTasks('home');
                 renderTasks('work');
             } else {
-                showInfoMessage(`Failed to save new task order: ${errorMsg || 'Unknown error'}`, "error");
+                showInfoMessage(`Failed to save new task order: ${errorMsg || 'Unknown error'}`, "error", 3000, document);
                 // Revert in-memory change to maintain consistency with storage
                 taskToMove.displayOrder = tempDisplayOrder;
                 taskToSwapWith.displayOrder = taskToMove.displayOrder; // This was the original value of taskToSwapWith before it got tempDisplayOrder
@@ -863,11 +687,11 @@ document.addEventListener('DOMContentLoaded', function() {
         let deadline = taskDeadlineInput.value;
 
         if (!title) {
-            showInfoMessage("Task title is required.", "error");
+            showInfoMessage("Task title is required.", "error", 3000, document);
             return;
         }
         if (priority === 'CRITICAL' && !deadline) {
-            showInfoMessage("Deadline is required for CRITICAL tasks.", "error");
+            showInfoMessage("Deadline is required for CRITICAL tasks.", "error", 3000, document);
             return;
         }
         if (priority !== 'CRITICAL') deadline = null;
@@ -880,10 +704,10 @@ document.addEventListener('DOMContentLoaded', function() {
             taskDeadlineInput.value = '';
             taskTypeInput.value = 'home';
             taskDeadlineGroup.style.display = 'none';
-            showInfoMessage("Task added successfully!", "success");
+            showInfoMessage("Task added successfully!", "success", 3000, document);
             renderTasks('display'); renderTasks('edit'); renderTasks('home'); renderTasks('work');
         } else {
-            showInfoMessage("Failed to add task. Please try again.", "error");
+            showInfoMessage("Failed to add task. Please try again.", "error", 3000, document);
         }
     });
 
@@ -896,6 +720,13 @@ document.addEventListener('DOMContentLoaded', function() {
     setupDragAndDropListeners();
     setupDisplayTabDragAndDropListeners();
     setupMoveTaskButtonListeners();
+
+    const openManagerBtn = document.getElementById('open-manager-btn');
+    if (openManagerBtn) {
+        openManagerBtn.addEventListener('click', () => {
+            chrome.tabs.create({ url: chrome.runtime.getURL('manager.html') });
+        });
+    }
 
     let finalLogMessage = "Task Manager Loaded. Listeners initialized.";
     if (typeof setupMoveTaskButtonListeners === 'function') {
