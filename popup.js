@@ -20,7 +20,7 @@ class Task {
 function getTasks(callback) {
     chrome.storage.local.get({ tasks: [] }, (result) => {
         if (chrome.runtime.lastError) {
-            console.error("Error getting tasks:", chrome.runtime.lastError.message);
+            console.error("Error getting tasks:", chrome.runtime.lastError.message || chrome.runtime.lastError);
             callback([]);
         } else {
             let needsSave = false;
@@ -53,7 +53,7 @@ function getTasks(callback) {
 function saveTasks(tasks, callback) {
     chrome.storage.local.set({ tasks: tasks }, () => {
         if (chrome.runtime.lastError) {
-            console.error("Error saving tasks:", chrome.runtime.lastError.message); // Log error message
+            console.error("Error saving tasks:", chrome.runtime.lastError.message || chrome.runtime.lastError); // Log error message
             if (callback) callback(false, chrome.runtime.lastError.message);
         } else {
             console.log("Tasks saved successfully.");
@@ -246,12 +246,14 @@ function renderTasks(tabName = 'display') {
             checkbox.classList.add('task-complete-checkbox');
             const checkboxId = `checkbox-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}`;
             checkbox.id = checkboxId;
+            console.log('Appending to taskItem:', taskItem, 'Child checkbox:', checkbox);
             taskItem.appendChild(checkbox);
 
             if (tabName !== 'edit') {
                 const checkboxLabel = document.createElement('label');
                 checkboxLabel.classList.add('neumorphic-checkbox-label');
                 checkboxLabel.setAttribute('for', checkboxId);
+                console.log('Appending to taskItem:', taskItem, 'Child checkboxLabel:', checkboxLabel);
                 taskItem.appendChild(checkboxLabel);
             } else {
                 checkbox.style.display = 'none';
@@ -264,10 +266,12 @@ function renderTasks(tabName = 'display') {
                 link.href = task.url;
                 link.textContent = task.title;
                 link.target = '_blank';
+                console.log('Appending to titleSpan:', titleSpan, 'Child link:', link);
                 titleSpan.appendChild(link);
             } else {
                 titleSpan.textContent = task.title;
             }
+            console.log('Appending to taskItem:', taskItem, 'Child titleSpan:', titleSpan);
             taskItem.appendChild(titleSpan);
 
             if (task.priority === 'CRITICAL' && task.deadline) {
@@ -304,6 +308,7 @@ function renderTasks(tabName = 'display') {
                 if (deadlineClass) {
                     deadlineSpan.classList.add(deadlineClass);
                 }
+                console.log('Appending to taskItem:', taskItem, 'Child deadlineSpan:', deadlineSpan);
                 taskItem.appendChild(deadlineSpan);
             }
 
@@ -318,6 +323,7 @@ function renderTasks(tabName = 'display') {
                     moveUpButton.innerHTML = '&uarr;';
                     moveUpButton.classList.add('neumorphic-btn', 'move-task-up-btn');
                     moveUpButton.setAttribute('data-task-id', task.id);
+                    console.log('Appending to buttonContainer:', buttonContainer, 'Child moveUpButton:', moveUpButton);
                     buttonContainer.appendChild(moveUpButton);
                 }
 
@@ -326,6 +332,7 @@ function renderTasks(tabName = 'display') {
                     moveDownButton.innerHTML = '&darr;';
                     moveDownButton.classList.add('neumorphic-btn', 'move-task-down-btn');
                     moveDownButton.setAttribute('data-task-id', task.id);
+                    console.log('Appending to buttonContainer:', buttonContainer, 'Child moveDownButton:', moveDownButton);
                     buttonContainer.appendChild(moveDownButton);
                 }
 
@@ -339,8 +346,11 @@ function renderTasks(tabName = 'display') {
                 deleteButton.classList.add('neumorphic-btn', 'delete-task-btn-list');
                 deleteButton.setAttribute('data-task-id', task.id);
 
+                console.log('Appending to taskItem:', taskItem, 'Child buttonContainer:', buttonContainer);
                 taskItem.appendChild(buttonContainer);
+                console.log('Appending to taskItem:', taskItem, 'Child editButton:', editButton);
                 taskItem.appendChild(editButton);
+                console.log('Appending to taskItem:', taskItem, 'Child deleteButton:', deleteButton);
                 taskItem.appendChild(deleteButton);
 
                 if (task.completed) {
@@ -349,6 +359,7 @@ function renderTasks(tabName = 'display') {
             } else if (tabName === 'display') {
                 taskItem.setAttribute('draggable', 'true');
             }
+            console.log('Appending to taskListElement:', taskListElement, 'Child taskItem:', taskItem);
             taskListElement.appendChild(taskItem);
         });
     });
@@ -804,8 +815,6 @@ async function handleMoveTask(taskId, direction) {
                 console.log("Save failed. Reverted displayOrder in memory. Re-rendering.");
                 renderTasks('edit');
                 renderTasks('display');
-                renderTasks('home');
-                renderTasks('work');
             }
         });
     });
