@@ -235,7 +235,7 @@ function renderTasks(tabName = 'display') {
             return;
         }
 
-        tasksToRender.forEach((task, index) => { // Ensure 'index' is available
+        tasksToRender.forEach((task, index) => {
             const taskItem = document.createElement('div');
             taskItem.classList.add('task-item', `priority-${task.priority}`);
             taskItem.setAttribute('data-task-id', task.id);
@@ -689,6 +689,130 @@ function setupDragAndDropListeners() {
 }
 // --- End of Drag and Drop Task Reordering ---
 
+// --- Move Task Up/Down Button Functionality (Edit Tab) ---
+
+function setupMoveTaskButtonListeners() {
+    const editTaskListContainer = document.getElementById('edit-task-list');
+    if (!editTaskListContainer) {
+        console.warn("Edit task list container not found for move buttons.");
+        return;
+    }
+
+    editTaskListContainer.addEventListener('click', async function(event) {
+        const target = event.target;
+        let taskId = null;
+        let direction = null;
+
+        const moveUpBtn = target.closest('.move-task-up-btn');
+        const moveDownBtn = target.closest('.move-task-down-btn');
+
+        if (moveUpBtn) {
+            taskId = moveUpBtn.getAttribute('data-task-id');
+            direction = 'up';
+        } else if (moveDownBtn) {
+            taskId = moveDownBtn.getAttribute('data-task-id');
+            direction = 'down';
+        }
+
+        if (taskId && direction) {
+            const currentlyEditing = editTaskListContainer.querySelector('.editing-task-item');
+            if (currentlyEditing) {
+                showInfoMessage("Please save or cancel the current task edit before reordering.", "info");
+                return;
+            }
+            await handleMoveTask(taskId, direction);
+        }
+    });
+}
+
+async function handleMoveTask(taskId, direction) {
+    if (!taskId || !direction) {
+        console.error("Task ID or direction missing for handleMoveTask.");
+        showInfoMessage("Cannot move task: ID or direction missing.", "error"); // User feedback
+        return;
+    }
+
+    getTasks(tasks => { // Removed 'async' from callback as it's not used with await for saveTasks
+        const sortedTasks = [...tasks].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+        const taskIndex = sortedTasks.findIndex(t => t.id === taskId);
+
+        if (taskIndex === -1) {
+            showInfoMessage("Error: Task not found for moving.", "error");
+            return;
+        }
+
+        let otherTaskIndex = -1;
+        if (direction === 'up') {
+            if (taskIndex > 0) {
+                otherTaskIndex = taskIndex - 1;
+            } else {
+                console.warn("Attempted to move top task up. UI should prevent this.");
+                return;
+            }
+        } else if (direction === 'down') {
+            if (taskIndex < sortedTasks.length - 1) {
+                otherTaskIndex = taskIndex + 1;
+            } else {
+                console.warn("Attempted to move bottom task down. UI should prevent this.");
+                return;
+            }
+        }
+
+        if (otherTaskIndex === -1) {
+            console.warn(`No task to swap with in direction ${direction} for task ${taskId}.`);
+            return;
+        }
+
+        const taskToMove = tasks.find(t => t.id === sortedTasks[taskIndex].id);
+        const taskToSwapWith = tasks.find(t => t.id === sortedTasks[otherTaskIndex].id);
+
+        if (!taskToMove || !taskToSwapWith) {
+            showInfoMessage("Error finding tasks to swap. Please try again.", "error");
+            console.error("Critical Error: taskToMove or taskToSwapWith not found in original tasks array during move operation.");
+            return;
+        }
+
+        const tempDisplayOrder = taskToMove.displayOrder;
+        taskToMove.displayOrder = taskToSwapWith.displayOrder;
+        taskToSwapWith.displayOrder = tempDisplayOrder;
+
+        saveTasks(tasks, (success, errorMsg) => {
+            if (success) {
+                showInfoMessage(`Task moved ${direction}.`, "success");
+                renderTasks('edit');
+                renderTasks('display');
+                renderTasks('home');
+                renderTasks('work');
+            } else {
+                showInfoMessage(`Failed to save new task order: ${errorMsg || 'Unknown error'}`, "error");
+                // Revert in-memory change to maintain consistency with storage
+                taskToMove.displayOrder = tempDisplayOrder;
+                taskToSwapWith.displayOrder = taskToMove.displayOrder; // This was the original value of taskToSwapWith before it got tempDisplayOrder
+                // Corrected revert:
+                // const originalTaskToMoveOrder = tempDisplayOrder;
+                // const originalTaskToSwapWithOrder = taskToMove.displayOrder; // This is taskToSwapWith.displayOrder before the swap
+                // taskToMove.displayOrder = originalTaskToMoveOrder;
+                // taskToSwapWith.displayOrder = originalTaskToSwapWithOrder;
+                // The version from the prompt was:
+                // taskToSwapWith.displayOrder = taskToMove.displayOrder; (this is original taskToSwapWith.displayOrder)
+                // taskToMove.displayOrder = tempDisplayOrder; (this is original taskToMove.displayOrder) - THIS IS CORRECT.
+
+                // So, the correct revert from the prompt is:
+                taskToSwapWith.displayOrder = taskToMove.displayOrder;
+                taskToMove.displayOrder = tempDisplayOrder;
+
+                console.log("Save failed. Reverted displayOrder in memory. Re-rendering.");
+                renderTasks('edit');
+                renderTasks('display');
+                renderTasks('home');
+                renderTasks('work');
+            }
+        });
+    });
+}
+
+// --- End of Move Task Up/Down Button Functionality ---
+
 // Existing tab switching code follows:
 document.addEventListener('DOMContentLoaded', function() {
     const tabs = document.querySelectorAll('.tab-link');
@@ -762,6 +886,11 @@ document.addEventListener('DOMContentLoaded', function() {
     setupInlineTaskEditingListeners();
     setupDragAndDropListeners();
     setupDisplayTabDragAndDropListeners();
+    setupMoveTaskButtonListeners();
 
-    console.log("Task Manager Loaded. All listeners including Display D&D set up.");
+    let finalLogMessage = "Task Manager Loaded. All listeners set up.";
+    if (typeof setupMoveTaskButtonListeners === 'function') {
+        finalLogMessage = "Task Manager Loaded. All listeners including Move Task buttons set up.";
+    }
+    console.log(finalLogMessage);
 });
