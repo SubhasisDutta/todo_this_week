@@ -489,7 +489,6 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
     justify-content: space-between; /* Distribute space between columns */
     gap: 20px; /* Space between columns */
     margin-top: 20px;
-    width: 1560px;
 }
 
 .manager-page .priority-column {
@@ -534,3 +533,21 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
         width: 100%; /* Each column takes full width when stacked */
     }
 }
+
+/* Styles for task type icons in manager.html */
+.manager-page .task-type-icon {
+    display: inline-block; /* Helps with spacing and alignment */
+    margin-right: 8px;   /* Space between icon and title */
+    font-size: 1em;      /* Adjust if icons are too big or small by default */
+    vertical-align: middle; /* Aligns icon better with text if font sizes differ slightly */
+}
+
+/* Optional: if you want to give specific icons different looks, uncomment and use classes like .home-icon, .work-icon */
+/*
+.manager-page .home-icon {
+    color: blue;
+}
+.manager-page .work-icon {
+    color: darkgreen;
+}
+*/

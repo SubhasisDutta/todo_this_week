@@ -103,14 +103,40 @@ function renderManagerTasks() {
 
                 const titleSpan = document.createElement('span');
                 titleSpan.classList.add('task-title');
+
+                // Add task type icon
+                if (task.type) {
+                    const iconSpan = document.createElement('span');
+                    iconSpan.classList.add('task-type-icon');
+                    if (task.type === 'home') {
+                        iconSpan.textContent = '🏠'; // Home icon
+                        iconSpan.classList.add('home-icon');
+                        iconSpan.setAttribute('aria-label', 'Home task');
+                    } else if (task.type === 'work') {
+                        iconSpan.textContent = '🏢'; // Work icon
+                        iconSpan.classList.add('work-icon');
+                        iconSpan.setAttribute('aria-label', 'Work task');
+                    }
+                    // Prepend icon so it comes before the title text/link
+                    if (iconSpan.textContent) { // Only append if an icon was set
+                         titleSpan.appendChild(iconSpan);
+                    }
+                }
+
+                // Append title text or link after the icon
                 if (task.url) {
                     const link = document.createElement('a');
                     link.href = task.url;
-                    link.textContent = task.title;
+                    link.textContent = task.title; // Title text for the link
                     link.target = '_blank';
                     titleSpan.appendChild(link);
                 } else {
-                    titleSpan.textContent = task.title;
+                    // If there's already an icon, append text node, otherwise set textContent
+                    if (titleSpan.hasChildNodes()) {
+                        titleSpan.appendChild(document.createTextNode(task.title));
+                    } else {
+                        titleSpan.textContent = task.title;
+                    }
                 }
                 taskItem.appendChild(titleSpan);
 
