@@ -489,6 +489,9 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
     justify-content: space-between; /* Distribute space between columns */
     gap: 20px; /* Space between columns */
     margin-top: 20px;
+    width: 1560px;      /* Added */
+    margin-left: auto;  /* Added */
+    margin-right: auto; /* Added */
 }
 
 .manager-page .priority-column {
@@ -526,6 +529,7 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
     .manager-page .tasks-display-area {
         flex-direction: column; /* Stack columns vertically on smaller screens */
         gap: 30px; /* Adjust gap for vertical stacking */
+        width: 100%; /* Added to override fixed width */
     }
 
     .manager-page .priority-column {
