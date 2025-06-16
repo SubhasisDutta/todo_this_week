@@ -66,15 +66,21 @@ function saveTasks(tasks, callback) {
 async function addNewTask(title, url, priority, deadline, type) {
     return new Promise((resolve) => {
         getTasks(tasks => {
-            // Assign displayOrder - tasks.length is a simple way to append to the end
-            const newDisplayOrder = tasks.length > 0 ? Math.max(...tasks.map(t => t.displayOrder || 0)) + 1 : 0;
-            const newTask = new Task(null, title, url, priority, false, deadline, type, newDisplayOrder); // Pass displayOrder
+            // Assign displayOrder relative to the task's C/I/S priority group
+            const tasksInSamePriorityGroup = tasks.filter(task => task.priority === priority);
+            let newDisplayOrder = 0;
+            if (tasksInSamePriorityGroup.length > 0) {
+                newDisplayOrder = Math.max(...tasksInSamePriorityGroup.map(t => t.displayOrder || 0)) + 1;
+            }
+
+            const newTask = new Task(null, title, url, priority, false, deadline, type, newDisplayOrder);
             tasks.push(newTask);
-            saveTasks(tasks, (success) => { // Assuming saveTasks callback provides success boolean
+
+            saveTasks(tasks, (success) => {
                 if (success) {
                     resolve(newTask);
                 } else {
-                    resolve(null); // Indicate failure
+                    resolve(null);
                 }
             });
         });
@@ -114,7 +120,7 @@ async function deleteTask(taskId) {
 
             if (filteredTasks.length === initialTaskCount) {
                 console.warn(`Task with ID ${taskId} not found for deletion.`);
-                resolve(false); // Task not found, so deletion is effectively "unsuccessful" in terms of change
+                resolve(false);
                 return;
             }
 
@@ -133,50 +139,38 @@ async function deleteTask(taskId) {
 // --- End of Task Data Structure and Storage ---
 
 // --- Info Message Functionality ---
-let infoMessageTimeout = null; // To manage the timeout for hiding the message
+let infoMessageTimeout = null;
 
 function showInfoMessage(message, type = 'info', duration = 3000) {
     const messageArea = document.getElementById('info-message-area');
     if (!messageArea) {
         console.error("Info message area not found!");
-        // Fallback to alert if message area is missing, though it shouldn't be.
         alert(message);
         return;
     }
 
-    // Clear any existing message timeout to prevent premature hiding if called again quickly
     if (infoMessageTimeout) {
         clearTimeout(infoMessageTimeout);
     }
 
-    // Set message content
     messageArea.textContent = message;
-
-    // Set message type class
-    // Remove previous type classes before adding the new one
     messageArea.classList.remove('success', 'error', 'info');
-    messageArea.classList.add(type); // e.g., 'success', 'error', 'info'
+    messageArea.classList.add(type);
 
-    // Make the message area visible
-    // The 'display: none' from HTML is overridden by adding 'visible' which sets opacity and max-height
-    messageArea.style.display = 'block'; // Make sure it's not display:none before animation
-    requestAnimationFrame(() => { // Ensure display:block is applied before starting transition
+    messageArea.style.display = 'block';
+    requestAnimationFrame(() => {
         messageArea.classList.add('visible');
     });
 
-
-    // Set timeout to hide the message
     infoMessageTimeout = setTimeout(() => {
         messageArea.classList.remove('visible');
-        // Wait for transition to finish before setting display: none
-        // The transition duration is 0.5s (500ms)
         setTimeout(() => {
-            if (!messageArea.classList.contains('visible')) { // Check if it wasn't shown again quickly
+            if (!messageArea.classList.contains('visible')) {
                  messageArea.style.display = 'none';
-                 messageArea.textContent = ''; // Clear content
-                 messageArea.classList.remove(type); // Clean up type class
+                 messageArea.textContent = '';
+                 messageArea.classList.remove(type);
             }
-        }, 500); // Match this to CSS transition duration
+        }, 500);
         infoMessageTimeout = null;
     }, duration);
 }
@@ -188,7 +182,7 @@ function renderTasks(tabName = 'display') {
     getTasks(allTasks => {
         let tasksToRender = allTasks.filter(task => !task.completed);
         let taskListElement;
-        let filterType = null; // 'all', 'home', 'work'
+        let filterType = null;
 
         if (tabName === 'display') {
             taskListElement = document.getElementById('display-task-list');
@@ -201,41 +195,35 @@ function renderTasks(tabName = 'display') {
             filterType = 'work';
         } else if (tabName === 'edit') {
             taskListElement = document.getElementById('edit-task-list');
-            // For edit tab, we show all tasks, including completed ones, perhaps styled differently later
-            tasksToRender = allTasks; // Show all for edit mode initially
-            filterType = 'all'; // Or handle differently for edit
+            tasksToRender = allTasks;
+            filterType = 'all';
         }
-
 
         if (!taskListElement) {
             console.error(`Task list element for tab '${tabName}' not found.`);
             return;
         }
 
-        // Filter by type for 'home' and 'work' tabs
         if (filterType === 'home') {
             tasksToRender = tasksToRender.filter(task => task.type === 'home');
         } else if (filterType === 'work') {
             tasksToRender = tasksToRender.filter(task => task.type === 'work');
         }
 
-        // Sort tasks
         if (tabName === 'edit') {
-            // Edit tab: Sort primarily by displayOrder
             tasksToRender.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
         } else {
-            // Display, Home, Work tabs: Sort by C/I/S priority, then by displayOrder
             const priorityOrder = { 'CRITICAL': 1, 'IMPORTANT': 2, 'SOMEDAY': 3 };
             tasksToRender.sort((a, b) => {
                 const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
                 if (priorityDiff !== 0) {
                     return priorityDiff;
                 }
-                return (a.displayOrder || 0) - (b.displayOrder || 0); // Secondary sort by displayOrder
+                return (a.displayOrder || 0) - (b.displayOrder || 0);
             });
         }
 
-        taskListElement.innerHTML = ''; // Clear existing tasks
+        taskListElement.innerHTML = '';
 
         if (tasksToRender.length === 0) {
             let message = "No tasks yet.";
@@ -247,91 +235,120 @@ function renderTasks(tabName = 'display') {
             return;
         }
 
-        tasksToRender.forEach(task => {
+        tasksToRender.forEach((task, index) => {
             const taskItem = document.createElement('div');
             taskItem.classList.add('task-item', `priority-${task.priority}`);
             taskItem.setAttribute('data-task-id', task.id);
 
-            // Create checkbox and its label for Neumorphic styling
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.checked = task.completed;
-            checkbox.classList.add('task-complete-checkbox'); // This class is targeted by CSS to hide the input
-            const checkboxId = `checkbox-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}`; // Sanitize ID
+            checkbox.classList.add('task-complete-checkbox');
+            const checkboxId = `checkbox-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}`;
             checkbox.id = checkboxId;
-
-            // Append the (hidden) checkbox input first
             taskItem.appendChild(checkbox);
 
-            // In Display, Home, Work tabs, add the visible custom styled label
             if (tabName !== 'edit') {
                 const checkboxLabel = document.createElement('label');
                 checkboxLabel.classList.add('neumorphic-checkbox-label');
-                checkboxLabel.setAttribute('for', checkboxId); // Link label to checkbox
+                checkboxLabel.setAttribute('for', checkboxId);
                 taskItem.appendChild(checkboxLabel);
             } else {
-                // In Edit tab, the checkbox is not meant to be interactive or visible in this custom way.
-                // The original hidden input is already appended.
-                // Its completed status is shown by '.task-completed-edit' class on taskItem.
+                checkbox.style.display = 'none';
             }
 
             const titleSpan = document.createElement('span');
             titleSpan.classList.add('task-title');
-
             if (task.url) {
                 const link = document.createElement('a');
                 link.href = task.url;
                 link.textContent = task.title;
-                link.target = '_blank'; // Open in new tab
+                link.target = '_blank';
                 titleSpan.appendChild(link);
             } else {
                 titleSpan.textContent = task.title;
             }
-
             taskItem.appendChild(titleSpan);
 
             if (task.priority === 'CRITICAL' && task.deadline) {
                 const deadlineSpan = document.createElement('span');
                 deadlineSpan.classList.add('task-deadline-display');
-                deadlineSpan.textContent = ` (Due: ${task.deadline})`;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const parts = task.deadline.split('-');
+                const year = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1;
+                const day = parseInt(parts[2], 10);
+                const deadlineDate = new Date(year, month, day);
+                deadlineDate.setHours(0,0,0,0);
+
+                const timeDiff = deadlineDate.getTime() - today.getTime();
+                const dayDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+                let deadlineText = '';
+                let deadlineClass = '';
+
+                if (dayDiff > 0) {
+                    deadlineText = `${dayDiff} day${dayDiff > 1 ? 's' : ''} remaining`;
+                    deadlineClass = 'deadline-future';
+                } else if (dayDiff === 0) {
+                    deadlineText = 'TODAY';
+                    deadlineClass = 'deadline-today';
+                } else {
+                    const daysOverdue = Math.abs(dayDiff);
+                    deadlineText = `${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue`;
+                    deadlineClass = 'deadline-overdue';
+                }
+
+                deadlineSpan.textContent = ` (${deadlineText})`;
+                if (deadlineClass) {
+                    deadlineSpan.classList.add(deadlineClass);
+                }
                 taskItem.appendChild(deadlineSpan);
             }
 
-            // For Edit tab, we might want different controls (delete, edit buttons)
-            // For Display/Home/Work, it's mainly the checkbox and title.
             if (tabName === 'edit') {
-                // Add Edit/Delete buttons for the edit tab (to be implemented more fully later)
+                taskItem.setAttribute('draggable', 'true');
+
+                const buttonContainer = document.createElement('div');
+                buttonContainer.classList.add('task-item-actions');
+
+                if (index > 0) {
+                    const moveUpButton = document.createElement('button');
+                    moveUpButton.innerHTML = '&uarr;';
+                    moveUpButton.classList.add('neumorphic-btn', 'move-task-up-btn');
+                    moveUpButton.setAttribute('data-task-id', task.id);
+                    buttonContainer.appendChild(moveUpButton);
+                }
+
+                if (index < tasksToRender.length - 1) {
+                    const moveDownButton = document.createElement('button');
+                    moveDownButton.innerHTML = '&darr;';
+                    moveDownButton.classList.add('neumorphic-btn', 'move-task-down-btn');
+                    moveDownButton.setAttribute('data-task-id', task.id);
+                    buttonContainer.appendChild(moveDownButton);
+                }
+
                 const editButton = document.createElement('button');
                 editButton.textContent = 'Edit';
-                editButton.classList.add('neumorphic-btn', 'edit-task-btn-list'); // new class for specific styling if needed
-                editButton.style.marginLeft = '10px';
-                editButton.style.fontSize = '0.8em';
-                editButton.style.padding = '5px 8px';
-
+                editButton.classList.add('neumorphic-btn', 'edit-task-btn-list');
+                editButton.setAttribute('data-task-id', task.id);
 
                 const deleteButton = document.createElement('button');
                 deleteButton.textContent = 'Delete';
-                deleteButton.classList.add('neumorphic-btn', 'delete-task-btn-list'); // new class
-                deleteButton.style.marginLeft = '5px';
-                deleteButton.style.fontSize = '0.8em';
-                deleteButton.style.padding = '5px 8px';
-                deleteButton.style.backgroundColor = '#ff6b6b'; // A bit of color for delete
-                deleteButton.style.color = 'white';
+                deleteButton.classList.add('neumorphic-btn', 'delete-task-btn-list');
+                deleteButton.setAttribute('data-task-id', task.id);
 
-
+                taskItem.appendChild(buttonContainer);
                 taskItem.appendChild(editButton);
                 taskItem.appendChild(deleteButton);
 
-                taskItem.setAttribute('draggable', 'true'); // Make the task item draggable
-
-                // Hide the regular checkbox, but add styling if completed
-                checkbox.style.display = 'none';
                 if (task.completed) {
                     taskItem.classList.add('task-completed-edit');
                 }
+            } else if (tabName === 'display') {
+                taskItem.setAttribute('draggable', 'true');
             }
-
-
             taskListElement.appendChild(taskItem);
         });
     });
@@ -344,35 +361,25 @@ function setupTaskCompletionListeners() {
         document.getElementById('display-task-list'),
         document.getElementById('home-task-list'),
         document.getElementById('work-task-list')
-        // Not adding 'edit-task-list' here as completion is handled differently or not at all in edit mode
     ];
 
     taskListContainers.forEach(container => {
         if (!container) return;
-
         container.addEventListener('click', async function(event) {
             if (event.target.matches('.task-complete-checkbox')) {
                 const checkbox = event.target;
                 const taskItem = checkbox.closest('.task-item');
                 const taskId = taskItem.getAttribute('data-task-id');
                 const isCompleted = checkbox.checked;
-
                 if (!taskId) return;
-
-                console.log(`Task ${taskId} completion status changed to: ${isCompleted}`);
-
                 const task = await getTaskById(taskId);
                 if (task) {
                     task.completed = isCompleted;
                     await updateTask(task);
-
-                    // Re-render the current active tab
                     const activeTabLink = document.querySelector('.tab-link.active');
                     if (activeTabLink) {
                         const activeTabName = activeTabLink.getAttribute('data-tab');
                         renderTasks(activeTabName);
-                        // If the change happened in Display/Home/Work, also refresh Edit tab
-                        // as it shows completed status differently (though not implemented fully yet)
                         if (['display', 'home', 'work'].includes(activeTabName)) {
                             renderTasks('edit');
                         }
@@ -387,36 +394,23 @@ function setupTaskCompletionListeners() {
 // --- Task Deletion Functionality (Edit Tab) ---
 function setupTaskDeletionListener() {
     const editTaskListContainer = document.getElementById('edit-task-list');
-
     if (!editTaskListContainer) return;
-
     editTaskListContainer.addEventListener('click', async function(event) {
         if (event.target.matches('.delete-task-btn-list')) {
-            const deleteButton = event.target;
-            const taskItem = deleteButton.closest('.task-item');
+            const taskItem = event.target.closest('.task-item');
             const taskId = taskItem.getAttribute('data-task-id');
-
             if (!taskId) return;
-
-            // Optional: Confirm before deleting
             if (!confirm("Are you sure you want to delete this task?")) {
                 return;
             }
-
-            console.log(`Attempting to delete task ${taskId}`);
-
             const success = await deleteTask(taskId);
             if (success) {
-                console.log(`Task ${taskId} deleted successfully.`);
-                // Re-render the Edit tab's tasks
                 renderTasks('edit');
-                // Also re-render other tabs as the task is now gone
                 renderTasks('display');
                 renderTasks('home');
                 renderTasks('work');
             } else {
-                console.error(`Failed to delete task ${taskId}.`);
-                // Optionally, show an error message to the user
+                showInfoMessage(`Failed to delete task ${taskId}.`, "error");
             }
         }
     });
@@ -424,103 +418,56 @@ function setupTaskDeletionListener() {
 // --- End of Task Deletion Functionality ---
 
 // --- Inline Task Editing Functionality (Edit Tab) ---
-
-// Store original task data for cancellation
 let originalTaskDataBeforeEdit = null;
 
 function setupInlineTaskEditingListeners() {
     const editTaskListContainer = document.getElementById('edit-task-list');
     if (!editTaskListContainer) return;
-
     editTaskListContainer.addEventListener('click', async function(event) {
         const target = event.target;
-
-        // Handle "Edit" button click
         if (target.matches('.edit-task-btn-list')) {
             const taskItem = target.closest('.task-item');
             const taskId = taskItem.getAttribute('data-task-id');
             if (!taskId) return;
-
-            // If another task is already in edit mode, cancel it first (optional, for simplicity now)
             const currentlyEditing = editTaskListContainer.querySelector('.editing-task-item');
             if (currentlyEditing && currentlyEditing !== taskItem) {
-                // Revert the other editing task or show an alert
-                // For now, let's just log it and proceed. A more robust solution would handle this.
                 console.warn("Another task is already being edited. Please save or cancel it first.");
-                // Alternatively, programmatically cancel the other edit:
-                // const otherTaskId = currentlyEditing.getAttribute('data-task-id');
-                // if(otherTaskId) cancelEditTask(otherTaskId, currentlyEditing); // cancelEditTask would need to be written
-                // For now, we'll allow multiple, but this might get complex to manage.
-                // A simpler approach: if (currentlyEditing) { alert("Save or cancel current edit"); return; }
+                return;
             }
-            if (taskItem.classList.contains('editing-task-item')) return; // Already in edit mode
-
+            if (taskItem.classList.contains('editing-task-item')) return;
             const task = await getTaskById(taskId);
             if (!task) return;
-
-            // Store original data for potential cancellation
             originalTaskDataBeforeEdit = { ...task };
             taskItem.classList.add('editing-task-item');
-
-            // Clear current content except for what we might reuse or modify
             const taskTitleSpan = taskItem.querySelector('.task-title');
             const taskDeadlineDisplay = taskItem.querySelector('.task-deadline-display');
-
-            // Preserve existing edit/delete buttons to hide them
             const existingEditButton = taskItem.querySelector('.edit-task-btn-list');
             const existingDeleteButton = taskItem.querySelector('.delete-task-btn-list');
+            const existingActionsContainer = taskItem.querySelector('.task-item-actions');
 
-            // Build the edit form within the task item
             let formHtml = `
                 <div class="inline-edit-form">
-                    <div class="form-group-inline">
-                        <label>Title:</label>
-                        <input type="text" class="neumorphic-input edit-task-title" value="${task.title}">
-                    </div>
-                    <div class="form-group-inline">
-                        <label>URL:</label>
-                        <input type="url" class="neumorphic-input edit-task-url" value="${task.url || ''}">
-                    </div>
-                    <div class="form-group-inline">
-                        <label>Priority:</label>
-                        <select class="neumorphic-select edit-task-priority">
-                            <option value="SOMEDAY" ${task.priority === 'SOMEDAY' ? 'selected' : ''}>Someday</option>
-                            <option value="IMPORTANT" ${task.priority === 'IMPORTANT' ? 'selected' : ''}>Important</option>
-                            <option value="CRITICAL" ${task.priority === 'CRITICAL' ? 'selected' : ''}>Critical</option>
-                        </select>
-                    </div>
-                    <div class="form-group-inline edit-task-deadline-group" style="display: ${task.priority === 'CRITICAL' ? 'block' : 'none'};">
-                        <label>Deadline:</label>
-                        <input type="date" class="neumorphic-input edit-task-deadline" value="${task.deadline || ''}">
-                    </div>
-                    <div class="form-group-inline">
-                        <label>Type:</label>
-                        <select class="neumorphic-select edit-task-type">
-                            <option value="home" ${task.type === 'home' ? 'selected' : ''}>Home</option>
-                            <option value="work" ${task.type === 'work' ? 'selected' : ''}>Work</option>
-                        </select>
-                    </div>
-                    <div class="form-group-inline form-group-inline-checkbox">
-                        <label for="edit-task-completed-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}">Completed:</label>
-                        <input type="checkbox" id="edit-task-completed-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}" class="edit-task-completed" ${task.completed ? 'checked' : ''} style="width: auto; margin-right: 5px;">
-                    </div>
-                    <div class="inline-edit-actions">
-                        <button class="neumorphic-btn save-inline-btn">Save</button>
-                        <button class="neumorphic-btn cancel-inline-btn">Cancel</button>
-                    </div>
-                </div>
-            `;
-
-            // Hide original display elements and original buttons
+                    <div class="form-group-inline"><label>Title:</label><input type="text" class="neumorphic-input edit-task-title" value="${task.title}"></div>
+                    <div class="form-group-inline"><label>URL:</label><input type="url" class="neumorphic-input edit-task-url" value="${task.url || ''}"></div>
+                    <div class="form-group-inline"><label>Priority:</label><select class="neumorphic-select edit-task-priority">
+                        <option value="SOMEDAY" ${task.priority === 'SOMEDAY' ? 'selected' : ''}>Someday</option>
+                        <option value="IMPORTANT" ${task.priority === 'IMPORTANT' ? 'selected' : ''}>Important</option>
+                        <option value="CRITICAL" ${task.priority === 'CRITICAL' ? 'selected' : ''}>Critical</option>
+                    </select></div>
+                    <div class="form-group-inline edit-task-deadline-group" style="display: ${task.priority === 'CRITICAL' ? 'block' : 'none'};"><label>Deadline:</label><input type="date" class="neumorphic-input edit-task-deadline" value="${task.deadline || ''}"></div>
+                    <div class="form-group-inline"><label>Type:</label><select class="neumorphic-select edit-task-type">
+                        <option value="home" ${task.type === 'home' ? 'selected' : ''}>Home</option>
+                        <option value="work" ${task.type === 'work' ? 'selected' : ''}>Work</option>
+                    </select></div>
+                    <div class="form-group-inline form-group-inline-checkbox"><label for="edit-task-completed-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}">Completed:</label><input type="checkbox" id="edit-task-completed-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}" class="edit-task-completed" ${task.completed ? 'checked' : ''} style="width: auto; margin-right: 5px;"></div>
+                    <div class="inline-edit-actions"><button class="neumorphic-btn save-inline-btn">Save</button><button class="neumorphic-btn cancel-inline-btn">Cancel</button></div>
+                </div>`;
             if(taskTitleSpan) taskTitleSpan.style.display = 'none';
             if(taskDeadlineDisplay) taskDeadlineDisplay.style.display = 'none';
             if(existingEditButton) existingEditButton.style.display = 'none';
             if(existingDeleteButton) existingDeleteButton.style.display = 'none';
-
-            // Append the form
+            if(existingActionsContainer) existingActionsContainer.style.display = 'none';
             taskItem.insertAdjacentHTML('beforeend', formHtml);
-
-            // Add event listener for priority change within this specific inline form
             const prioritySelect = taskItem.querySelector('.edit-task-priority');
             const deadlineGroup = taskItem.querySelector('.edit-task-deadline-group');
             if (prioritySelect && deadlineGroup) {
@@ -533,106 +480,57 @@ function setupInlineTaskEditingListeners() {
                 });
             }
         }
-
-        // Handle "Cancel" button click (Part 2 will handle save)
-        // We add cancel here because it primarily reverts UI
         if (target.matches('.cancel-inline-btn')) {
             const taskItem = target.closest('.editing-task-item');
             if (!taskItem || !originalTaskDataBeforeEdit) return;
-
-            // Restore original view (simplified, assumes renderTasks will fix it)
-            // A more direct DOM revert would also be possible but complex here
             taskItem.classList.remove('editing-task-item');
             const form = taskItem.querySelector('.inline-edit-form');
             if (form) form.remove();
-
-            // Show original display elements and buttons
             const taskTitleSpan = taskItem.querySelector('.task-title');
             const taskDeadlineDisplay = taskItem.querySelector('.task-deadline-display');
             const existingEditButton = taskItem.querySelector('.edit-task-btn-list');
             const existingDeleteButton = taskItem.querySelector('.delete-task-btn-list');
-            if(taskTitleSpan) taskTitleSpan.style.display = ''; // Revert to default display
+            const existingActionsContainer = taskItem.querySelector('.task-item-actions');
+            if(taskTitleSpan) taskTitleSpan.style.display = '';
             if(taskDeadlineDisplay) taskDeadlineDisplay.style.display = '';
             if(existingEditButton) existingEditButton.style.display = '';
             if(existingDeleteButton) existingDeleteButton.style.display = '';
-
-            originalTaskDataBeforeEdit = null; // Clear stored data
-            // Optionally, re-render just this task or the whole list if easier
-            // renderTasks('edit'); // This would be the simplest way to ensure correctness
+            if(existingActionsContainer) existingActionsContainer.style.display = '';
+            originalTaskDataBeforeEdit = null;
         }
-
-        // Handle "Save" button click for inline editing
         if (target.matches('.save-inline-btn')) {
             const taskItem = target.closest('.editing-task-item');
             const taskId = taskItem.getAttribute('data-task-id');
-            if (!taskId || !originalTaskDataBeforeEdit) {
-                console.error("Save error: No task ID or original data found.");
-                return;
-            }
-
+            if (!taskId || !originalTaskDataBeforeEdit) { console.error("Save error: No task ID or original data found."); return; }
             const editForm = taskItem.querySelector('.inline-edit-form');
-            if (!editForm) {
-                console.error("Save error: Edit form not found.");
-                return;
-            }
-
-            // Retrieve new values from the form
+            if (!editForm) { console.error("Save error: Edit form not found."); return; }
             const newTitle = editForm.querySelector('.edit-task-title').value.trim();
             const newUrl = editForm.querySelector('.edit-task-url').value.trim();
             const newPriority = editForm.querySelector('.edit-task-priority').value;
             let newDeadline = editForm.querySelector('.edit-task-deadline').value;
             const newType = editForm.querySelector('.edit-task-type').value;
-            const newCompleted = editForm.querySelector('.edit-task-completed').checked; // Get completed status
-
-            // Validation
-            if (!newTitle) {
-                showInfoMessage("Task title cannot be empty.", "error");
-                return;
-            }
-            if (newPriority === 'CRITICAL' && !newDeadline) {
-                showInfoMessage("Deadline is required for CRITICAL tasks.", "error");
-                return;
-            }
-            if (newPriority !== 'CRITICAL') {
-                newDeadline = null; // Ensure deadline is null if not critical
-            }
-
-            // Create an updated task object - start with original and update
-            const updatedTask = {
-                ...originalTaskDataBeforeEdit, // Preserve ID, completed status, etc.
-                title: newTitle,
-                url: newUrl,
-                priority: newPriority,
-                deadline: newDeadline,
-                type: newType,
-                completed: newCompleted // Add the new completed status
-            };
-
+            const newCompleted = editForm.querySelector('.edit-task-completed').checked;
+            if (!newTitle) { showInfoMessage("Task title cannot be empty.", "error"); return; }
+            if (newPriority === 'CRITICAL' && !newDeadline) { showInfoMessage("Deadline is required for CRITICAL tasks.", "error"); return; }
+            if (newPriority !== 'CRITICAL') newDeadline = null;
+            const updatedTask = { ...originalTaskDataBeforeEdit, title: newTitle, url: newUrl, priority: newPriority, deadline: newDeadline, type: newType, completed: newCompleted };
             const success = await updateTask(updatedTask);
             if (success) {
                 taskItem.classList.remove('editing-task-item');
                 editForm.remove();
-
-                // Restore display of original elements (which will be updated by renderTasks)
                 const taskTitleSpan = taskItem.querySelector('.task-title');
                 const taskDeadlineDisplay = taskItem.querySelector('.task-deadline-display');
                 const existingEditButton = taskItem.querySelector('.edit-task-btn-list');
                 const existingDeleteButton = taskItem.querySelector('.delete-task-btn-list');
-
+                const existingActionsContainer = taskItem.querySelector('.task-item-actions');
                 if(taskTitleSpan) taskTitleSpan.style.display = '';
                 if(taskDeadlineDisplay) taskDeadlineDisplay.style.display = '';
                 if(existingEditButton) existingEditButton.style.display = '';
                 if(existingDeleteButton) existingDeleteButton.style.display = '';
-
-                originalTaskDataBeforeEdit = null; // Clear stored data
-
-                // Re-render all tabs to reflect changes
-                renderTasks('edit');
-                renderTasks('display');
-                renderTasks('home');
-                renderTasks('work');
+                if(existingActionsContainer) existingActionsContainer.style.display = '';
+                originalTaskDataBeforeEdit = null;
+                renderTasks('edit'); renderTasks('display'); renderTasks('home'); renderTasks('work');
                 showInfoMessage("Task updated successfully!", "success");
-                console.log("Task updated successfully and lists refreshed.");
             } else {
                 showInfoMessage("Failed to update task. Please try again.", "error");
             }
@@ -642,284 +540,278 @@ function setupInlineTaskEditingListeners() {
 // --- End of Inline Task Editing Functionality ---
 
 // --- Drag and Drop Task Reordering (Display Tab - Within Priority) ---
-// `draggedTaskElement` is already declared globally from the Edit tab D&D implementation.
+let draggedTaskElementDisplay = null;
 
 function setupDisplayTabDragAndDropListeners() {
     const displayTaskListContainer = document.getElementById('display-task-list');
     if (!displayTaskListContainer) return;
-
     displayTaskListContainer.addEventListener('dragstart', function(event) {
         if (event.target.classList.contains('task-item')) {
-            // Ensure it's not an inline edit form element if that were possible here
             if (event.target.querySelector('.inline-edit-form')) return;
-
-            draggedTaskElement = event.target;
+            draggedTaskElementDisplay = event.target;
             event.dataTransfer.setData('text/plain', event.target.getAttribute('data-task-id'));
             event.target.style.opacity = '0.5';
         }
     });
-
     displayTaskListContainer.addEventListener('dragover', function(event) {
-        event.preventDefault(); // Necessary to allow dropping
-        const taskItemOver = event.target.closest('.task-item');
-        if (taskItemOver && draggedTaskElement && taskItemOver !== draggedTaskElement) {
-            // Optional: visual cue for valid drop target (e.g., if same priority)
-            // For now, no specific visual cue here beyond default browser behavior.
-        }
+        event.preventDefault();
     });
-
     displayTaskListContainer.addEventListener('drop', async function(event) {
         event.preventDefault();
-        if (!draggedTaskElement) return;
-
+        if (!draggedTaskElementDisplay) return;
         const targetTaskElement = event.target.closest('.task-item');
-
-        // Reset opacity as operation is finishing or aborting
-        draggedTaskElement.style.opacity = '1';
-
-        if (!targetTaskElement || targetTaskElement === draggedTaskElement) {
-            draggedTaskElement = null;
-            return; // Dropped on self or not on a task item
+        draggedTaskElementDisplay.style.opacity = '1';
+        if (!targetTaskElement || targetTaskElement === draggedTaskElementDisplay) {
+            draggedTaskElementDisplay = null; return;
         }
-
-        const draggedTaskId = draggedTaskElement.getAttribute('data-task-id');
+        const draggedTaskId = draggedTaskElementDisplay.getAttribute('data-task-id');
         const targetTaskId = targetTaskElement.getAttribute('data-task-id');
-
         getTasks(tasks => {
             const draggedTask = tasks.find(t => t.id === draggedTaskId);
             const targetTask = tasks.find(t => t.id === targetTaskId);
-
             if (!draggedTask || !targetTask) {
                 console.error("Drag or target task not found for Display D&D.");
-                draggedTaskElement = null;
-                return;
+                draggedTaskElementDisplay = null; return;
             }
-
-            // **CONSTRAINT: Check if tasks are in the same C/I/S priority group**
             if (draggedTask.priority !== targetTask.priority) {
                 showInfoMessage("Tasks can only be reordered within the same priority group.", "error");
-                draggedTaskElement = null;
-                return; // Not allowed to drop here
+                draggedTaskElementDisplay = null; return;
             }
-
-            // DOM Reordering
             const taskElements = Array.from(displayTaskListContainer.children).filter(el => el.classList.contains('task-item'));
-            const draggedIndexInDOM = taskElements.indexOf(draggedTaskElement);
+            const draggedIndexInDOM = taskElements.indexOf(draggedTaskElementDisplay);
             const targetIndexInDOM = taskElements.indexOf(targetTaskElement);
-
             if (draggedIndexInDOM < targetIndexInDOM) {
-                targetTaskElement.parentNode.insertBefore(draggedTaskElement, targetTaskElement.nextSibling);
+                targetTaskElement.parentNode.insertBefore(draggedTaskElementDisplay, targetTaskElement.nextSibling);
             } else {
-                targetTaskElement.parentNode.insertBefore(draggedTaskElement, targetTaskElement);
+                targetTaskElement.parentNode.insertBefore(draggedTaskElementDisplay, targetTaskElement);
             }
-
-            // Update displayOrder for tasks within this specific priority group
             const currentPriorityGroup = draggedTask.priority;
-            // const tasksInGroup = tasks.filter(t => t.priority === currentPriorityGroup).sort((a,b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-
             const reorderedTaskIdsInDOM = Array.from(displayTaskListContainer.children)
                                              .filter(el => el.classList.contains('task-item') && tasks.find(t => t.id === el.getAttribute('data-task-id'))?.priority === currentPriorityGroup)
                                              .map(el => el.getAttribute('data-task-id'));
-
             let displayOrderChanged = false;
             reorderedTaskIdsInDOM.forEach((taskId, newIndexInGroup) => {
-                const taskToUpdate = tasks.find(t => t.id === taskId); // Find in the main 'tasks' array
-                if (taskToUpdate && taskToUpdate.displayOrder !== newIndexInGroup) { // Compare with a simple sequence within the group
-                    taskToUpdate.displayOrder = newIndexInGroup; // Assign new order within the group
+                const taskToUpdate = tasks.find(t => t.id === taskId);
+                if (taskToUpdate && taskToUpdate.displayOrder !== newIndexInGroup) {
+                    taskToUpdate.displayOrder = newIndexInGroup;
                     displayOrderChanged = true;
                 }
             });
-
-            // Note: The above displayOrder assignment (0, 1, 2...) is *within the group*.
-            // To maintain global uniqueness and proper secondary sort, displayOrder might need a more complex update
-            // if tasks from different groups can have overlapping displayOrder values.
-            // A simpler approach for now: just re-sequence ALL tasks' displayOrder after a valid D&D in Display.
-            // This is less ideal than the Edit tab's D&D which re-sequences everything.
-            // Let's refine the displayOrder update to be global, similar to Edit tab's D&D,
-            // but the drop is only allowed if priorities match.
-
-            // Refined displayOrder update (Global re-sequencing after valid drop):
-            // This part is identical to Edit Tab's D&D logic for updating displayOrder globally
-            // The constraint is applied *before* this logic.
-            // const allTaskItemsAfterDrop = Array.from(document.querySelectorAll('#display-task-list .task-item, #edit-task-list .task-item')); // Get all items from both relevant lists
-
-            // This approach is flawed as DOM order in Display tab is already sorted by C/I/S.
-            // We need to update `displayOrder` for the affected priority group,
-            // then re-sort all tasks and assign new sequential `displayOrder` to maintain overall consistency
-            // if `displayOrder` is meant to be globally unique and sequential.
-
-            // Let's simplify: The `displayOrder` will be re-assigned to tasks within the *same priority group*
-            // based on their new order. Other tabs will use C/I/S then this `displayOrder`.
-            // This means `displayOrder` values are relative to their priority group.
-
             if (displayOrderChanged) {
-                // To make displayOrder values unique across groups but still sortable within them,
-                // we might need to prefix them or use a larger range.
-                // For now, let's assume displayOrder values are relative within the group,
-                // and the secondary sort `(a.displayOrder || 0) - (b.displayOrder || 0)` works okay.
                 saveTasks(tasks, (success) => {
                     if (success) {
                         showInfoMessage("Task order updated.", "success");
-                        renderTasks('display'); // Re-render current tab
-                        renderTasks('edit');    // Edit tab also uses displayOrder
-                        renderTasks('home');    // Home/Work also use displayOrder for secondary sort
-                        renderTasks('work');
+                        renderTasks('display'); renderTasks('edit'); renderTasks('home'); renderTasks('work');
                     } else {
                         showInfoMessage("Failed to save new task order.", "error");
-                        renderTasks('display'); // Revert to old order
+                        renderTasks('display');
                     }
                 });
             }
-            draggedTaskElement = null;
+            draggedTaskElementDisplay = null;
         });
     });
-
     displayTaskListContainer.addEventListener('dragend', function(event) {
-        if (draggedTaskElement) {
-            draggedTaskElement.style.opacity = '1';
+        if (draggedTaskElementDisplay) {
+            draggedTaskElementDisplay.style.opacity = '1';
         }
-        draggedTaskElement = null;
+        draggedTaskElementDisplay = null;
     });
 }
 
 // --- Drag and Drop Task Reordering (Edit Tab) ---
-let draggedTaskElement = null; // To store the element being dragged
+let draggedTaskElementEdit = null;
 
 function setupDragAndDropListeners() {
     const editTaskListContainer = document.getElementById('edit-task-list');
     if (!editTaskListContainer) return;
-
-    // dragstart: Fired on an element when a drag operation starts
     editTaskListContainer.addEventListener('dragstart', function(event) {
         if (event.target.classList.contains('task-item')) {
-            draggedTaskElement = event.target;
+            draggedTaskElementEdit = event.target;
             event.dataTransfer.setData('text/plain', event.target.getAttribute('data-task-id'));
-            event.target.style.opacity = '0.5'; // Visual cue for dragging
-            // Ensure that inline editing form is not open on the item being dragged
-            if (draggedTaskElement.classList.contains('editing-task-item')) {
-                 // Find and click the cancel button if it exists
-                const cancelButton = draggedTaskElement.querySelector('.cancel-inline-btn');
-                if (cancelButton) {
-                    cancelButton.click(); // Programmatically cancel edit
-                }
+            event.target.style.opacity = '0.5';
+            if (draggedTaskElementEdit.classList.contains('editing-task-item')) {
+                const cancelButton = draggedTaskElementEdit.querySelector('.cancel-inline-btn');
+                if (cancelButton) cancelButton.click();
             }
         }
     });
-
-    // dragover: Fired when an element or text selection is being dragged over a valid drop target
     editTaskListContainer.addEventListener('dragover', function(event) {
-        event.preventDefault(); // Necessary to allow dropping
-        const taskItemOver = event.target.closest('.task-item');
-        if (taskItemOver && draggedTaskElement && taskItemOver !== draggedTaskElement) {
-            // Optional: add a visual cue for where it will be dropped
-            // Example: taskItemOver.style.borderTop = '2px dashed blue';
-        }
+        event.preventDefault();
     });
-
-    // Optional: dragleave to remove visual cues
-    editTaskListContainer.addEventListener('dragleave', function(event) {
-        const taskItemLeft = event.target.closest('.task-item');
-        if (taskItemLeft) {
-            // Example: taskItemLeft.style.borderTop = ''; // Clear visual cue
-        }
-    });
-
-    // drop: Fired when an element or text selection is dropped on a valid drop target
     editTaskListContainer.addEventListener('drop', async function(event) {
         event.preventDefault();
-        if (!draggedTaskElement) return;
-
+        if (!draggedTaskElementEdit) return;
         const targetTaskElement = event.target.closest('.task-item');
-        if (!targetTaskElement || targetTaskElement === draggedTaskElement) {
-            // Dropped on itself or not on a task item, reset opacity and do nothing else
-            draggedTaskElement.style.opacity = '1';
-            draggedTaskElement = null;
-            return;
+        draggedTaskElementEdit.style.opacity = '1';
+        if (!targetTaskElement || targetTaskElement === draggedTaskElementEdit) {
+            draggedTaskElementEdit = null; return;
         }
-
-        const targetTaskId = targetTaskElement.getAttribute('data-task-id');
-        const draggedTaskId = draggedTaskElement.getAttribute('data-task-id');
-
-        // Determine new order
         getTasks(tasks => {
-            const draggedTask = tasks.find(t => t.id === draggedTaskId);
-            const targetTask = tasks.find(t => t.id === targetTaskId);
-
-            if (!draggedTask || !targetTask) {
-                console.error("Drag or target task not found in tasks array.");
-                if(draggedTaskElement) draggedTaskElement.style.opacity = '1';
-                draggedTaskElement = null;
-                return;
-            }
-
-            // Simple re-ordering logic:
-            // Remove dragged task, then insert it before the target task.
-            // Adjust displayOrder values for all tasks based on their new DOM order.
-
             const taskElements = Array.from(editTaskListContainer.querySelectorAll('.task-item'));
-            const draggedIndex = taskElements.indexOf(draggedTaskElement);
-            const targetIndex = taskElements.indexOf(targetTaskElement);
-
-            // Reorder the DOM elements first to visualize
-            if (draggedIndex < targetIndex) {
-                targetTaskElement.parentNode.insertBefore(draggedTaskElement, targetTaskElement.nextSibling);
+            const draggedIndexInDOM = taskElements.indexOf(draggedTaskElementEdit);
+            const targetIndexInDOM = taskElements.indexOf(targetTaskElement);
+            if (draggedIndexInDOM < targetIndexInDOM) {
+                targetTaskElement.parentNode.insertBefore(draggedTaskElementEdit, targetTaskElement.nextSibling);
             } else {
-                targetTaskElement.parentNode.insertBefore(draggedTaskElement, targetTaskElement);
+                targetTaskElement.parentNode.insertBefore(draggedTaskElementEdit, targetTaskElement);
             }
-            draggedTaskElement.style.opacity = '1'; // Reset opacity
-
-            // Update displayOrder for all tasks based on the new DOM order
             const updatedTaskElements = Array.from(editTaskListContainer.querySelectorAll('.task-item'));
             let displayOrderChanged = false;
-            const tasksToUpdate = [];
-
             updatedTaskElements.forEach((el, index) => {
                 const taskId = el.getAttribute('data-task-id');
                 const task = tasks.find(t => t.id === taskId);
                 if (task && task.displayOrder !== index) {
                     task.displayOrder = index;
-                    tasksToUpdate.push(task); // Collect tasks that need updating
                     displayOrderChanged = true;
                 }
             });
-
             if (displayOrderChanged) {
-                // Update all tasks in storage. This could be optimized to save only changed tasks
-                // if updateTask could handle an array or if we call it multiple times.
-                // For simplicity, save all tasks.
                 saveTasks(tasks, (success) => {
                     if (success) {
-                        console.log("Tasks reordered and displayOrder updated.");
-                        // Re-render to ensure data consistency and apply sorting from data
-                        renderTasks('edit');
-                        // Potentially refresh other tabs if their secondary sort is affected
-                        renderTasks('display');
-                        renderTasks('home');
-                        renderTasks('work');
+                        showInfoMessage("Task order updated.", "success");
+                        renderTasks('edit'); renderTasks('display'); renderTasks('home'); renderTasks('work');
                     } else {
-                        console.error("Failed to save tasks after reordering.");
-                        // Re-render 'edit' to revert to original order from data if save failed
+                        showInfoMessage("Failed to save new task order.", "error");
                         renderTasks('edit');
                     }
                 });
             }
-            draggedTaskElement = null;
+            draggedTaskElementEdit = null;
         });
     });
-
-    // dragend: Fired when a drag operation is finished (e.g., mouse up, escape key)
     editTaskListContainer.addEventListener('dragend', function(event) {
-        if (draggedTaskElement) {
-            draggedTaskElement.style.opacity = '1'; // Reset opacity if drag ended unexpectedly
+        if (draggedTaskElementEdit) {
+            draggedTaskElementEdit.style.opacity = '1';
         }
-        // Clear any visual cues from dragover
-        Array.from(editTaskListContainer.querySelectorAll('.task-item')).forEach(item => {
-            // item.style.borderTop = ''; // Example: clear visual cue
-        });
-        draggedTaskElement = null;
+        draggedTaskElementEdit = null;
     });
 }
 // --- End of Drag and Drop Task Reordering ---
+
+// --- Move Task Up/Down Button Functionality (Edit Tab) ---
+
+function setupMoveTaskButtonListeners() {
+    const editTaskListContainer = document.getElementById('edit-task-list');
+    if (!editTaskListContainer) {
+        console.warn("Edit task list container not found for move buttons.");
+        return;
+    }
+
+    editTaskListContainer.addEventListener('click', async function(event) {
+        const target = event.target;
+        let taskId = null;
+        let direction = null;
+
+        const moveUpBtn = target.closest('.move-task-up-btn');
+        const moveDownBtn = target.closest('.move-task-down-btn');
+
+        if (moveUpBtn) {
+            taskId = moveUpBtn.getAttribute('data-task-id');
+            direction = 'up';
+        } else if (moveDownBtn) {
+            taskId = moveDownBtn.getAttribute('data-task-id');
+            direction = 'down';
+        }
+
+        if (taskId && direction) {
+            const currentlyEditing = editTaskListContainer.querySelector('.editing-task-item');
+            if (currentlyEditing) {
+                showInfoMessage("Please save or cancel the current task edit before reordering.", "info");
+                return;
+            }
+            await handleMoveTask(taskId, direction);
+        }
+    });
+}
+
+async function handleMoveTask(taskId, direction) {
+    if (!taskId || !direction) {
+        console.error("Task ID or direction missing for handleMoveTask.");
+        showInfoMessage("Cannot move task: ID or direction missing.", "error"); // User feedback
+        return;
+    }
+
+    getTasks(tasks => { // Removed 'async' from callback as it's not used with await for saveTasks
+        const sortedTasks = [...tasks].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+        const taskIndex = sortedTasks.findIndex(t => t.id === taskId);
+
+        if (taskIndex === -1) {
+            showInfoMessage("Error: Task not found for moving.", "error");
+            return;
+        }
+
+        let otherTaskIndex = -1;
+        if (direction === 'up') {
+            if (taskIndex > 0) {
+                otherTaskIndex = taskIndex - 1;
+            } else {
+                console.warn("Attempted to move top task up. UI should prevent this.");
+                return;
+            }
+        } else if (direction === 'down') {
+            if (taskIndex < sortedTasks.length - 1) {
+                otherTaskIndex = taskIndex + 1;
+            } else {
+                console.warn("Attempted to move bottom task down. UI should prevent this.");
+                return;
+            }
+        }
+
+        if (otherTaskIndex === -1) {
+            console.warn(`No task to swap with in direction ${direction} for task ${taskId}.`);
+            return;
+        }
+
+        const taskToMove = tasks.find(t => t.id === sortedTasks[taskIndex].id);
+        const taskToSwapWith = tasks.find(t => t.id === sortedTasks[otherTaskIndex].id);
+
+        if (!taskToMove || !taskToSwapWith) {
+            showInfoMessage("Error finding tasks to swap. Please try again.", "error");
+            console.error("Critical Error: taskToMove or taskToSwapWith not found in original tasks array during move operation.");
+            return;
+        }
+
+        const tempDisplayOrder = taskToMove.displayOrder;
+        taskToMove.displayOrder = taskToSwapWith.displayOrder;
+        taskToSwapWith.displayOrder = tempDisplayOrder;
+
+        saveTasks(tasks, (success, errorMsg) => {
+            if (success) {
+                showInfoMessage(`Task moved ${direction}.`, "success");
+                renderTasks('edit');
+                renderTasks('display');
+                renderTasks('home');
+                renderTasks('work');
+            } else {
+                showInfoMessage(`Failed to save new task order: ${errorMsg || 'Unknown error'}`, "error");
+                // Revert in-memory change to maintain consistency with storage
+                taskToMove.displayOrder = tempDisplayOrder;
+                taskToSwapWith.displayOrder = taskToMove.displayOrder; // This was the original value of taskToSwapWith before it got tempDisplayOrder
+                // Corrected revert:
+                // const originalTaskToMoveOrder = tempDisplayOrder;
+                // const originalTaskToSwapWithOrder = taskToMove.displayOrder; // This is taskToSwapWith.displayOrder before the swap
+                // taskToMove.displayOrder = originalTaskToMoveOrder;
+                // taskToSwapWith.displayOrder = originalTaskToSwapWithOrder;
+                // The version from the prompt was:
+                // taskToSwapWith.displayOrder = taskToMove.displayOrder; (this is original taskToSwapWith.displayOrder)
+                // taskToMove.displayOrder = tempDisplayOrder; (this is original taskToMove.displayOrder) - THIS IS CORRECT.
+
+                // So, the correct revert from the prompt is:
+                taskToSwapWith.displayOrder = taskToMove.displayOrder;
+                taskToMove.displayOrder = tempDisplayOrder;
+
+                console.log("Save failed. Reverted displayOrder in memory. Re-rendering.");
+                renderTasks('edit');
+                renderTasks('display');
+                renderTasks('home');
+                renderTasks('work');
+            }
+        });
+    });
+}
+
+// --- End of Move Task Up/Down Button Functionality ---
 
 // Existing tab switching code follows:
 document.addEventListener('DOMContentLoaded', function() {
@@ -930,30 +822,13 @@ document.addEventListener('DOMContentLoaded', function() {
         tab.addEventListener('click', () => {
             tabs.forEach(item => item.classList.remove('active'));
             tabContents.forEach(content => content.classList.remove('active'));
-
             tab.classList.add('active');
             const targetTabId = tab.getAttribute('data-tab');
             document.getElementById(targetTabId).classList.add('active');
-
-            console.log("Switched to tab:", targetTabId);
-            renderTasks(targetTabId); // Render tasks for the newly active tab
+            renderTasks(targetTabId);
         });
     });
 
-    // Test storage functions (optional, for development)
-    // (async () => {
-    //     console.log("Initial tasks:", await new Promise(getTasks));
-    //     const testTask = await addNewTask("Test Task", "http://example.com", "CRITICAL", "2023-12-31", "work");
-    //     console.log("Added task:", testTask);
-    //     console.log("Tasks after add:", await new Promise(getTasks));
-    //     testTask.completed = true;
-    //     await updateTask(testTask);
-    //     console.log("Tasks after update:", await new Promise(getTasks));
-    //     // await deleteTask(testTask.id);
-    //     // console.log("Tasks after delete:", await new Promise(getTasks));
-    // })();
-
-    // --- Add Task Functionality ---
     const addTaskBtn = document.getElementById('add-task-btn');
     const taskTitleInput = document.getElementById('task-title');
     const taskUrlInput = document.getElementById('task-url');
@@ -962,13 +837,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const taskDeadlineInput = document.getElementById('task-deadline');
     const taskTypeInput = document.getElementById('task-type');
 
-    // Show/hide deadline field based on priority
     taskPriorityInput.addEventListener('change', function() {
         if (this.value === 'CRITICAL') {
             taskDeadlineGroup.style.display = 'block';
         } else {
             taskDeadlineGroup.style.display = 'none';
-            taskDeadlineInput.value = ''; // Clear deadline if not critical
+            taskDeadlineInput.value = '';
         }
     });
 
@@ -983,52 +857,40 @@ document.addEventListener('DOMContentLoaded', function() {
             showInfoMessage("Task title is required.", "error");
             return;
         }
-
         if (priority === 'CRITICAL' && !deadline) {
             showInfoMessage("Deadline is required for CRITICAL tasks.", "error");
             return;
         }
-
-        if (priority !== 'CRITICAL') {
-            deadline = null; // Ensure deadline is null if not critical
-        }
-
-        console.log("Adding task:", { title, url, priority, deadline, type });
+        if (priority !== 'CRITICAL') deadline = null;
 
         const newTask = await addNewTask(title, url, priority, deadline, type);
-
-        if (newTask) { // Check if task was added successfully
+        if (newTask) {
             taskTitleInput.value = '';
             taskUrlInput.value = '';
-            taskPriorityInput.value = 'SOMEDAY'; // Reset to default
+            taskPriorityInput.value = 'SOMEDAY';
             taskDeadlineInput.value = '';
-            taskTypeInput.value = 'home'; // Reset to default
-            taskDeadlineGroup.style.display = 'none'; // Hide deadline field
-
+            taskTypeInput.value = 'home';
+            taskDeadlineGroup.style.display = 'none';
             showInfoMessage("Task added successfully!", "success");
-            renderTasks('display'); // Refresh display tab
-            renderTasks('edit');    // Refresh edit tab
-            renderTasks('home');    // Refresh home tab
-            renderTasks('work');    // Refresh work tab
+            renderTasks('display'); renderTasks('edit'); renderTasks('home'); renderTasks('work');
         } else {
             showInfoMessage("Failed to add task. Please try again.", "error");
         }
     });
-    // --- End of Add Task Functionality ---
 
-    // Initial render for the default active tab (Display)
     renderTasks('display');
-    // Also render for edit tab so it's ready if user switches
-    // This avoids seeing "No tasks to edit" if tasks exist.
     renderTasks('edit');
 
-    setupTaskCompletionListeners(); // Call the function to attach listeners
-
+    setupTaskCompletionListeners();
     setupTaskDeletionListener();
     setupInlineTaskEditingListeners();
-    setupDragAndDropListeners(); // For Edit tab
-    setupDisplayTabDragAndDropListeners(); // For Display tab <<<< NEW CALL
+    setupDragAndDropListeners();
+    setupDisplayTabDragAndDropListeners();
+    setupMoveTaskButtonListeners();
 
-    // console.log("Task Manager Loaded. Task completion listeners set up."); // Previous log
-    console.log("Task Manager Loaded. All listeners including Display D&D set up.");
+    let finalLogMessage = "Task Manager Loaded. All listeners set up.";
+    if (typeof setupMoveTaskButtonListeners === 'function') {
+        finalLogMessage = "Task Manager Loaded. All listeners including Move Task buttons set up.";
+    }
+    console.log(finalLogMessage);
 });
