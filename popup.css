@@ -461,9 +461,9 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
     font-size: 16px;
 }
 .manager-page .container { /* Scope container within manager-page */
-    width: 80%;
-    max-width: 900px;
-    margin: 0 auto;
+    width: 95%; /* Use more of the available width */
+    max-width: 1800px; /* Allow it to be quite wide, but not infinitely so */
+    margin: 0 auto; /* Keep it centered if screen is wider than max-width */
 }
 .manager-page #edit-task-list { /* Scope edit-task-list */
     max-height: none;
