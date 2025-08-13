@@ -591,6 +591,7 @@ h2 {
 
 /* Styles moved from manager.html */
 body.manager-page { /* Assuming we can add class="manager-page" to body in manager.html */
+    width: auto; /* Allow manager page to use full width */
     padding: 20px;
     font-size: 16px;
 }
