@@ -14,6 +14,7 @@
         <div class="tabs">
             <button class="tab-link active" data-tab="weekly-schedule">Weekly Schedule</button>
             <button class="tab-link" data-tab="task-lists">Task Lists</button>
+            <button class="tab-link" data-tab="all-tasks">All Tasks</button>
         </div>
 
         <!-- Main content area for the two tabs -->
@@ -103,6 +104,20 @@
                     <div class="priority-column">
                         <h3>Someday</h3>
                         <div id="someday-tasks-list" class="task-list neumorphic-inset-card"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- All Tasks Tab Content -->
+            <div id="all-tasks" class="tab-content">
+                <div class="tasks-display-area">
+                    <div class="priority-column">
+                        <h3>Home</h3>
+                        <div id="home-tasks-list" class="task-list neumorphic-inset-card"></div>
+                    </div>
+                    <div class="priority-column">
+                        <h3>Work</h3>
+                        <div id="work-tasks-list" class="task-list neumorphic-inset-card"></div>
                     </div>
                 </div>
             </div>

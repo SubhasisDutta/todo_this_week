@@ -46,6 +46,10 @@ async function renderPage() {
     // --- Render Task Lists Tab (all tasks) ---
     clearPriorityLists();
     renderPriorityLists(tasks);
+
+    // --- Render All Tasks Tab (all tasks) ---
+    clearHomeWorkLists();
+    renderHomeWorkLists(tasks);
 }
 
 function generatePlannerGrid() {
@@ -88,6 +92,11 @@ function clearPriorityLists() {
     document.getElementById('critical-tasks-list').innerHTML = '';
     document.getElementById('important-tasks-list').innerHTML = '';
     document.getElementById('someday-tasks-list').innerHTML = '';
+}
+
+function clearHomeWorkLists() {
+    document.getElementById('home-tasks-list').innerHTML = '';
+    document.getElementById('work-tasks-list').innerHTML = '';
 }
 
 function renderSidebarLists(unassigned, assigned) {
@@ -146,6 +155,41 @@ function renderPriorityLists(tasks) {
     renderColumn(criticalTasks, criticalList);
     renderColumn(importantTasks, importantList);
     renderColumn(somedayTasks, somedayList);
+}
+
+function renderHomeWorkLists(tasks) {
+    const homeList = document.getElementById('home-tasks-list');
+    const workList = document.getElementById('work-tasks-list');
+
+    const homeTasks = tasks.filter(t => t.type === 'home');
+    const workTasks = tasks.filter(t => t.type === 'work');
+
+    const priorityOrder = { 'CRITICAL': 1, 'IMPORTANT': 2, 'SOMEDAY': 3 };
+
+    const sortTasks = (a, b) => {
+        const priorityComparison = priorityOrder[a.priority] - priorityOrder[b.priority];
+        if (priorityComparison !== 0) {
+            return priorityComparison;
+        }
+        return (a.displayOrder || 0) - (b.displayOrder || 0);
+    };
+
+    homeTasks.sort(sortTasks);
+    workTasks.sort(sortTasks);
+
+    const renderColumn = (tasksForColumn, columnElement) => {
+        if (tasksForColumn.length === 0) {
+            columnElement.innerHTML = `<p class="empty-list-msg">No tasks in this category.</p>`;
+            return;
+        }
+        tasksForColumn.forEach((task, index) => {
+            const taskElement = createTaskElement(task, { context: 'management', index: index, total: tasksForColumn.length });
+            columnElement.appendChild(taskElement);
+        });
+    };
+
+    renderColumn(homeTasks, homeList);
+    renderColumn(workTasks, workList);
 }
 
 function createTaskElement(task, options = {}) {
