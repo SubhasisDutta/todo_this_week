@@ -205,7 +205,14 @@ function createTaskElement(task, options = {}) {
         checkbox.type = 'checkbox';
         checkbox.checked = task.completed;
         checkbox.classList.add('task-complete-checkbox');
+        const checkboxId = `checkbox-manager-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}`;
+        checkbox.id = checkboxId;
         taskItem.appendChild(checkbox);
+
+        const checkboxLabel = document.createElement('label');
+        checkboxLabel.classList.add('neumorphic-checkbox-label');
+        checkboxLabel.setAttribute('for', checkboxId);
+        taskItem.appendChild(checkboxLabel);
     }
 
     if (context !== 'grid') {
@@ -431,14 +438,15 @@ function setupTaskManagementListeners() {
         });
     }
 
-    const tasksDisplayArea = document.querySelector('.tasks-display-area');
-    if (!tasksDisplayArea) return;
+    const tasksDisplayAreas = document.querySelectorAll('.tasks-display-area');
+    if (tasksDisplayAreas.length === 0) return;
 
     let originalTaskDataForEdit = null;
 
-    tasksDisplayArea.addEventListener('click', async (event) => {
-        const target = event.target;
-        const taskItem = target.closest('.task-item');
+    tasksDisplayAreas.forEach(area => {
+        area.addEventListener('click', async (event) => {
+            const target = event.target;
+            const taskItem = target.closest('.task-item');
         const taskId = taskItem?.dataset.taskId;
 
         if (target.matches('.task-complete-checkbox')) {
@@ -470,7 +478,7 @@ function setupTaskManagementListeners() {
             }
         } else if (target.matches('.edit-task-btn-list')) {
             if (taskItem.classList.contains('editing-task-item')) return;
-            const currentlyEditing = tasksDisplayArea.querySelector('.editing-task-item');
+            const currentlyEditing = document.querySelector('.editing-task-item');
             if (currentlyEditing) currentlyEditing.querySelector('.cancel-inline-btn').click();
 
             const task = await getTaskById(taskId);
@@ -501,5 +509,6 @@ function setupTaskManagementListeners() {
             await updateTask(updatedTask);
             renderPage();
         }
+        });
     });
 }
