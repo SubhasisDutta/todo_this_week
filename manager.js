@@ -35,14 +35,15 @@ function setupAllListeners() {
 async function renderPage() {
     const tasks = await new Promise(resolve => getTasks(resolve));
 
-    // Planner Tab
+    // --- Render Planner Tab (only active tasks) ---
     clearPlannerTasks();
-    const unassignedTasks = tasks.filter(t => !t.schedule || t.schedule.length === 0);
-    const assignedTasks = tasks.filter(t => t.schedule && t.schedule.length > 0);
+    const activeTasks = tasks.filter(t => !t.completed);
+    const unassignedTasks = activeTasks.filter(t => !t.schedule || t.schedule.length === 0);
+    const assignedTasks = activeTasks.filter(t => t.schedule && t.schedule.length > 0);
     renderSidebarLists(unassignedTasks, assignedTasks);
     renderTasksOnGrid(assignedTasks);
 
-    // Task Lists Tab
+    // --- Render Task Lists Tab (all tasks) ---
     clearPriorityLists();
     renderPriorityLists(tasks);
 }
@@ -154,6 +155,14 @@ function createTaskElement(task, options = {}) {
     taskItem.classList.add('task-item', `priority-${task.priority.toLowerCase()}`);
     if (task.completed) taskItem.classList.add('task-completed-edit');
     taskItem.setAttribute('data-task-id', task.id);
+
+    if (context === 'management') {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = task.completed;
+        checkbox.classList.add('task-complete-checkbox');
+        taskItem.appendChild(checkbox);
+    }
 
     if (context !== 'grid') {
         taskItem.setAttribute('draggable', 'true');
@@ -276,8 +285,6 @@ function setupDragAndDropListeners() {
             event.dataTransfer.setData('text/plain', draggedTaskId);
             event.dataTransfer.effectAllowed = 'move';
             setTimeout(() => taskItem.classList.add('dragging'), 0);
-        } else {
-            event.preventDefault();
         }
     });
 
@@ -391,7 +398,15 @@ function setupTaskManagementListeners() {
         const taskItem = target.closest('.task-item');
         const taskId = taskItem?.dataset.taskId;
 
-        if (target.matches('.delete-task-btn-list')) {
+        if (target.matches('.task-complete-checkbox')) {
+            const isCompleted = target.checked;
+            const task = await getTaskById(taskId);
+            if (task) {
+                task.completed = isCompleted;
+                await updateTask(task);
+                renderPage();
+            }
+        } else if (target.matches('.delete-task-btn-list')) {
             if (confirm('Are you sure you want to delete this task?')) {
                 await deleteTask(taskId);
                 renderPage();
