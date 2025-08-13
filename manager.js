@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupTabSwitching();
     setupDragAndDropListeners();
     setupCoreFeatureListeners();
+    setupTaskManagementListeners();
     renderPage();
 });
 
@@ -71,7 +72,7 @@ function renderUnassignedTasks(unassignedTasks) {
     const unassignedListElement = document.getElementById('unassigned-tasks-list');
     if (unassignedTasks.length > 0) {
         unassignedTasks.forEach(task => {
-            const taskElement = createTaskElement(task);
+            const taskElement = createTaskElement(task, { context: 'unassigned' });
             unassignedListElement.appendChild(taskElement);
         });
     } else {
@@ -87,11 +88,9 @@ function renderScheduledTasks(scheduledTasks) {
     scheduledTasks.forEach(task => {
         task.schedule.forEach(scheduleItem => {
             const { day, blockId } = scheduleItem;
-            // Find the correct dropzone based on the schedule data
             const dropzone = document.querySelector(`.time-block[data-day='${day}'][data-block-id='${blockId}'] .task-list-dropzone`);
             if (dropzone) {
-                // Pass the specific schedule item to create a unique element for this instance
-                const taskElement = createTaskElement(task, scheduleItem);
+                const taskElement = createTaskElement(task, { context: 'schedule', scheduleItem: scheduleItem });
                 dropzone.appendChild(taskElement);
             } else {
                 console.warn(`Could not find dropzone for day: ${day}, blockId: ${blockId}`);
@@ -101,7 +100,7 @@ function renderScheduledTasks(scheduledTasks) {
 }
 
 /**
- * Renders all tasks into the three priority columns for a complete overview.
+ * Renders all tasks into the three priority columns with full management controls.
  * @param {Array<Task>} tasks - The complete list of all tasks.
  */
 function renderPriorityLists(tasks) {
@@ -113,23 +112,40 @@ function renderPriorityLists(tasks) {
     const importantTasks = tasks.filter(t => t.priority === 'IMPORTANT').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
     const somedayTasks = tasks.filter(t => t.priority === 'SOMEDAY').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
 
-    criticalTasks.forEach(task => criticalList.appendChild(createTaskElement(task)));
-    importantTasks.forEach(task => importantList.appendChild(createTaskElement(task)));
-    somedayTasks.forEach(task => somedayList.appendChild(createTaskElement(task)));
+    const renderColumn = (tasksForColumn, columnElement) => {
+        if (tasksForColumn.length === 0) {
+            columnElement.innerHTML = `<p style="text-align:center; color:#777;">No tasks in this category.</p>`;
+            return;
+        }
+        tasksForColumn.forEach((task, index) => {
+            const taskElement = createTaskElement(task, {
+                context: 'management',
+                index: index,
+                total: tasksForColumn.length
+            });
+            columnElement.appendChild(taskElement);
+        });
+    };
 
-    if (criticalTasks.length === 0) criticalList.innerHTML = '<p style="text-align:center; color:#777;">No critical tasks.</p>';
-    if (importantTasks.length === 0) importantList.innerHTML = '<p style="text-align:center; color:#777;">No important tasks.</p>';
-    if (somedayTasks.length === 0) somedayList.innerHTML = '<p style="text-align:center; color:#777;">No someday tasks.</p>';
+    renderColumn(criticalTasks, criticalList);
+    renderColumn(importantTasks, importantList);
+    renderColumn(somedayTasks, somedayList);
 }
 
 
 /**
- * Creates a DOM element for a single task.
+ * Creates a DOM element for a single task, with variations based on context.
  * @param {Task} task - The task object.
- * @param {object|null} scheduleItem - If scheduled, the specific schedule object {day, blockId}.
+ * @param {object} options - Options to control rendering.
+ * @param {string} options.context - The context ('unassigned', 'schedule', 'management').
+ * @param {object|null} options.scheduleItem - The specific schedule item if context is 'schedule'.
+ * @param {number} options.index - The index of the task in its list (for management controls).
+ * @param {number} options.total - The total number of tasks in the list (for management controls).
  * @returns {HTMLElement} The created task item element.
  */
-function createTaskElement(task, scheduleItem = null) {
+function createTaskElement(task, options = {}) {
+    const { context = 'unassigned', scheduleItem = null, index = -1, total = -1 } = options;
+
     const taskItem = document.createElement('div');
     taskItem.classList.add('task-item', `priority-${task.priority.toLowerCase()}`);
     if (task.completed) {
@@ -138,7 +154,6 @@ function createTaskElement(task, scheduleItem = null) {
     taskItem.setAttribute('data-task-id', task.id);
     taskItem.setAttribute('draggable', 'true');
 
-    // If the task is rendered in a schedule, add data attributes for its location
     if (scheduleItem) {
         taskItem.setAttribute('data-scheduled-day', scheduleItem.day);
         taskItem.setAttribute('data-scheduled-block-id', scheduleItem.blockId);
@@ -147,7 +162,6 @@ function createTaskElement(task, scheduleItem = null) {
     const titleSpan = document.createElement('span');
     titleSpan.classList.add('task-title');
 
-    // Add task type icon
     if (task.type) {
         const iconSpan = document.createElement('span');
         iconSpan.classList.add('task-type-icon');
@@ -156,7 +170,6 @@ function createTaskElement(task, scheduleItem = null) {
         titleSpan.appendChild(iconSpan);
     }
 
-    // Append title text or link
     const textNode = document.createTextNode(task.title);
     if (task.url) {
         const link = document.createElement('a');
@@ -169,38 +182,225 @@ function createTaskElement(task, scheduleItem = null) {
     }
     taskItem.appendChild(titleSpan);
 
-    // Add deadline info for critical tasks
     if (task.priority === 'CRITICAL' && task.deadline) {
         const deadlineSpan = document.createElement('span');
         deadlineSpan.classList.add('task-deadline-display');
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const deadlineDate = new Date(task.deadline);
-        deadlineDate.setHours(0, 0, 0, 0);
-
-        // Adjust for timezone offset to compare dates correctly
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const deadlineDate = new Date(task.deadline); deadlineDate.setHours(0, 0, 0, 0);
         const utcToday = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
         const utcDeadline = Date.UTC(deadlineDate.getFullYear(), deadlineDate.getMonth(), deadlineDate.getDate());
         const dayDiff = Math.round((utcDeadline - utcToday) / (1000 * 60 * 60 * 24));
-
-        let deadlineText = '';
-        let deadlineClass = '';
-        if (dayDiff > 0) {
-            deadlineText = `${dayDiff}d left`;
-            deadlineClass = 'deadline-future';
-        } else if (dayDiff === 0) {
-            deadlineText = 'Today';
-            deadlineClass = 'deadline-today';
-        } else {
-            deadlineText = `${Math.abs(dayDiff)}d overdue`;
-            deadlineClass = 'deadline-overdue';
-        }
+        let deadlineText = '', deadlineClass = '';
+        if (dayDiff > 0) { deadlineText = `${dayDiff}d left`; deadlineClass = 'deadline-future'; }
+        else if (dayDiff === 0) { deadlineText = 'Today'; deadlineClass = 'deadline-today'; }
+        else { deadlineText = `${Math.abs(dayDiff)}d overdue`; deadlineClass = 'deadline-overdue'; }
         deadlineSpan.textContent = ` (${deadlineText})`;
         deadlineSpan.classList.add(deadlineClass);
         taskItem.appendChild(deadlineSpan);
     }
 
+    if (context === 'management') {
+        const buttonContainer = document.createElement('div');
+        buttonContainer.classList.add('task-item-actions');
+
+        if (index > 0) {
+            const moveUpButton = document.createElement('button');
+            moveUpButton.innerHTML = '&uarr;';
+            moveUpButton.classList.add('neumorphic-btn', 'move-task-up-btn');
+            moveUpButton.title = "Move Up";
+            moveUpButton.setAttribute('data-task-id', task.id);
+            buttonContainer.appendChild(moveUpButton);
+        }
+
+        if (index < total - 1) {
+            const moveDownButton = document.createElement('button');
+            moveDownButton.innerHTML = '&darr;';
+            moveDownButton.classList.add('neumorphic-btn', 'move-task-down-btn');
+            moveDownButton.title = "Move Down";
+            moveDownButton.setAttribute('data-task-id', task.id);
+            buttonContainer.appendChild(moveDownButton);
+        }
+
+        const editButton = document.createElement('button');
+        editButton.textContent = 'Edit';
+        editButton.classList.add('neumorphic-btn', 'edit-task-btn-list');
+        editButton.setAttribute('data-task-id', task.id);
+
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Delete';
+        deleteButton.classList.add('neumorphic-btn', 'delete-task-btn-list');
+        deleteButton.setAttribute('data-task-id', task.id);
+
+        taskItem.appendChild(buttonContainer);
+        taskItem.appendChild(editButton);
+        taskItem.appendChild(deleteButton);
+    }
+
     return taskItem;
+}
+
+function setupTaskManagementListeners() {
+    // --- Add Task ---
+    const addTaskBtn = document.getElementById('add-task-btn');
+    if (addTaskBtn) {
+        addTaskBtn.addEventListener('click', async () => {
+            const taskTitleInput = document.getElementById('task-title');
+            const taskUrlInput = document.getElementById('task-url');
+            const taskPriorityInput = document.getElementById('task-priority');
+            const taskDeadlineInput = document.getElementById('task-deadline');
+            const taskTypeInput = document.getElementById('task-type');
+
+            const title = taskTitleInput.value.trim();
+            if (!title) {
+                showInfoMessage("Task title is required.", "error", 3000, document);
+                return;
+            }
+            const priority = taskPriorityInput.value;
+            let deadline = taskDeadlineInput.value;
+            if (priority === 'CRITICAL' && !deadline) {
+                showInfoMessage("Deadline is required for CRITICAL tasks.", "error", 3000, document);
+                return;
+            }
+            if (priority !== 'CRITICAL') deadline = null;
+
+            const newTask = await addNewTask(title, taskUrlInput.value.trim(), priority, deadline, taskTypeInput.value);
+            if (newTask) {
+                taskTitleInput.value = '';
+                taskUrlInput.value = '';
+                taskPriorityInput.value = 'SOMEDAY';
+                taskDeadlineInput.value = '';
+                taskTypeInput.value = 'home';
+                document.getElementById('task-deadline-group').style.display = 'none';
+                showInfoMessage("Task added successfully!", "success", 3000, document);
+                renderPage();
+            } else {
+                showInfoMessage("Failed to add task.", "error", 3000, document);
+            }
+        });
+    }
+    // Also handle the deadline field visibility
+    const taskPriorityInput = document.getElementById('task-priority');
+    if(taskPriorityInput) {
+        taskPriorityInput.addEventListener('change', function() {
+            document.getElementById('task-deadline-group').style.display = this.value === 'CRITICAL' ? 'block' : 'none';
+        });
+    }
+
+
+    // --- Edit/Delete/Move Listeners (Delegated) ---
+    const tasksDisplayArea = document.querySelector('.tasks-display-area');
+    if (!tasksDisplayArea) return;
+
+    let originalTaskDataForEdit = null;
+
+    tasksDisplayArea.addEventListener('click', async (event) => {
+        const target = event.target;
+
+        // Handle Delete
+        if (target.matches('.delete-task-btn-list')) {
+            const taskId = target.getAttribute('data-task-id');
+            if (confirm('Are you sure you want to delete this task?')) {
+                await deleteTask(taskId);
+                renderPage();
+                showInfoMessage('Task deleted.', 'success', 3000, document);
+            }
+        }
+
+        // Handle Edit
+        if (target.matches('.edit-task-btn-list')) {
+            const taskItem = target.closest('.task-item');
+            if (taskItem.classList.contains('editing-task-item')) return;
+
+            const currentlyEditing = tasksDisplayArea.querySelector('.editing-task-item');
+            if (currentlyEditing) {
+                currentlyEditing.querySelector('.cancel-inline-btn').click();
+            }
+
+            const taskId = target.getAttribute('data-task-id');
+            const task = await getTaskById(taskId);
+            originalTaskDataForEdit = { ...task };
+            taskItem.classList.add('editing-task-item');
+
+            const formHtml = `
+                <div class="inline-edit-form">
+                    <div class="form-group-inline"><label>Title:</label><input type="text" class="neumorphic-input edit-task-title" value="${task.title}"></div>
+                    <div class="form-group-inline"><label>URL:</label><input type="url" class="neumorphic-input edit-task-url" value="${task.url || ''}"></div>
+                    <div class="form-group-inline"><label>Priority:</label><select class="neumorphic-select edit-task-priority">
+                        <option value="SOMEDAY" ${task.priority === 'SOMEDAY' ? 'selected' : ''}>Someday</option>
+                        <option value="IMPORTANT" ${task.priority === 'IMPORTANT' ? 'selected' : ''}>Important</option>
+                        <option value="CRITICAL" ${task.priority === 'CRITICAL' ? 'selected' : ''}>Critical</option>
+                    </select></div>
+                    <div class="form-group-inline edit-task-deadline-group" style="display: ${task.priority === 'CRITICAL' ? 'block' : 'none'};"><label>Deadline:</label><input type="date" class="neumorphic-input edit-task-deadline" value="${task.deadline || ''}"></div>
+                    <div class="form-group-inline"><label>Type:</label><select class="neumorphic-select edit-task-type">
+                        <option value="home" ${task.type === 'home' ? 'selected' : ''}>Home</option>
+                        <option value="work" ${task.type === 'work' ? 'selected' : ''}>Work</option>
+                    </select></div>
+                    <div class="form-group-inline form-group-inline-checkbox"><label>Completed:</label><input type="checkbox" class="edit-task-completed" ${task.completed ? 'checked' : ''}></div>
+                    <div class="inline-edit-actions"><button class="neumorphic-btn save-inline-btn">Save</button><button class="neumorphic-btn cancel-inline-btn">Cancel</button></div>
+                </div>`;
+
+            taskItem.querySelector('.task-title').style.display = 'none';
+            taskItem.querySelectorAll('.task-item-actions, .edit-task-btn-list, .delete-task-btn-list').forEach(el => el.style.display = 'none');
+            taskItem.insertAdjacentHTML('beforeend', formHtml);
+        }
+
+        // Handle Cancel Edit
+        if (target.matches('.cancel-inline-btn')) {
+            const taskItem = target.closest('.editing-task-item');
+            taskItem.classList.remove('editing-task-item');
+            taskItem.querySelector('.inline-edit-form').remove();
+            taskItem.querySelector('.task-title').style.display = '';
+            taskItem.querySelectorAll('.task-item-actions, .edit-task-btn-list, .delete-task-btn-list').forEach(el => el.style.display = '');
+            originalTaskDataForEdit = null;
+        }
+
+        // Handle Save Edit
+        if (target.matches('.save-inline-btn')) {
+            const taskItem = target.closest('.editing-task-item');
+            const taskId = taskItem.getAttribute('data-task-id');
+            const updatedTask = { ...originalTaskDataForEdit };
+
+            updatedTask.title = taskItem.querySelector('.edit-task-title').value.trim();
+            if (!updatedTask.title) {
+                showInfoMessage("Title cannot be empty.", "error", 3000, document);
+                return;
+            }
+            updatedTask.url = taskItem.querySelector('.edit-task-url').value.trim();
+            updatedTask.priority = taskItem.querySelector('.edit-task-priority').value;
+            updatedTask.deadline = taskItem.querySelector('.edit-task-deadline').value;
+            updatedTask.type = taskItem.querySelector('.edit-task-type').value;
+            updatedTask.completed = taskItem.querySelector('.edit-task-completed').checked;
+
+            if (updatedTask.priority !== 'CRITICAL') updatedTask.deadline = null;
+
+            await updateTask(updatedTask);
+            renderPage();
+            showInfoMessage('Task updated!', 'success', 3000, document);
+        }
+
+        // Handle Move Up/Down
+        if (target.matches('.move-task-up-btn') || target.matches('.move-task-down-btn')) {
+            const taskId = target.getAttribute('data-task-id');
+            const direction = target.matches('.move-task-up-btn') ? 'up' : 'down';
+            const tasks = await new Promise(resolve => getTasks(resolve));
+            const taskToMove = tasks.find(t => t.id === taskId);
+            const priorityGroup = tasks.filter(t => t.priority === taskToMove.priority).sort((a,b) => a.displayOrder - b.displayOrder);
+            const currentIndex = priorityGroup.findIndex(t => t.id === taskId);
+
+            let otherIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+            if (otherIndex >= 0 && otherIndex < priorityGroup.length) {
+                const otherTask = priorityGroup[otherIndex];
+                // Swap displayOrder
+                const tempOrder = taskToMove.displayOrder;
+                taskToMove.displayOrder = otherTask.displayOrder;
+                otherTask.displayOrder = tempOrder;
+
+                await updateTask(taskToMove);
+                await updateTask(otherTask);
+                renderPage();
+            }
+        }
+    });
 }
 
 function setupCoreFeatureListeners() {

@@ -19,9 +19,19 @@
 
         <!-- Weekly Schedule Tab Content -->
         <div id="weekly-schedule" class="tab-content active">
-            <div class="week-view">
-                <div class="day-column" data-day="monday">
-                    <h3>Monday</h3>
+            <div class="schedule-view-container">
+                <div class="unassigned-tasks-sidebar">
+                    <div class="unassigned-tasks-section">
+                        <h2>Unassigned Tasks</h2>
+                        <button id="unassign-all-btn" class="neumorphic-btn">Unassign All</button>
+                        <div id="unassigned-tasks-list" class="task-list neumorphic-inset-card">
+                            <p>Drag tasks from here to the schedule.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="week-view">
+                    <div class="day-column" data-day="monday">
+                        <h3>Monday</h3>
                     <div class="day-blocks">
                         <div class="time-block" id="mon-late-night-read" data-block-id="late-night-read" data-day="monday" data-task-limit="multiple"><div class="time-block-header">[12AM-1AM] Late Night Read</div><div class="task-list-dropzone"></div></div>
                         <div class="time-block sleep-block" id="mon-sleep" data-block-id="sleep" data-day="monday" data-task-limit="0"><div class="time-block-header">[1AM-7AM] Sleep</div><div class="task-list-dropzone"></div></div>
@@ -132,20 +142,45 @@
                         <div class="time-block" id="sun-night-build" data-block-id="night-build" data-day="sunday" data-task-limit="1"><div class="time-block-header">[10PM-11PM] Night Build Block</div><div class="task-list-dropzone"></div></div>
                     </div>
                 </div>
-            </div>
+            </div> <!-- Close week-view -->
+            </div> <!-- Close schedule-view-container -->
         </div>
 
         <!-- Task Lists Tab Content -->
         <div id="task-lists" class="tab-content">
-            <div class="unassigned-tasks-section">
-                <h2>Unassigned Tasks</h2>
-                <button id="unassign-all-btn" class="neumorphic-btn">Unassign All Scheduled Tasks</button>
-                <div id="unassigned-tasks-list" class="task-list neumorphic-inset-card">
-                    <p>No unassigned tasks.</p>
+            <div class="add-task-form">
+                <h3>Add New Task</h3>
+                <div class="form-group">
+                    <label for="task-title">Title:</label>
+                    <input type="text" id="task-title" class="neumorphic-input" placeholder="Enter task title">
                 </div>
+                <div class="form-group">
+                    <label for="task-url">URL (Optional):</label>
+                    <input type="url" id="task-url" class="neumorphic-input" placeholder="Enter URL">
+                </div>
+                <div class="form-group">
+                    <label for="task-priority">Priority:</label>
+                    <select id="task-priority" class="neumorphic-select">
+                        <option value="SOMEDAY">Someday</option>
+                        <option value="IMPORTANT">Important</option>
+                        <option value="CRITICAL">Critical</option>
+                    </select>
+                </div>
+                <div class="form-group" id="task-deadline-group" style="display: none;">
+                    <label for="task-deadline">Deadline (for Critical):</label>
+                    <input type="date" id="task-deadline" class="neumorphic-input">
+                </div>
+                <div class="form-group">
+                    <label for="task-type">Type:</label>
+                    <select id="task-type" class="neumorphic-select">
+                        <option value="home">Home</option>
+                        <option value="work">Work</option>
+                    </select>
+                </div>
+                <button id="add-task-btn" class="neumorphic-btn">Add Task</button>
             </div>
             <hr class="neumorphic-divider">
-            <h2>Task Priority Lists</h2>
+            <h2>All Tasks</h2>
             <div class="tasks-display-area">
                  <div class="priority-column">
                     <h3>Critical</h3>

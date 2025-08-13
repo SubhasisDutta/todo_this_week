@@ -690,3 +690,53 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
     color: darkgreen;
 }
 */
+
+/* --- New Layout Styles for Manager View --- */
+
+.schedule-view-container {
+    display: flex;
+    gap: 20px;
+}
+
+.unassigned-tasks-sidebar {
+    flex: 0 0 300px; /* Do not grow, do not shrink, base width of 300px */
+    display: flex;
+    flex-direction: column;
+    max-height: 80vh; /* Set a max height relative to viewport */
+}
+
+.unassigned-tasks-sidebar .unassigned-tasks-section {
+    flex-grow: 1; /* Allow the section to fill the sidebar height */
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Ensure it respects parent's height */
+}
+
+.unassigned-tasks-sidebar #unassigned-tasks-list {
+    flex-grow: 1; /* Allow the list to expand */
+    overflow-y: auto; /* Add scrollbar if content overflows */
+}
+
+.week-view {
+    flex: 1; /* The week view should take up the remaining space */
+}
+
+/* --- Tweaks for Management Buttons --- */
+.tasks-display-area .task-item {
+    display: flex;
+    flex-wrap: wrap; /* Allow buttons to wrap on small screens if needed */
+    align-items: center;
+}
+
+.tasks-display-area .task-title {
+    flex-grow: 1;
+}
+
+.tasks-display-area .task-item-actions {
+    margin-left: 10px; /* Add some space before the buttons start */
+}
+
+.tasks-display-area .edit-task-btn-list,
+.tasks-display-area .delete-task-btn-list {
+    margin-left: 5px;
+}
