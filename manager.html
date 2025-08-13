@@ -3,70 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Task Manager - Full View</title>
+    <title>Task Manager - Weekly Planner</title>
     <link rel="stylesheet" href="popup.css">
 </head>
 <body class="manager-page">
-    <div class="container">
-        <h1>Task Manager - All Tasks</h1>
-
+    <div class="container manager-container">
+        <h1>Weekly Task Planner</h1>
         <div id="info-message-area" class="info-message" style="display: none;"></div>
 
-        <div class="task-form-container neumorphic-card">
-            <h2>Add New Task</h2>
-            <div class="form-group">
-                <label for="task-title">Task Title:</label>
-                <input type="text" id="task-title" class="neumorphic-input" placeholder="Enter task title">
-            </div>
-            <div class="form-group">
-                <label for="task-url">Task URL (Optional):</label>
-                <input type="url" id="task-url" class="neumorphic-input" placeholder="http://example.com">
-            </div>
-            <div class="form-group">
-                <label for="task-priority">Priority:</label>
-                <select id="task-priority" class="neumorphic-select">
-                    <option value="SOMEDAY">Someday</option>
-                    <option value="IMPORTANT">Important</option>
-                    <option value="CRITICAL">Critical</option>
-                </select>
-            </div>
-            <div class="form-group" id="task-deadline-group" style="display: none;">
-                <label for="task-deadline">Deadline (for Critical tasks):</label>
-                <input type="date" id="task-deadline" class="neumorphic-input">
-            </div>
-            <div class="form-group">
-                <label for="task-type">Type:</label>
-                <select id="task-type" class="neumorphic-select">
-                    <option value="home">Home</option>
-                    <option value="work">Work</option>
-                </select>
-            </div>
-            <button id="add-task-btn" class="neumorphic-btn">Add Task</button>
+        <div class="tabs">
+            <button class="tab-link active" data-tab="weekly-schedule">Weekly Schedule</button>
+            <button class="tab-link" data-tab="task-lists">Task Lists</button>
         </div>
 
-        <div class="tasks-display-area">
-            <div class="priority-column">
-                <h3>Critical</h3>
-                <div id="critical-tasks-list" class="task-list neumorphic-inset-card">
-                    <!-- Critical tasks will be rendered here -->
+        <!-- Main content area for the two tabs -->
+        <div class="main-content">
+            <!-- Weekly Schedule Tab Content -->
+            <div id="weekly-schedule" class="tab-content active">
+                <div class="planner-container">
+                    <!-- Column 1: Unassigned Tasks -->
+                    <div class="tasks-column" id="unassigned-tasks-container">
+                        <h3>Unassigned Tasks</h3>
+                        <div id="unassigned-tasks-list" class="task-list neumorphic-inset-card">
+                            <!-- Unassigned tasks rendered by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Weekly Grid Planner -->
+                    <div class="planner-grid-container">
+                        <div id="planner-grid">
+                            <div class="grid-header">Time</div>
+                            <div class="grid-header">Monday</div>
+                            <div class="grid-header">Tuesday</div>
+                            <div class="grid-header">Wednesday</div>
+                            <div class="grid-header">Thursday</div>
+                            <div class="grid-header">Friday</div>
+                            <div class="grid-header">Saturday</div>
+                            <div class="grid-header">Sunday</div>
+
+                            <!-- Programmatically generate rows -->
+                        </div>
+                    </div>
+
+                    <!-- Column 3: Assigned Tasks -->
+                    <div class="tasks-column" id="assigned-tasks-container">
+                        <h3>Assigned Tasks</h3>
+                        <button id="unassign-all-btn" class="neumorphic-btn">Unassign All</button>
+                        <div id="assigned-tasks-list" class="task-list neumorphic-inset-card">
+                            <!-- Assigned tasks rendered by JS -->
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="priority-column">
-                <h3>Important</h3>
-                <div id="important-tasks-list" class="task-list neumorphic-inset-card">
-                    <!-- Important tasks will be rendered here -->
+
+            <!-- Task Lists Tab Content -->
+            <div id="task-lists" class="tab-content">
+                <div class="add-task-form">
+                    <h3>Add New Task</h3>
+                    <div class="form-group">
+                        <label for="task-title">Title:</label>
+                        <input type="text" id="task-title" class="neumorphic-input" placeholder="Enter task title">
+                    </div>
+                    <div class="form-group">
+                        <label for="task-url">URL (Optional):</label>
+                        <input type="url" id="task-url" class="neumorphic-input" placeholder="Enter URL">
+                    </div>
+                    <div class="form-group">
+                        <label for="task-priority">Priority:</label>
+                        <select id="task-priority" class="neumorphic-select">
+                            <option value="SOMEDAY">Someday</option>
+                            <option value="IMPORTANT">Important</option>
+                            <option value="CRITICAL">Critical</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="task-deadline-group" style="display: none;">
+                        <label for="task-deadline">Deadline (for Critical):</label>
+                        <input type="date" id="task-deadline" class="neumorphic-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="task-type">Type:</label>
+                        <select id="task-type" class="neumorphic-select">
+                            <option value="home">Home</option>
+                            <option value="work">Work</option>
+                        </select>
+                    </div>
+                    <button id="add-task-btn" class="neumorphic-btn">Add Task</button>
                 </div>
-            </div>
-            <div class="priority-column">
-                <h3>Someday</h3>
-                <div id="someday-tasks-list" class="task-list neumorphic-inset-card">
-                    <!-- Someday tasks will be rendered here -->
+                <hr class="neumorphic-divider">
+                <h2>All Tasks</h2>
+                <div class="tasks-display-area">
+                     <div class="priority-column">
+                        <h3>Critical</h3>
+                        <div id="critical-tasks-list" class="task-list neumorphic-inset-card"></div>
+                    </div>
+                    <div class="priority-column">
+                        <h3>Important</h3>
+                        <div id="important-tasks-list" class="task-list neumorphic-inset-card"></div>
+                    </div>
+                    <div class="priority-column">
+                        <h3>Someday</h3>
+                        <div id="someday-tasks-list" class="task-list neumorphic-inset-card"></div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <script src="task_utils.js"></script> <!-- To be created -->
-    <script src="manager.js"></script>   <!-- To be created -->
+    <script src="task_utils.js"></script>
+    <script src="manager.js"></script>
 </body>
 </html>

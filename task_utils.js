@@ -2,7 +2,7 @@
 
 // --- Task Data Structure and Storage ---
 class Task {
-    constructor(id, title, url = '', priority = 'SOMEDAY', completed = false, deadline = null, type = 'home', displayOrder = 0) {
+    constructor(id, title, url = '', priority = 'SOMEDAY', completed = false, deadline = null, type = 'home', displayOrder = 0, schedule = []) {
         this.id = id || `task_${new Date().getTime()}_${Math.random().toString(36).substr(2, 9)}`;
         this.title = title;
         this.url = url;
@@ -11,6 +11,7 @@ class Task {
         this.deadline = deadline;
         this.type = type;
         this.displayOrder = displayOrder;
+        this.schedule = schedule;
     }
 }
 
@@ -24,10 +25,14 @@ function getTasks(callback) {
             let needsSave = false;
             const tasks = result.tasks.map((taskData, index) => {
                 // Ensure tasks are instances of Task or have the full structure
-                // and backfill displayOrder if missing
+                // and backfill missing properties
                 let taskInstance = Object.assign(new Task(taskData.id, ''), taskData);
                 if (typeof taskInstance.displayOrder === 'undefined') {
                     taskInstance.displayOrder = index; // Assign based on current array order
+                    needsSave = true;
+                }
+                if (typeof taskInstance.schedule === 'undefined') {
+                    taskInstance.schedule = []; // Backfill schedule property
                     needsSave = true;
                 }
                 return taskInstance;

@@ -1,536 +1,461 @@
 // manager.js
 
+// --- CONSTANTS ---
+const TIME_BLOCKS = [
+    { id: 'late-night-read', label: 'Late Night Read', time: '[12AM-1AM]', limit: 'multiple', colorClass: 'block-color-sakura' },
+    { id: 'sleep', label: 'Sleep', time: '[1AM-7AM]', limit: '0', colorClass: '' },
+    { id: 'ai-study', label: 'AI study time', time: '[7AM-8AM]', limit: '0', colorClass: '' },
+    { id: 'morning-prep', label: 'Morning Prep Time', time: '[8AM-9AM]', limit: '0', colorClass: '' },
+    { id: 'engagement', label: 'Engagement Block', time: '[9AM-12PM]', limit: 'multiple', colorClass: 'block-color-purple' },
+    { id: 'lunch', label: 'Lunch Break', time: '[12PM-1PM]', limit: '0', colorClass: '' },
+    { id: 'deep-work-1', label: 'Deep Work Block 1', time: '[1PM-3PM]', limit: '1', colorClass: 'block-color-yellow' },
+    { id: 'deep-work-2', label: 'Deep Work Block 2', time: '[3PM-6PM]', limit: '1', colorClass: 'block-color-yellow' },
+    { id: 'commute-relax', label: 'Commute and Relax', time: '[6PM-8PM]', limit: 'multiple', colorClass: 'block-color-sage' },
+    { id: 'family-time', label: 'Family time Block', time: '[8PM-10PM]', limit: 'multiple', colorClass: 'block-color-skyblue' },
+    { id: 'night-build', label: 'Night Build Block', time: '[10PM-11PM]', limit: '1', colorClass: 'block-color-orange' }
+];
+const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+// --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', function() {
-    // --- Task Addition ---
-    const addTaskBtn = document.getElementById('add-task-btn');
-    const taskTitleInput = document.getElementById('task-title');
-    const taskUrlInput = document.getElementById('task-url');
-    const taskPriorityInput = document.getElementById('task-priority');
-    const taskDeadlineGroup = document.getElementById('task-deadline-group');
-    const taskDeadlineInput = document.getElementById('task-deadline');
-    const taskTypeInput = document.getElementById('task-type');
-
-    if (taskPriorityInput) {
-        taskPriorityInput.addEventListener('change', function() {
-            if (taskDeadlineGroup) {
-                taskDeadlineGroup.style.display = this.value === 'CRITICAL' ? 'block' : 'none';
-                if (this.value !== 'CRITICAL' && taskDeadlineInput) {
-                    taskDeadlineInput.value = '';
-                }
-            }
-        });
-    }
-
-    if (addTaskBtn) {
-        addTaskBtn.addEventListener('click', async () => {
-            const title = taskTitleInput ? taskTitleInput.value.trim() : '';
-            const url = taskUrlInput ? taskUrlInput.value.trim() : '';
-            const priority = taskPriorityInput ? taskPriorityInput.value : 'SOMEDAY';
-            const type = taskTypeInput ? taskTypeInput.value : 'home';
-            let deadline = taskDeadlineInput ? taskDeadlineInput.value : '';
-
-            if (!title) {
-                showInfoMessage("Task title is required.", "error", 3000, document);
-                return;
-            }
-            if (priority === 'CRITICAL' && !deadline) {
-                showInfoMessage("Deadline is required for CRITICAL tasks.", "error", 3000, document);
-                return;
-            }
-            if (priority !== 'CRITICAL') {
-                deadline = null;
-            }
-
-            const newTask = await addNewTask(title, url, priority, deadline, type);
-            if (newTask) {
-                if (taskTitleInput) taskTitleInput.value = '';
-                if (taskUrlInput) taskUrlInput.value = '';
-                if (taskPriorityInput) taskPriorityInput.value = 'SOMEDAY';
-                if (taskDeadlineInput) taskDeadlineInput.value = '';
-                if (taskTypeInput) taskTypeInput.value = 'home';
-                if (taskDeadlineGroup) taskDeadlineGroup.style.display = 'none';
-                showInfoMessage("Task added successfully!", "success", 3000, document);
-                renderManagerTasks(); // Re-render tasks
-            } else {
-                showInfoMessage("Failed to add task. Please try again.", "error", 3000, document);
-            }
-        });
-    }
-    // --- End of Task Addition ---
-
-    renderManagerTasks();
-    setupManagerEventListeners();
-    console.log("Task Manager Page Loaded. Event listeners set up.");
+    setupTabSwitching();
+    generatePlannerGrid();
+    renderPage();
+    setupAllListeners();
 });
 
+function setupAllListeners() {
+    setupDragAndDropListeners();
+    setupCoreFeatureListeners();
+    setupTaskManagementListeners();
+}
 
-function renderManagerTasks() {
-    getTasks(allTasks => {
-        const criticalListElement = document.getElementById('critical-tasks-list');
-        const importantListElement = document.getElementById('important-tasks-list');
-        const somedayListElement = document.getElementById('someday-tasks-list');
+// --- RENDERING LOGIC ---
 
-        if (!criticalListElement || !importantListElement || !somedayListElement) {
-            console.error("One or more task list elements not found in manager.html.");
-            return;
-        }
+async function renderPage() {
+    const tasks = await new Promise(resolve => getTasks(resolve));
 
-        // Filter tasks by priority
-        const criticalTasks = allTasks.filter(task => task.priority === 'CRITICAL').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-        const importantTasks = allTasks.filter(task => task.priority === 'IMPORTANT').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-        const somedayTasks = allTasks.filter(task => task.priority === 'SOMEDAY').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    // --- Render Planner Tab (only active tasks) ---
+    clearPlannerTasks();
+    const activeTasks = tasks.filter(t => !t.completed);
+    const unassignedTasks = activeTasks.filter(t => !t.schedule || t.schedule.length === 0);
+    const assignedTasks = activeTasks.filter(t => t.schedule && t.schedule.length > 0);
+    renderSidebarLists(unassignedTasks, assignedTasks);
+    renderTasksOnGrid(assignedTasks);
 
-        // Clear existing tasks in all columns
-        criticalListElement.innerHTML = '';
-        importantListElement.innerHTML = '';
-        somedayListElement.innerHTML = '';
+    // --- Render Task Lists Tab (all tasks) ---
+    clearPriorityLists();
+    renderPriorityLists(tasks);
+}
 
-        const renderColumn = (tasks, columnElement, priorityName) => {
-            if (tasks.length === 0) {
-                columnElement.innerHTML = `<p style="text-align:center; color:#777;">No ${priorityName.toLowerCase()} tasks.</p>`;
-                return;
-            }
+function generatePlannerGrid() {
+    const plannerGrid = document.getElementById('planner-grid');
+    if (plannerGrid.childElementCount > 8) return;
 
-            tasks.forEach((task, index) => {
-                const taskItem = document.createElement('div');
-                taskItem.classList.add('task-item', `priority-${task.priority}`);
-                if (task.completed) {
-                    taskItem.classList.add('task-completed-edit');
-                }
-                taskItem.setAttribute('data-task-id', task.id);
-                taskItem.setAttribute('data-task-priority', task.priority); // Store priority for move logic
-                taskItem.setAttribute('draggable', 'true');
+    TIME_BLOCKS.forEach(block => {
+        const timeLabel = document.createElement('div');
+        timeLabel.classList.add('time-label');
+        timeLabel.textContent = block.time;
+        plannerGrid.appendChild(timeLabel);
 
-                const titleSpan = document.createElement('span');
-                titleSpan.classList.add('task-title');
-
-                // Add task type icon
-                if (task.type) {
-                    const iconSpan = document.createElement('span');
-                    iconSpan.classList.add('task-type-icon');
-                    if (task.type === 'home') {
-                        iconSpan.textContent = '🏠'; // Home icon
-                        iconSpan.classList.add('home-icon');
-                        iconSpan.setAttribute('aria-label', 'Home task');
-                    } else if (task.type === 'work') {
-                        iconSpan.textContent = '🏢'; // Work icon
-                        iconSpan.classList.add('work-icon');
-                        iconSpan.setAttribute('aria-label', 'Work task');
-                    }
-                    // Prepend icon so it comes before the title text/link
-                    if (iconSpan.textContent) { // Only append if an icon was set
-                         titleSpan.appendChild(iconSpan);
-                    }
-                }
-
-                // Append title text or link after the icon
-                if (task.url) {
-                    const link = document.createElement('a');
-                    link.href = task.url;
-                    link.textContent = task.title; // Title text for the link
-                    link.target = '_blank';
-                    titleSpan.appendChild(link);
-                } else {
-                    // If there's already an icon, append text node, otherwise set textContent
-                    if (titleSpan.hasChildNodes()) {
-                        titleSpan.appendChild(document.createTextNode(task.title));
-                    } else {
-                        titleSpan.textContent = task.title;
-                    }
-                }
-                taskItem.appendChild(titleSpan);
-
-                if (task.priority === 'CRITICAL' && task.deadline) {
-                    const deadlineSpan = document.createElement('span');
-                    deadlineSpan.classList.add('task-deadline-display');
-                    const today = new Date(); today.setHours(0,0,0,0);
-                    const parts = task.deadline.split('-');
-                    const deadlineDate = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
-                    deadlineDate.setHours(0,0,0,0);
-                    const timeDiff = deadlineDate.getTime() - today.getTime();
-                    const dayDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-                    let deadlineText = ''; let deadlineClass = '';
-                    if (dayDiff > 0) { deadlineText = `${dayDiff} day${dayDiff > 1 ? 's' : ''} left`; deadlineClass = 'deadline-future'; }
-                    else if (dayDiff === 0) { deadlineText = 'TODAY'; deadlineClass = 'deadline-today'; }
-                    else { deadlineText = `${Math.abs(dayDiff)} day${Math.abs(dayDiff) > 1 ? 's' : ''} OVERDUE`; deadlineClass = 'deadline-overdue'; }
-                    deadlineSpan.textContent = ` (${deadlineText})`;
-                    deadlineSpan.classList.add(deadlineClass);
-                    taskItem.appendChild(deadlineSpan);
-                }
-
-                const buttonContainer = document.createElement('div');
-                buttonContainer.classList.add('task-item-actions');
-
-                // Move Up button: only if not the first in its column
-                if (index > 0) {
-                    const moveUpButton = document.createElement('button');
-                    moveUpButton.innerHTML = '&uarr;';
-                    moveUpButton.classList.add('neumorphic-btn', 'move-task-up-btn');
-                    moveUpButton.title = "Move Up";
-                    moveUpButton.setAttribute('data-task-id', task.id);
-                    buttonContainer.appendChild(moveUpButton);
-                }
-
-                // Move Down button: only if not the last in its column
-                if (index < tasks.length - 1) {
-                    const moveDownButton = document.createElement('button');
-                    moveDownButton.innerHTML = '&darr;';
-                    moveDownButton.classList.add('neumorphic-btn', 'move-task-down-btn');
-                    moveDownButton.title = "Move Down";
-                    moveDownButton.setAttribute('data-task-id', task.id);
-                    buttonContainer.appendChild(moveDownButton);
-                }
-                taskItem.appendChild(buttonContainer);
-
-                const editButton = document.createElement('button');
-                editButton.textContent = 'Edit';
-                editButton.classList.add('neumorphic-btn', 'edit-task-btn-list');
-                editButton.setAttribute('data-task-id', task.id);
-                taskItem.appendChild(editButton);
-
-                const deleteButton = document.createElement('button');
-                deleteButton.textContent = 'Delete';
-                deleteButton.classList.add('neumorphic-btn', 'delete-task-btn-list');
-                deleteButton.setAttribute('data-task-id', task.id);
-                taskItem.appendChild(deleteButton);
-
-                columnElement.appendChild(taskItem);
-            });
-        };
-
-        renderColumn(criticalTasks, criticalListElement, 'Critical');
-        renderColumn(importantTasks, importantListElement, 'Important');
-        renderColumn(somedayTasks, somedayListElement, 'Someday');
+        DAYS.forEach(day => {
+            const cell = document.createElement('div');
+            cell.classList.add('grid-cell');
+            if (block.colorClass) cell.classList.add(block.colorClass);
+            cell.dataset.day = day;
+            cell.dataset.blockId = block.id;
+            cell.dataset.taskLimit = block.limit;
+            const cellLabel = document.createElement('div');
+            cellLabel.classList.add('grid-cell-label');
+            cellLabel.textContent = block.label;
+            cell.appendChild(cellLabel);
+            plannerGrid.appendChild(cell);
+        });
     });
 }
 
-// --- Event Listeners Setup (Deletion, Inline Editing, Drag&Drop, Move Buttons) ---
-// These will be very similar to those in popup.js for the 'edit' tab.
-// For brevity, I'll define a setup function and assume the helper functions
-// (like handleMoveTask, setupDragAndDropListeners etc.) will be adapted or
-// made available from task_utils.js or defined within manager.js if specific.
+function clearPlannerTasks() {
+    document.getElementById('unassigned-tasks-list').innerHTML = '';
+    document.getElementById('assigned-tasks-list').innerHTML = '';
+    document.querySelectorAll('.grid-cell').forEach(cell => {
+        const label = cell.querySelector('.grid-cell-label');
+        cell.innerHTML = '';
+        if (label) cell.appendChild(label);
+    });
+}
 
-let originalTaskDataBeforeEditManager = null; // Scope to manager.js
-let draggedTaskElementManager = null; // Scope to manager.js
+function clearPriorityLists() {
+    document.getElementById('critical-tasks-list').innerHTML = '';
+    document.getElementById('important-tasks-list').innerHTML = '';
+    document.getElementById('someday-tasks-list').innerHTML = '';
+}
 
-function setupManagerEventListeners() {
-    // Adjusted to query all three columns for attaching listeners,
-    // or delegate from a common parent like 'tasks-display-area'.
-    // For simplicity, let's assume listeners are attached to each column list
-    // or a common ancestor. If events are delegated from tasks-display-area:
-    const tasksDisplayArea = document.querySelector('.tasks-display-area');
-    if (!tasksDisplayArea) {
-        // Fallback or alternative: query each list individually if tasksDisplayArea is not a suitable parent for delegation
-        const criticalList = document.getElementById('critical-tasks-list');
-        const importantList = document.getElementById('important-tasks-list');
-        const somedayList = document.getElementById('someday-tasks-list');
-        if (criticalList) setupListenersForList(criticalList);
-        if (importantList) setupListenersForList(importantList);
-        if (somedayList) setupListenersForList(somedayList);
-        return; // Exit if primary delegation target isn't found
+function renderSidebarLists(unassigned, assigned) {
+    const unassignedListEl = document.getElementById('unassigned-tasks-list');
+    const assignedListEl = document.getElementById('assigned-tasks-list');
+
+    unassignedListEl.innerHTML = '';
+    if (unassigned.length > 0) {
+        unassigned.forEach(task => unassignedListEl.appendChild(createTaskElement(task, { context: 'sidebar' })));
+    } else {
+        unassignedListEl.innerHTML = '<p class="empty-list-msg">All tasks assigned!</p>';
     }
 
-    // Consolidated event listeners on the parent tasksDisplayArea
-    // This requires event handlers to correctly identify the target list/task.
+    assignedListEl.innerHTML = '';
+    if (assigned.length > 0) {
+        assigned.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)).forEach(task => {
+            assignedListEl.appendChild(createTaskElement(task, { context: 'sidebar', isAssigned: true }));
+        });
+    } else {
+        assignedListEl.innerHTML = '<p class="empty-list-msg">No tasks scheduled.</p>';
+    }
+}
 
-    // Deletion Listener (Delegated)
-    tasksDisplayArea.addEventListener('click', async function(event) {
-        if (event.target.matches('.delete-task-btn-list')) {
-            const taskItem = event.target.closest('.task-item');
-            const taskId = taskItem.getAttribute('data-task-id');
-            if (!taskId) return;
-            if (!confirm("Are you sure you want to delete this task?")) return;
-
-            const success = await deleteTask(taskId);
-            if (success) {
-                showInfoMessage("Task deleted successfully.", "success", 3000, document);
-                renderManagerTasks();
-            } else {
-                showInfoMessage("Failed to delete task.", "error", 3000, document);
+function renderTasksOnGrid(assignedTasks) {
+    assignedTasks.forEach(task => {
+        task.schedule.forEach(item => {
+            const cell = document.querySelector(`.grid-cell[data-day='${item.day}'][data-block-id='${item.blockId}']`);
+            if (cell) {
+                const taskClone = createTaskElement(task, { context: 'grid' });
+                cell.appendChild(taskClone);
             }
+        });
+    });
+}
+
+function renderPriorityLists(tasks) {
+    const criticalList = document.getElementById('critical-tasks-list');
+    const importantList = document.getElementById('important-tasks-list');
+    const somedayList = document.getElementById('someday-tasks-list');
+
+    const criticalTasks = tasks.filter(t => t.priority === 'CRITICAL').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    const importantTasks = tasks.filter(t => t.priority === 'IMPORTANT').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    const somedayTasks = tasks.filter(t => t.priority === 'SOMEDAY').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+
+    const renderColumn = (tasksForColumn, columnElement) => {
+        if (tasksForColumn.length === 0) {
+            columnElement.innerHTML = `<p class="empty-list-msg">No tasks in this category.</p>`;
+            return;
+        }
+        tasksForColumn.forEach((task, index) => {
+            const taskElement = createTaskElement(task, { context: 'management', index: index, total: tasksForColumn.length });
+            columnElement.appendChild(taskElement);
+        });
+    };
+
+    renderColumn(criticalTasks, criticalList);
+    renderColumn(importantTasks, importantList);
+    renderColumn(somedayTasks, somedayList);
+}
+
+function createTaskElement(task, options = {}) {
+    const { context = 'sidebar', isAssigned = false, index = -1, total = -1 } = options;
+
+    const taskItem = document.createElement('div');
+    taskItem.classList.add('task-item', `priority-${task.priority.toLowerCase()}`);
+    if (task.completed) taskItem.classList.add('task-completed-edit');
+    taskItem.setAttribute('data-task-id', task.id);
+
+    if (context === 'management') {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = task.completed;
+        checkbox.classList.add('task-complete-checkbox');
+        taskItem.appendChild(checkbox);
+    }
+
+    if (context !== 'grid') {
+        taskItem.setAttribute('draggable', 'true');
+    }
+
+    const titleSpan = document.createElement('span');
+    titleSpan.classList.add('task-title');
+
+    if (task.type) {
+        const iconSpan = document.createElement('span');
+        iconSpan.classList.add('task-type-icon');
+        iconSpan.textContent = task.type === 'home' ? '🏠' : '🏢';
+        iconSpan.setAttribute('aria-label', `${task.type} task`);
+        titleSpan.appendChild(iconSpan);
+    }
+
+    const textNode = document.createTextNode(task.title);
+    titleSpan.appendChild(textNode);
+    taskItem.appendChild(titleSpan);
+
+    if (isAssigned) {
+        const summary = document.createElement('div');
+        summary.classList.add('task-schedule-summary');
+        summary.textContent = formatSchedule(task.schedule);
+        taskItem.appendChild(summary);
+    }
+
+    if (context === 'management') {
+        const buttonContainer = document.createElement('div');
+        buttonContainer.classList.add('task-item-actions');
+        if (index > 0) {
+            const moveUpButton = document.createElement('button');
+            moveUpButton.innerHTML = '&uarr;';
+            moveUpButton.classList.add('neumorphic-btn', 'move-task-up-btn');
+            moveUpButton.setAttribute('data-task-id', task.id);
+            buttonContainer.appendChild(moveUpButton);
+        }
+        if (index < total - 1) {
+            const moveDownButton = document.createElement('button');
+            moveDownButton.innerHTML = '&darr;';
+            moveDownButton.classList.add('neumorphic-btn', 'move-task-down-btn');
+            moveDownButton.setAttribute('data-task-id', task.id);
+            buttonContainer.appendChild(moveDownButton);
+        }
+        taskItem.appendChild(buttonContainer);
+
+        const editButton = document.createElement('button');
+        editButton.textContent = 'Edit';
+        editButton.classList.add('neumorphic-btn', 'edit-task-btn-list');
+        editButton.setAttribute('data-task-id', task.id);
+        taskItem.appendChild(editButton);
+
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Delete';
+        deleteButton.classList.add('neumorphic-btn', 'delete-task-btn-list');
+        deleteButton.setAttribute('data-task-id', task.id);
+        taskItem.appendChild(deleteButton);
+    }
+
+    return taskItem;
+}
+
+function formatSchedule(schedule) {
+    if (!schedule || schedule.length === 0) return '';
+    const dayMapping = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
+    const groupedByDay = schedule.reduce((acc, item) => {
+        const day = dayMapping[item.day] || 'Unk';
+        if (!acc[day]) {
+            acc[day] = [];
+        }
+        const block = TIME_BLOCKS.find(b => b.id === item.blockId);
+        acc[day].push(block ? block.label : 'Unknown');
+        return acc;
+    }, {});
+
+    return Object.entries(groupedByDay).map(([day, blocks]) => {
+        return `${day}: ${blocks.join(', ')}`;
+    }).join('; ');
+}
+
+// --- EVENT LISTENERS ---
+
+function setupTabSwitching() {
+    const tabs = document.querySelectorAll('.tabs .tab-link');
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(item => item.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(tab.getAttribute('data-tab')).classList.add('active');
+        });
+    });
+}
+
+function setupCoreFeatureListeners() {
+    const unassignAllBtn = document.getElementById('unassign-all-btn');
+    if (unassignAllBtn) {
+        unassignAllBtn.addEventListener('click', async () => {
+            if (confirm("Are you sure you want to unschedule all tasks?")) {
+                const tasks = await new Promise(resolve => getTasks(resolve));
+                tasks.forEach(task => { task.schedule = []; });
+                await new Promise(resolve => saveTasks(tasks, resolve));
+                renderPage();
+            }
+        });
+    }
+}
+
+function setupDragAndDropListeners() {
+    const plannerContainer = document.querySelector('.planner-container');
+    if (!plannerContainer) return;
+
+    let draggedTaskId = null;
+
+    plannerContainer.addEventListener('dragstart', (event) => {
+        const taskItem = event.target.closest('.task-item');
+        if (taskItem && taskItem.getAttribute('draggable')) {
+            draggedTaskId = taskItem.getAttribute('data-task-id');
+            event.dataTransfer.setData('text/plain', draggedTaskId);
+            event.dataTransfer.effectAllowed = 'move';
+            setTimeout(() => taskItem.classList.add('dragging'), 0);
         }
     });
 
-    // Inline Editing Listener (Delegated)
-    tasksDisplayArea.addEventListener('click', async function(event) {
+    const handleDragOver = (event) => {
+        event.preventDefault();
+        const dropTarget = event.target.closest('.grid-cell, #unassigned-tasks-list, #assigned-tasks-list');
+        if (dropTarget) {
+            // Remove from other potential targets
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            dropTarget.classList.add('drag-over');
+        }
+    };
+
+    const handleDragLeave = (event) => {
+        const dropTarget = event.target.closest('.grid-cell, #unassigned-tasks-list, #assigned-tasks-list');
+        if (dropTarget) {
+            dropTarget.classList.remove('drag-over');
+        }
+    };
+
+    const handleDragEnd = () => {
+        document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        draggedTaskId = null;
+    };
+
+    plannerContainer.addEventListener('dragover', handleDragOver);
+    plannerContainer.addEventListener('dragleave', handleDragLeave);
+    plannerContainer.addEventListener('dragend', handleDragEnd);
+
+    plannerContainer.addEventListener('drop', async (event) => {
+        event.preventDefault();
+        if (!draggedTaskId) return;
+
+        const dropTarget = event.target.closest('.grid-cell, #unassigned-tasks-list');
+        if (!dropTarget) return;
+
+        const tasks = await new Promise(resolve => getTasks(resolve));
+        const task = tasks.find(t => t.id === draggedTaskId);
+        if (!task) return;
+
+        if (dropTarget.id === 'unassigned-tasks-list') {
+            if (task.schedule.length > 0) {
+                task.schedule = [];
+                await new Promise(resolve => saveTasks(tasks, resolve));
+                renderPage();
+            }
+        } else if (dropTarget.classList.contains('grid-cell')) {
+            const limit = dropTarget.dataset.taskLimit;
+            const day = dropTarget.dataset.day;
+            const blockId = dropTarget.dataset.blockId;
+
+            if (limit === '0') return;
+            const tasksInCell = Array.from(dropTarget.querySelectorAll('.task-item')).length;
+            if (limit === '1' && tasksInCell >= 1) return;
+
+            const alreadyExists = task.schedule.some(item => item.day === day && item.blockId === blockId);
+            if (!alreadyExists) {
+                task.schedule.push({ day, blockId });
+                await new Promise(resolve => saveTasks(tasks, resolve));
+                renderPage();
+            }
+        }
+    });
+}
+
+function setupTaskManagementListeners() {
+    const addTaskBtn = document.getElementById('add-task-btn');
+    if (addTaskBtn) {
+        addTaskBtn.addEventListener('click', async () => {
+            const titleInput = document.getElementById('task-title');
+            const title = titleInput.value.trim();
+            if (!title) {
+                showInfoMessage("Task title is required.", "error"); return;
+            }
+            const url = document.getElementById('task-url').value.trim();
+            const priority = document.getElementById('task-priority').value;
+            const type = document.getElementById('task-type').value;
+            let deadline = document.getElementById('task-deadline').value;
+            if (priority !== 'CRITICAL' || !deadline) deadline = null;
+
+            await addNewTask(title, url, priority, deadline, type);
+            // Clear form
+            titleInput.value = '';
+            document.getElementById('task-url').value = '';
+            document.getElementById('task-priority').value = 'SOMEDAY';
+            document.getElementById('task-type').value = 'home';
+            document.getElementById('task-deadline').value = '';
+            document.getElementById('task-deadline-group').style.display = 'none';
+
+            renderPage();
+            showInfoMessage("Task added!", "success");
+        });
+    }
+
+    const prioritySelect = document.getElementById('task-priority');
+    if(prioritySelect) {
+        prioritySelect.addEventListener('change', (e) => {
+            document.getElementById('task-deadline-group').style.display = e.target.value === 'CRITICAL' ? 'block' : 'none';
+        });
+    }
+
+    const tasksDisplayArea = document.querySelector('.tasks-display-area');
+    if (!tasksDisplayArea) return;
+
+    let originalTaskDataForEdit = null;
+
+    tasksDisplayArea.addEventListener('click', async (event) => {
         const target = event.target;
         const taskItem = target.closest('.task-item');
+        const taskId = taskItem?.dataset.taskId;
 
-        // Cancel logic for any ongoing edit
-        const allEditingForms = tasksDisplayArea.querySelectorAll('.inline-edit-form');
-        allEditingForms.forEach(form => {
-            if (form.closest('.task-item') !== taskItem || !target.matches('.edit-task-btn-list')) { // if click is outside the form's task item or not an edit button
-                 const cancelBtn = form.querySelector('.cancel-inline-btn');
-                 if(cancelBtn && (!taskItem || !taskItem.contains(form) || target.matches('.edit-task-btn-list') && taskItem !== form.closest('.task-item'))){
-                    // cancel if clicking another edit, or outside an active edit form
-                    cancelBtn.click();
-                 }
-            }
-        });
-
-        if (target.matches('.edit-task-btn-list')) {
-            if (!taskItem || taskItem.classList.contains('editing-task-item')) return;
-
-            const taskId = taskItem.getAttribute('data-task-id');
+        if (target.matches('.task-complete-checkbox')) {
+            const isCompleted = target.checked;
             const task = await getTaskById(taskId);
-            if (!task) return;
+            if (task) {
+                task.completed = isCompleted;
+                await updateTask(task);
+                renderPage();
+            }
+        } else if (target.matches('.delete-task-btn-list')) {
+            if (confirm('Are you sure you want to delete this task?')) {
+                await deleteTask(taskId);
+                renderPage();
+            }
+        } else if (target.matches('.move-task-up-btn') || target.matches('.move-task-down-btn')) {
+            const direction = target.matches('.move-task-up-btn') ? 'up' : 'down';
+            const tasks = await new Promise(getTasks);
+            const taskToMove = tasks.find(t => t.id === taskId);
+            const priorityGroup = tasks.filter(t => t.priority === taskToMove.priority).sort((a,b) => a.displayOrder - b.displayOrder);
+            const currentIndex = priorityGroup.findIndex(t => t.id === taskId);
+            const otherIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
 
-            originalTaskDataBeforeEditManager = { ...task };
+            if (otherIndex >= 0 && otherIndex < priorityGroup.length) {
+                const otherTask = priorityGroup[otherIndex];
+                [taskToMove.displayOrder, otherTask.displayOrder] = [otherTask.displayOrder, taskToMove.displayOrder];
+                await saveTasks(tasks);
+                renderPage();
+            }
+        } else if (target.matches('.edit-task-btn-list')) {
+            if (taskItem.classList.contains('editing-task-item')) return;
+            const currentlyEditing = tasksDisplayArea.querySelector('.editing-task-item');
+            if (currentlyEditing) currentlyEditing.querySelector('.cancel-inline-btn').click();
+
+            const task = await getTaskById(taskId);
+            originalTaskDataForEdit = { ...task };
             taskItem.classList.add('editing-task-item');
-            // Hide view elements, show form (condensed version of popup.js logic)
-            taskItem.querySelectorAll('.task-title, .task-deadline-display, .task-item-actions, .edit-task-btn-list, .delete-task-btn-list').forEach(el => el.style.display = 'none');
+            taskItem.querySelector('.task-title').style.display = 'none';
+            taskItem.querySelectorAll('.task-item-actions, .edit-task-btn-list, .delete-task-btn-list').forEach(el => el.style.display = 'none');
 
-            // Simplified form structure for manager page
-            let formHtml = `
+            const formHtml = `
                 <div class="inline-edit-form">
-                    <div class="form-group-inline"><label>Title:</label><input type="text" class="neumorphic-input edit-task-title" value="${task.title}"></div>
-                    <div class="form-group-inline"><label>URL:</label><input type="url" class="neumorphic-input edit-task-url" value="${task.url || ''}"></div>
-                    <div class="form-group-inline"><label>Priority:</label><select class="neumorphic-select edit-task-priority">
-                        <option value="SOMEDAY" ${task.priority === 'SOMEDAY' ? 'selected' : ''}>Someday</option>
-                        <option value="IMPORTANT" ${task.priority === 'IMPORTANT' ? 'selected' : ''}>Important</option>
-                        <option value="CRITICAL" ${task.priority === 'CRITICAL' ? 'selected' : ''}>Critical</option>
-                    </select></div>
-                    <div class="form-group-inline edit-task-deadline-group" style="display: ${task.priority === 'CRITICAL' ? 'block' : 'none'};"><label>Deadline:</label><input type="date" class="neumorphic-input edit-task-deadline" value="${task.deadline || ''}"></div>
-                    <div class="form-group-inline"><label>Type:</label><select class="neumorphic-select edit-task-type">
-                        <option value="home" ${task.type === 'home' ? 'selected' : ''}>Home</option>
-                        <option value="work" ${task.type === 'work' ? 'selected' : ''}>Work</option>
-                    </select></div>
-                    <div class="form-group-inline form-group-inline-checkbox"><label>Completed:</label><input type="checkbox" class="edit-task-completed" ${task.completed ? 'checked' : ''}></div>
+                    <input type="text" class="neumorphic-input edit-task-title" value="${task.title}">
+                    <select class="neumorphic-select edit-task-priority"><option value="SOMEDAY" ${task.priority === 'SOMEDAY' ? 'selected' : ''}>Someday</option><option value="IMPORTANT" ${task.priority === 'IMPORTANT' ? 'selected' : ''}>Important</option><option value="CRITICAL" ${task.priority === 'CRITICAL' ? 'selected' : ''}>Critical</option></select>
                     <div class="inline-edit-actions"><button class="neumorphic-btn save-inline-btn">Save</button><button class="neumorphic-btn cancel-inline-btn">Cancel</button></div>
                 </div>`;
             taskItem.insertAdjacentHTML('beforeend', formHtml);
 
-            const prioritySelect = taskItem.querySelector('.edit-task-priority');
-            const deadlineGroup = taskItem.querySelector('.edit-task-deadline-group');
-            if (prioritySelect && deadlineGroup) {
-                prioritySelect.addEventListener('change', function() {
-                    deadlineGroup.style.display = this.value === 'CRITICAL' ? 'block' : 'none';
-                    if (this.value !== 'CRITICAL') {
-                        const deadlineInput = deadlineGroup.querySelector('.edit-task-deadline');
-                        if(deadlineInput) deadlineInput.value = '';
-                    }
-                });
-            }
-        }
-
-        if (target.matches('.cancel-inline-btn')) {
+        } else if (target.matches('.cancel-inline-btn')) {
             const taskItem = target.closest('.editing-task-item');
-            if (!taskItem || !originalTaskDataBeforeEditManager) return;
             taskItem.classList.remove('editing-task-item');
-            const form = taskItem.querySelector('.inline-edit-form');
-            if (form) form.remove();
-            taskItem.querySelectorAll('.task-title, .task-deadline-display, .task-item-actions, .edit-task-btn-list, .delete-task-btn-list').forEach(el => el.style.display = '');
-            originalTaskDataBeforeEditManager = null;
-        }
-
-        if (target.matches('.save-inline-btn')) {
+            taskItem.querySelector('.inline-edit-form').remove();
+            taskItem.querySelector('.task-title').style.display = '';
+            taskItem.querySelectorAll('.task-item-actions, .edit-task-btn-list, .delete-task-btn-list').forEach(el => el.style.display = '');
+        } else if (target.matches('.save-inline-btn')) {
             const taskItem = target.closest('.editing-task-item');
-            const taskId = taskItem.getAttribute('data-task-id');
-            if (!taskId || !originalTaskDataBeforeEditManager) return;
-
-            const editForm = taskItem.querySelector('.inline-edit-form');
-            const updatedTask = { ...originalTaskDataBeforeEditManager }; // Start with original data
-
-            updatedTask.title = editForm.querySelector('.edit-task-title').value.trim();
-            updatedTask.url = editForm.querySelector('.edit-task-url').value.trim();
-            updatedTask.priority = editForm.querySelector('.edit-task-priority').value;
-            updatedTask.deadline = editForm.querySelector('.edit-task-deadline').value;
-            updatedTask.type = editForm.querySelector('.edit-task-type').value;
-            updatedTask.completed = editForm.querySelector('.edit-task-completed').checked;
-
-            if (!updatedTask.title) {
-                showInfoMessage("Task title cannot be empty.", "error", 3000, document); return;
-            }
-            if (updatedTask.priority === 'CRITICAL' && !updatedTask.deadline) {
-                showInfoMessage("Deadline is required for CRITICAL tasks.", "error", 3000, document); return;
-            }
-            if (updatedTask.priority !== 'CRITICAL') {
-                updatedTask.deadline = null;
-            }
-
-            const success = await updateTask(updatedTask);
-            if (success) {
-                taskItem.classList.remove('editing-task-item');
-                if(editForm) editForm.remove();
-                taskItem.querySelectorAll('.task-title, .task-deadline-display, .task-item-actions, .edit-task-btn-list, .delete-task-btn-list').forEach(el => el.style.display = '');
-                originalTaskDataBeforeEditManager = null;
-                renderManagerTasks();
-                showInfoMessage("Task updated successfully!", "success", 3000, document);
-            } else {
-                showInfoMessage("Failed to update task.", "error", 3000, document);
-            }
+            const updatedTask = { ...originalTaskDataForEdit };
+            updatedTask.title = taskItem.querySelector('.edit-task-title').value.trim();
+            updatedTask.priority = taskItem.querySelector('.edit-task-priority').value;
+            await updateTask(updatedTask);
+            renderPage();
         }
-    });
-
-    // Drag and Drop Listener (Delegated from .tasks-display-area)
-    tasksDisplayArea.addEventListener('dragstart', function(event) {
-        const taskItem = event.target.closest('.task-item');
-        if (taskItem && taskItem.getAttribute('draggable')) {
-            const editingForm = taskItem.querySelector('.inline-edit-form');
-            if (editingForm) {
-                const cancelButton = editingForm.querySelector('.cancel-inline-btn');
-                if (cancelButton) cancelButton.click();
-            }
-            draggedTaskElementManager = taskItem;
-            event.dataTransfer.setData('text/plain', taskItem.getAttribute('data-task-id'));
-            taskItem.style.opacity = '0.5';
-        }
-    });
-    tasksDisplayArea.addEventListener('dragover', function(event) { event.preventDefault(); });
-    tasksDisplayArea.addEventListener('drop', async function(event) {
-        event.preventDefault();
-        if (!draggedTaskElementManager) return;
-
-        const targetTaskElement = event.target.closest('.task-item');
-        const targetListElement = event.target.closest('.task-list');
-        draggedTaskElementManager.style.opacity = '1';
-
-        if (!targetListElement) { // Dropped outside a valid list
-            draggedTaskElementManager = null;
-            return;
-        }
-
-        const draggedTaskPriority = draggedTaskElementManager.getAttribute('data-task-priority');
-        const targetListPriority = targetListElement.id.split('-')[0].toUpperCase(); // e.g., "critical" from "critical-tasks-list"
-
-        getTasks(tasks => {
-            const draggedTaskObj = tasks.find(t => t.id === draggedTaskElementManager.getAttribute('data-task-id'));
-            if (!draggedTaskObj) { draggedTaskElementManager = null; return; }
-
-            let displayOrderChanged = false;
-
-            if (targetTaskElement && targetTaskElement !== draggedTaskElementManager && targetTaskElement.getAttribute('data-task-priority') === draggedTaskPriority) {
-                // Dropped on another task within the same priority column
-                const taskElementsInColumn = Array.from(targetListElement.querySelectorAll('.task-item'));
-                const draggedIndexInDOM = taskElementsInColumn.indexOf(draggedTaskElementManager);
-                const targetIndexInDOM = taskElementsInColumn.indexOf(targetTaskElement);
-
-                if (draggedIndexInDOM < targetIndexInDOM) {
-                    targetTaskElement.parentNode.insertBefore(draggedTaskElementManager, targetTaskElement.nextSibling);
-                } else {
-                    targetTaskElement.parentNode.insertBefore(draggedTaskElementManager, targetTaskElement);
-                }
-            } else if (!targetTaskElement && draggedTaskPriority !== targetListPriority) {
-                // Dropped into an empty space of a DIFFERENT priority column (priority change)
-                targetListElement.appendChild(draggedTaskElementManager);
-                draggedTaskObj.priority = targetListPriority;
-                draggedTaskElementManager.setAttribute('data-task-priority', targetListPriority);
-                // Update class for styling
-                draggedTaskElementManager.className = 'task-item'; // Reset classes
-                draggedTaskElementManager.classList.add(`priority-${targetListPriority}`);
-                if (draggedTaskObj.completed) draggedTaskElementManager.classList.add('task-completed-edit');
-
-                displayOrderChanged = true; // Priority change implies order change
-            } else if (!targetTaskElement) {
-                 // Dropped into an empty space of the SAME priority column
-                targetListElement.appendChild(draggedTaskElementManager);
-            } else {
-                // Other cases, like dropping on itself or invalid target
-                draggedTaskElementManager = null;
-                return;
-            }
-
-            // Update displayOrder for all tasks in all columns
-            ['critical', 'important', 'someday'].forEach(pName => {
-                const listEl = document.getElementById(`${pName}-tasks-list`);
-                const itemsInList = Array.from(listEl.querySelectorAll('.task-item'));
-                itemsInList.forEach((item, index) => {
-                    const task = tasks.find(t => t.id === item.getAttribute('data-task-id'));
-                    if (task && (task.displayOrder !== index || task.priority !== pName.toUpperCase())) {
-                        task.displayOrder = index;
-                        task.priority = pName.toUpperCase(); // Ensure priority is updated if moved column
-                        displayOrderChanged = true;
-                    }
-                });
-            });
-
-            if (displayOrderChanged) {
-                saveTasks(tasks, (success) => {
-                    if (success) showInfoMessage("Task order/priority updated.", "success", 3000, document);
-                    else showInfoMessage("Failed to save new task order/priority.", "error", 3000, document);
-                    renderManagerTasks(); // Always re-render to ensure consistency
-                });
-            }
-            draggedTaskElementManager = null;
-        });
-    });
-    tasksDisplayArea.addEventListener('dragend', function() {
-        if (draggedTaskElementManager) draggedTaskElementManager.style.opacity = '1';
-        draggedTaskElementManager = null;
-    });
-
-    // Move Up/Down Button Listeners (Delegated)
-    tasksDisplayArea.addEventListener('click', async function(event) {
-        const target = event.target;
-        let taskId = null;
-        let direction = null;
-
-        const moveUpBtn = target.closest('.move-task-up-btn');
-        const moveDownBtn = target.closest('.move-task-down-btn');
-
-        if (moveUpBtn) { taskId = moveUpBtn.getAttribute('data-task-id'); direction = 'up';}
-        else if (moveDownBtn) { taskId = moveDownBtn.getAttribute('data-task-id'); direction = 'down'; }
-
-        if (taskId && direction) {
-            const currentlyEditing = tasksDisplayArea.querySelector('.editing-task-item'); // Check within the whole area
-            if (currentlyEditing) {
-                showInfoMessage("Please save or cancel current edit before reordering.", "info", 3000, document);
-                return;
-            }
-            await handleManagerMoveTask(taskId, direction);
-        }
-    });
-}
-
-async function handleManagerMoveTask(taskId, direction) {
-    getTasks(allTasks => { // Changed 'tasks' to 'allTasks' for clarity
-        const taskToMove = allTasks.find(t => t.id === taskId);
-        if (!taskToMove) {
-            showInfoMessage("Error: Task to move not found.", "error", 3000, document);
-            return;
-        }
-        const currentPriority = taskToMove.priority;
-        const sortedSamePriorityTasks = allTasks
-            .filter(t => t.priority === currentPriority)
-            .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-
-        const currentIndexInLane = sortedSamePriorityTasks.findIndex(t => t.id === taskId);
-
-        let targetIndexInLane = -1;
-        if (direction === 'up' && currentIndexInLane > 0) {
-            targetIndexInLane = currentIndexInLane - 1;
-        } else if (direction === 'down' && currentIndexInLane < sortedSamePriorityTasks.length - 1) {
-            targetIndexInLane = currentIndexInLane + 1;
-        } else {
-            console.warn("Cannot move task further in this direction or invalid index.");
-            return; // Cannot move
-        }
-
-        const taskToSwapWithId = sortedSamePriorityTasks[targetIndexInLane].id;
-        // Find the actual task objects from the main allTasks array to modify them
-        const originalTaskToMove = allTasks.find(t => t.id === taskToMove.id); // Already have taskToMove, but ensure it's from allTasks
-        const taskToSwapWith = allTasks.find(t => t.id === taskToSwapWithId);
-
-        if (!originalTaskToMove || !taskToSwapWith) {
-            showInfoMessage("Error finding tasks to swap in the main list.", "error", 3000, document);
-            return;
-        }
-
-        // Swap displayOrder
-        const tempDisplayOrder = originalTaskToMove.displayOrder;
-        originalTaskToMove.displayOrder = taskToSwapWith.displayOrder;
-        taskToSwapWith.displayOrder = tempDisplayOrder;
-
-        saveTasks(allTasks, (success, errorMsg) => {
-            if (success) {
-                showInfoMessage(`Task moved ${direction}.`, "success", 3000, document);
-            } else {
-                showInfoMessage(`Failed to save order: ${errorMsg || 'Unknown error'}`, "error", 3000, document);
-                // Revert in-memory change before re-render
-                taskToSwapWith.displayOrder = taskToMove.displayOrder;
-                taskToMove.displayOrder = tempDisplayOrder;
-            }
-            renderManagerTasks(); // Re-render to reflect changes or reverted state
-        });
     });
 }
