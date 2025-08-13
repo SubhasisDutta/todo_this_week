@@ -758,6 +758,7 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
 
 .grid-cell {
     min-height: 60px;
+    height: auto;
     padding: 5px;
     border-radius: 6px;
     box-shadow: inset 2px 2px 4px #d1d9e6, inset -2px -2px 4px #ffffff;

@@ -317,7 +317,6 @@ function setupDragAndDropListeners() {
 
     plannerContainer.addEventListener('drop', async (event) => {
         event.preventDefault();
-        handleDragEnd();
         if (!draggedTaskId) return;
 
         const dropTarget = event.target.closest('.grid-cell, #unassigned-tasks-list');
