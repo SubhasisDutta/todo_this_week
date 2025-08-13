@@ -8,6 +8,140 @@ body {
     padding: 0; /* Remove body padding if container has it */
 }
 
+/* --- Manager Page Specific Styles --- */
+
+.manager-container {
+    width: 98%;
+    max-width: 1600px; /* Allow it to be wide */
+    margin: 20px auto;
+    padding: 20px;
+}
+
+.week-view {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    overflow-x: auto; /* Allow horizontal scrolling on smaller screens */
+    padding-bottom: 10px;
+    border-radius: 12px;
+    background: #e0e5ec;
+    box-shadow: inset 5px 5px 10px #bec3c9, inset -5px -5px 10px #ffffff;
+    padding: 15px;
+}
+
+.day-column {
+    flex: 1;
+    min-width: 220px; /* Minimum width for a day column */
+    background-color: #eaf0f7;
+    border-radius: 12px;
+    padding: 10px;
+    box-shadow: 5px 5px 10px #bec3c9, -5px -5px 10px #ffffff;
+}
+
+.day-column h3 {
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+    font-weight: 600;
+}
+
+.day-blocks {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.time-block {
+    background-color: #f0f2f5;
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: 3px 3px 6px #bec3c9, -3px -3px 6px #ffffff;
+    transition: transform 0.2s ease;
+}
+
+.time-block-header {
+    font-weight: bold;
+    font-size: 0.9em;
+    margin-bottom: 5px;
+    color: #555;
+    padding: 2px;
+}
+
+.task-list-dropzone {
+    min-height: 30px; /* So it's a visible drop target */
+    border-radius: 6px;
+    padding: 4px;
+    transition: background-color 0.2s ease-in-out;
+}
+
+/* --- Special Block Styles --- */
+
+.time-block.blocked-time,
+.time-block.sleep-block {
+    background-color: #d1d9e6;
+    box-shadow: inset 2px 2px 4px #b8c0cc, inset -2px -2px 4px #eaf2ff;
+}
+
+.time-block.blocked-time .time-block-header,
+.time-block.sleep-block .time-block-header {
+    color: #777;
+}
+
+/* --- Drag and Drop States --- */
+
+.task-item.dragging {
+    opacity: 0.4;
+}
+
+.task-list-dropzone.drag-over,
+#unassigned-tasks-list.drag-over {
+    background-color: #cdd4df;
+    outline: 2px dashed #a3b1c6;
+}
+
+/* --- Task Lists Tab Styles --- */
+
+.unassigned-tasks-section {
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 12px;
+    background: #e0e5ec;
+    box-shadow: 5px 5px 10px #bec3c9, -5px -5px 10px #ffffff;
+}
+
+.unassigned-tasks-section h2 {
+    margin-top: 0;
+}
+
+#unassign-all-btn {
+    margin-bottom: 15px;
+}
+
+#unassigned-tasks-list {
+    min-height: 100px;
+    padding: 10px;
+    background-color: #d1d9e6;
+    box-shadow: inset 3px 3px 6px #b8c0cc, inset -3px -3px 6px #eaf2ff;
+    border-radius: 8px;
+}
+
+.tasks-display-area {
+    display: flex;
+    gap: 15px;
+    padding: 10px;
+}
+
+/* Make task items in the schedule a bit smaller */
+.day-blocks .task-item {
+    padding: 5px 8px;
+    font-size: 0.9em;
+}
+
+.day-blocks .task-item .task-deadline-display {
+    font-size: 0.9em;
+}
+
 .container {
     padding: 20px; /* Uniform padding for the main content area */
     height: 100%;

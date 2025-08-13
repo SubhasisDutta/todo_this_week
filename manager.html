@@ -3,70 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Task Manager - Full View</title>
+    <title>Task Manager - Weekly Planner</title>
     <link rel="stylesheet" href="popup.css">
 </head>
 <body class="manager-page">
-    <div class="container">
-        <h1>Task Manager - All Tasks</h1>
-
+    <div class="container manager-container">
+        <h1>Weekly Task Planner</h1>
         <div id="info-message-area" class="info-message" style="display: none;"></div>
 
-        <div class="task-form-container neumorphic-card">
-            <h2>Add New Task</h2>
-            <div class="form-group">
-                <label for="task-title">Task Title:</label>
-                <input type="text" id="task-title" class="neumorphic-input" placeholder="Enter task title">
-            </div>
-            <div class="form-group">
-                <label for="task-url">Task URL (Optional):</label>
-                <input type="url" id="task-url" class="neumorphic-input" placeholder="http://example.com">
-            </div>
-            <div class="form-group">
-                <label for="task-priority">Priority:</label>
-                <select id="task-priority" class="neumorphic-select">
-                    <option value="SOMEDAY">Someday</option>
-                    <option value="IMPORTANT">Important</option>
-                    <option value="CRITICAL">Critical</option>
-                </select>
-            </div>
-            <div class="form-group" id="task-deadline-group" style="display: none;">
-                <label for="task-deadline">Deadline (for Critical tasks):</label>
-                <input type="date" id="task-deadline" class="neumorphic-input">
-            </div>
-            <div class="form-group">
-                <label for="task-type">Type:</label>
-                <select id="task-type" class="neumorphic-select">
-                    <option value="home">Home</option>
-                    <option value="work">Work</option>
-                </select>
-            </div>
-            <button id="add-task-btn" class="neumorphic-btn">Add Task</button>
+        <!-- Main Tabs -->
+        <div class="tabs">
+            <button class="tab-link active" data-tab="weekly-schedule">Weekly Schedule</button>
+            <button class="tab-link" data-tab="task-lists">Task Lists</button>
         </div>
 
-        <div class="tasks-display-area">
-            <div class="priority-column">
-                <h3>Critical</h3>
-                <div id="critical-tasks-list" class="task-list neumorphic-inset-card">
-                    <!-- Critical tasks will be rendered here -->
+        <!-- Weekly Schedule Tab Content -->
+        <div id="weekly-schedule" class="tab-content active">
+            <div class="week-view">
+                <div class="day-column" data-day="monday">
+                    <h3>Monday</h3>
+                    <div class="day-blocks">
+                        <div class="time-block" id="mon-late-night-read" data-block-id="late-night-read" data-day="monday" data-task-limit="multiple"><div class="time-block-header">[12AM-1AM] Late Night Read</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block sleep-block" id="mon-sleep" data-block-id="sleep" data-day="monday" data-task-limit="0"><div class="time-block-header">[1AM-7AM] Sleep</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block blocked-time" id="mon-ai-study" data-block-id="ai-study" data-day="monday" data-task-limit="0"><div class="time-block-header">[7AM-8AM] AI study time</div></div>
+                        <div class="time-block blocked-time" id="mon-morning-prep" data-block-id="morning-prep" data-day="monday" data-task-limit="0"><div class="time-block-header">[8AM-9AM] Morning Prep Time</div></div>
+                        <div class="time-block" id="mon-engagement" data-block-id="engagement" data-day="monday" data-task-limit="multiple"><div class="time-block-header">[9AM-12PM] Engagement Block</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block blocked-time" id="mon-lunch" data-block-id="lunch" data-day="monday" data-task-limit="0"><div class="time-block-header">[12PM-1PM] Lunch Break</div></div>
+                        <div class="time-block" id="mon-deep-work-1" data-block-id="deep-work-1" data-day="monday" data-task-limit="1"><div class="time-block-header">[1PM-3PM] Deep Work Block 1</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="mon-deep-work-2" data-block-id="deep-work-2" data-day="monday" data-task-limit="1"><div class="time-block-header">[3PM-6PM] Deep Work Block 2</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="mon-commute-relax" data-block-id="commute-relax" data-day="monday" data-task-limit="multiple"><div class="time-block-header">[6PM-8PM] Commute and Relax</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="mon-family-time" data-block-id="family-time" data-day="monday" data-task-limit="multiple"><div class="time-block-header">[8PM-10PM] Family time Block</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="mon-night-build" data-block-id="night-build" data-day="monday" data-task-limit="1"><div class="time-block-header">[10PM-11PM] Night Build Block</div><div class="task-list-dropzone"></div></div>
+                    </div>
                 </div>
-            </div>
-            <div class="priority-column">
-                <h3>Important</h3>
-                <div id="important-tasks-list" class="task-list neumorphic-inset-card">
-                    <!-- Important tasks will be rendered here -->
+                <div class="day-column" data-day="tuesday">
+                    <h3>Tuesday</h3>
+                    <div class="day-blocks">
+                        <div class="time-block" id="tue-late-night-read" data-block-id="late-night-read" data-day="tuesday" data-task-limit="multiple"><div class="time-block-header">[12AM-1AM] Late Night Read</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block sleep-block" id="tue-sleep" data-block-id="sleep" data-day="tuesday" data-task-limit="0"><div class="time-block-header">[1AM-7AM] Sleep</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block blocked-time" id="tue-ai-study" data-block-id="ai-study" data-day="tuesday" data-task-limit="0"><div class="time-block-header">[7AM-8AM] AI study time</div></div>
+                        <div class="time-block blocked-time" id="tue-morning-prep" data-block-id="morning-prep" data-day="tuesday" data-task-limit="0"><div class="time-block-header">[8AM-9AM] Morning Prep Time</div></div>
+                        <div class="time-block" id="tue-engagement" data-block-id="engagement" data-day="tuesday" data-task-limit="multiple"><div class="time-block-header">[9AM-12PM] Engagement Block</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block blocked-time" id="tue-lunch" data-block-id="lunch" data-day="tuesday" data-task-limit="0"><div class="time-block-header">[12PM-1PM] Lunch Break</div></div>
+                        <div class="time-block" id="tue-deep-work-1" data-block-id="deep-work-1" data-day="tuesday" data-task-limit="1"><div class="time-block-header">[1PM-3PM] Deep Work Block 1</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="tue-deep-work-2" data-block-id="deep-work-2" data-day="tuesday" data-task-limit="1"><div class="time-block-header">[3PM-6PM] Deep Work Block 2</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="tue-commute-relax" data-block-id="commute-relax" data-day="tuesday" data-task-limit="multiple"><div class="time-block-header">[6PM-8PM] Commute and Relax</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="tue-family-time" data-block-id="family-time" data-day="tuesday" data-task-limit="multiple"><div class="time-block-header">[8PM-10PM] Family time Block</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="tue-night-build" data-block-id="night-build" data-day="tuesday" data-task-limit="1"><div class="time-block-header">[10PM-11PM] Night Build Block</div><div class="task-list-dropzone"></div></div>
+                    </div>
                 </div>
-            </div>
-            <div class="priority-column">
-                <h3>Someday</h3>
-                <div id="someday-tasks-list" class="task-list neumorphic-inset-card">
-                    <!-- Someday tasks will be rendered here -->
+                <div class="day-column" data-day="wednesday">
+                    <h3>Wednesday</h3>
+                    <div class="day-blocks">
+                        <div class="time-block" id="wed-late-night-read" data-block-id="late-night-read" data-day="wednesday" data-task-limit="multiple"><div class="time-block-header">[12AM-1AM] Late Night Read</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block sleep-block" id="wed-sleep" data-block-id="sleep" data-day="wednesday" data-task-limit="0"><div class="time-block-header">[1AM-7AM] Sleep</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block blocked-time" id="wed-ai-study" data-block-id="ai-study" data-day="wednesday" data-task-limit="0"><div class="time-block-header">[7AM-8AM] AI study time</div></div>
+                        <div class="time-block blocked-time" id="wed-morning-prep" data-block-id="morning-prep" data-day="wednesday" data-task-limit="0"><div class="time-block-header">[8AM-9AM] Morning Prep Time</div></div>
+                        <div class="time-block" id="wed-engagement" data-block-id="engagement" data-day="wednesday" data-task-limit="multiple"><div class="time-block-header">[9AM-12PM] Engagement Block</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block blocked-time" id="wed-lunch" data-block-id="lunch" data-day="wednesday" data-task-limit="0"><div class="time-block-header">[12PM-1PM] Lunch Break</div></div>
+                        <div class="time-block" id="wed-deep-work-1" data-block-id="deep-work-1" data-day="wednesday" data-task-limit="1"><div class="time-block-header">[1PM-3PM] Deep Work Block 1</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="wed-deep-work-2" data-block-id="deep-work-2" data-day="wednesday" data-task-limit="1"><div class="time-block-header">[3PM-6PM] Deep Work Block 2</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="wed-commute-relax" data-block-id="commute-relax" data-day="wednesday" data-task-limit="multiple"><div class="time-block-header">[6PM-8PM] Commute and Relax</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="wed-family-time" data-block-id="family-time" data-day="wednesday" data-task-limit="multiple"><div class="time-block-header">[8PM-10PM] Family time Block</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="wed-night-build" data-block-id="night-build" data-day="wednesday" data-task-limit="1"><div class="time-block-header">[10PM-11PM] Night Build Block</div><div class="task-list-dropzone"></div></div>
+                    </div>
+                </div>
+                <div class="day-column" data-day="thursday">
+                    <h3>Thursday</h3>
+                    <div class="day-blocks">
+                        <div class="time-block" id="thu-late-night-read" data-block-id="late-night-read" data-day="thursday" data-task-limit="multiple"><div class="time-block-header">[12AM-1AM] Late Night Read</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block sleep-block" id="thu-sleep" data-block-id="sleep" data-day="thursday" data-task-limit="0"><div class="time-block-header">[1AM-7AM] Sleep</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block blocked-time" id="thu-ai-study" data-block-id="ai-study" data-day="thursday" data-task-limit="0"><div class="time-block-header">[7AM-8AM] AI study time</div></div>
+                        <div class="time-block blocked-time" id="thu-morning-prep" data-block-id="morning-prep" data-day="thursday" data-task-limit="0"><div class="time-block-header">[8AM-9AM] Morning Prep Time</div></div>
+                        <div class="time-block" id="thu-engagement" data-block-id="engagement" data-day="thursday" data-task-limit="multiple"><div class="time-block-header">[9AM-12PM] Engagement Block</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block blocked-time" id="thu-lunch" data-block-id="lunch" data-day="thursday" data-task-limit="0"><div class="time-block-header">[12PM-1PM] Lunch Break</div></div>
+                        <div class="time-block" id="thu-deep-work-1" data-block-id="deep-work-1" data-day="thursday" data-task-limit="1"><div class="time-block-header">[1PM-3PM] Deep Work Block 1</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="thu-deep-work-2" data-block-id="deep-work-2" data-day="thursday" data-task-limit="1"><div class="time-block-header">[3PM-6PM] Deep Work Block 2</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="thu-commute-relax" data-block-id="commute-relax" data-day="thursday" data-task-limit="multiple"><div class="time-block-header">[6PM-8PM] Commute and Relax</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="thu-family-time" data-block-id="family-time" data-day="thursday" data-task-limit="multiple"><div class="time-block-header">[8PM-10PM] Family time Block</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="thu-night-build" data-block-id="night-build" data-day="thursday" data-task-limit="1"><div class="time-block-header">[10PM-11PM] Night Build Block</div><div class="task-list-dropzone"></div></div>
+                    </div>
+                </div>
+                <div class="day-column" data-day="friday">
+                    <h3>Friday</h3>
+                    <div class="day-blocks">
+                        <div class="time-block" id="fri-late-night-read" data-block-id="late-night-read" data-day="friday" data-task-limit="multiple"><div class="time-block-header">[12AM-1AM] Late Night Read</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block sleep-block" id="fri-sleep" data-block-id="sleep" data-day="friday" data-task-limit="0"><div class="time-block-header">[1AM-7AM] Sleep</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block blocked-time" id="fri-ai-study" data-block-id="ai-study" data-day="friday" data-task-limit="0"><div class="time-block-header">[7AM-8AM] AI study time</div></div>
+                        <div class="time-block blocked-time" id="fri-morning-prep" data-block-id="morning-prep" data-day="friday" data-task-limit="0"><div class="time-block-header">[8AM-9AM] Morning Prep Time</div></div>
+                        <div class="time-block" id="fri-engagement" data-block-id="engagement" data-day="friday" data-task-limit="multiple"><div class="time-block-header">[9AM-12PM] Engagement Block</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block blocked-time" id="fri-lunch" data-block-id="lunch" data-day="friday" data-task-limit="0"><div class="time-block-header">[12PM-1PM] Lunch Break</div></div>
+                        <div class="time-block" id="fri-deep-work-1" data-block-id="deep-work-1" data-day="friday" data-task-limit="1"><div class="time-block-header">[1PM-3PM] Deep Work Block 1</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="fri-deep-work-2" data-block-id="deep-work-2" data-day="friday" data-task-limit="1"><div class="time-block-header">[3PM-6PM] Deep Work Block 2</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="fri-commute-relax" data-block-id="commute-relax" data-day="friday" data-task-limit="multiple"><div class="time-block-header">[6PM-8PM] Commute and Relax</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="fri-family-time" data-block-id="family-time" data-day="friday" data-task-limit="multiple"><div class="time-block-header">[8PM-10PM] Family time Block</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="fri-night-build" data-block-id="night-build" data-day="friday" data-task-limit="1"><div class="time-block-header">[10PM-11PM] Night Build Block</div><div class="task-list-dropzone"></div></div>
+                    </div>
+                </div>
+                <div class="day-column" data-day="saturday">
+                    <h3>Saturday</h3>
+                    <div class="day-blocks">
+                        <div class="time-block" id="sat-late-night-read" data-block-id="late-night-read" data-day="saturday" data-task-limit="multiple"><div class="time-block-header">[12AM-1AM] Late Night Read</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block sleep-block" id="sat-sleep" data-block-id="sleep" data-day="saturday" data-task-limit="0"><div class="time-block-header">[1AM-7AM] Sleep</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block blocked-time" id="sat-ai-study" data-block-id="ai-study" data-day="saturday" data-task-limit="0"><div class="time-block-header">[7AM-8AM] AI study time</div></div>
+                        <div class="time-block blocked-time" id="sat-morning-prep" data-block-id="morning-prep" data-day="saturday" data-task-limit="0"><div class="time-block-header">[8AM-9AM] Morning Prep Time</div></div>
+                        <div class="time-block" id="sat-engagement" data-block-id="engagement" data-day="saturday" data-task-limit="multiple"><div class="time-block-header">[9AM-12PM] Engagement Block</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block blocked-time" id="sat-lunch" data-block-id="lunch" data-day="saturday" data-task-limit="0"><div class="time-block-header">[12PM-1PM] Lunch Break</div></div>
+                        <div class="time-block" id="sat-deep-work-1" data-block-id="deep-work-1" data-day="saturday" data-task-limit="1"><div class="time-block-header">[1PM-3PM] Deep Work Block 1</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="sat-deep-work-2" data-block-id="deep-work-2" data-day="saturday" data-task-limit="1"><div class="time-block-header">[3PM-6PM] Deep Work Block 2</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="sat-commute-relax" data-block-id="commute-relax" data-day="saturday" data-task-limit="multiple"><div class="time-block-header">[6PM-8PM] Commute and Relax</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="sat-family-time" data-block-id="family-time" data-day="saturday" data-task-limit="multiple"><div class="time-block-header">[8PM-10PM] Family time Block</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="sat-night-build" data-block-id="night-build" data-day="saturday" data-task-limit="1"><div class="time-block-header">[10PM-11PM] Night Build Block</div><div class="task-list-dropzone"></div></div>
+                    </div>
+                </div>
+                <div class="day-column" data-day="sunday">
+                    <h3>Sunday</h3>
+                    <div class="day-blocks">
+                        <div class="time-block" id="sun-late-night-read" data-block-id="late-night-read" data-day="sunday" data-task-limit="multiple"><div class="time-block-header">[12AM-1AM] Late Night Read</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block sleep-block" id="sun-sleep" data-block-id="sleep" data-day="sunday" data-task-limit="0"><div class="time-block-header">[1AM-7AM] Sleep</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block blocked-time" id="sun-ai-study" data-block-id="ai-study" data-day="sunday" data-task-limit="0"><div class="time-block-header">[7AM-8AM] AI study time</div></div>
+                        <div class="time-block blocked-time" id="sun-morning-prep" data-block-id="morning-prep" data-day="sunday" data-task-limit="0"><div class="time-block-header">[8AM-9AM] Morning Prep Time</div></div>
+                        <div class="time-block" id="sun-engagement" data-block-id="engagement" data-day="sunday" data-task-limit="multiple"><div class="time-block-header">[9AM-12PM] Engagement Block</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block blocked-time" id="sun-lunch" data-block-id="lunch" data-day="sunday" data-task-limit="0"><div class="time-block-header">[12PM-1PM] Lunch Break</div></div>
+                        <div class="time-block" id="sun-deep-work-1" data-block-id="deep-work-1" data-day="sunday" data-task-limit="1"><div class="time-block-header">[1PM-3PM] Deep Work Block 1</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="sun-deep-work-2" data-block-id="deep-work-2" data-day="sunday" data-task-limit="1"><div class="time-block-header">[3PM-6PM] Deep Work Block 2</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="sun-commute-relax" data-block-id="commute-relax" data-day="sunday" data-task-limit="multiple"><div class="time-block-header">[6PM-8PM] Commute and Relax</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="sun-family-time" data-block-id="family-time" data-day="sunday" data-task-limit="multiple"><div class="time-block-header">[8PM-10PM] Family time Block</div><div class="task-list-dropzone"></div></div>
+                        <div class="time-block" id="sun-night-build" data-block-id="night-build" data-day="sunday" data-task-limit="1"><div class="time-block-header">[10PM-11PM] Night Build Block</div><div class="task-list-dropzone"></div></div>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <!-- Task Lists Tab Content -->
+        <div id="task-lists" class="tab-content">
+            <div class="unassigned-tasks-section">
+                <h2>Unassigned Tasks</h2>
+                <button id="unassign-all-btn" class="neumorphic-btn">Unassign All Scheduled Tasks</button>
+                <div id="unassigned-tasks-list" class="task-list neumorphic-inset-card">
+                    <p>No unassigned tasks.</p>
+                </div>
+            </div>
+            <hr class="neumorphic-divider">
+            <h2>Task Priority Lists</h2>
+            <div class="tasks-display-area">
+                 <div class="priority-column">
+                    <h3>Critical</h3>
+                    <div id="critical-tasks-list" class="task-list neumorphic-inset-card"></div>
+                </div>
+                <div class="priority-column">
+                    <h3>Important</h3>
+                    <div id="important-tasks-list" class="task-list neumorphic-inset-card"></div>
+                </div>
+                <div class="priority-column">
+                    <h3>Someday</h3>
+                    <div id="someday-tasks-list" class="task-list neumorphic-inset-card"></div>
+                </div>
+            </div>
+        </div>
+
     </div>
-
-    <script src="task_utils.js"></script> <!-- To be created -->
-    <script src="manager.js"></script>   <!-- To be created -->
+    <script src="task_utils.js"></script>
+    <script src="manager.js"></script>
 </body>
 </html>
