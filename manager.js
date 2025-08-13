@@ -161,7 +161,17 @@ function createTaskElement(task, options = {}) {
 
     const titleSpan = document.createElement('span');
     titleSpan.classList.add('task-title');
-    titleSpan.textContent = task.title;
+
+    if (task.type) {
+        const iconSpan = document.createElement('span');
+        iconSpan.classList.add('task-type-icon');
+        iconSpan.textContent = task.type === 'home' ? '🏠' : '🏢';
+        iconSpan.setAttribute('aria-label', `${task.type} task`);
+        titleSpan.appendChild(iconSpan);
+    }
+
+    const textNode = document.createTextNode(task.title);
+    titleSpan.appendChild(textNode);
     taskItem.appendChild(titleSpan);
 
     if (isAssigned) {
