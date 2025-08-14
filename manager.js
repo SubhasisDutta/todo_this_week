@@ -289,12 +289,19 @@ function setupSchedulingListeners() {
             const task = await getTaskById(taskId);
             if (!task) return;
 
+            const oldSchedule = task.schedule || [];
             const newSchedule = [];
             const checkboxes = taskItem.querySelectorAll('.schedule-checkbox:checked');
+
             checkboxes.forEach(cb => {
+                const day = cb.dataset.day;
+                const blockId = cb.dataset.blockId;
+                const existingItem = oldSchedule.find(item => item.day === day && item.blockId === blockId);
+
                 newSchedule.push({
-                    day: cb.dataset.day,
-                    blockId: cb.dataset.blockId
+                    day: day,
+                    blockId: blockId,
+                    completed: existingItem ? existingItem.completed : false
                 });
             });
 
@@ -451,7 +458,7 @@ function createTaskElement(task, options = {}) {
         taskItem.appendChild(checkboxLabel);
     }
 
-    if (context !== 'grid') {
+    if (context === 'sidebar' || context === 'grid') {
         taskItem.setAttribute('draggable', 'true');
     }
 
@@ -614,13 +621,21 @@ function setupDragAndDropListeners() {
     const plannerContainer = document.querySelector('.planner-container');
     if (!plannerContainer) return;
 
-    let draggedTaskId = null;
+    let draggedTaskInfo = null;
 
     plannerContainer.addEventListener('dragstart', (event) => {
         const taskItem = event.target.closest('.task-item');
         if (taskItem && taskItem.getAttribute('draggable')) {
-            draggedTaskId = taskItem.getAttribute('data-task-id');
-            event.dataTransfer.setData('text/plain', draggedTaskId);
+            const taskId = taskItem.getAttribute('data-task-id');
+            const sourceCell = taskItem.closest('.grid-cell');
+
+            draggedTaskInfo = {
+                taskId: taskId,
+                sourceDay: sourceCell ? sourceCell.dataset.day : null,
+                sourceBlockId: sourceCell ? sourceCell.dataset.blockId : null
+            };
+
+            event.dataTransfer.setData('text/plain', taskId);
             event.dataTransfer.effectAllowed = 'move';
             setTimeout(() => taskItem.classList.add('dragging'), 0);
         }
@@ -628,16 +643,28 @@ function setupDragAndDropListeners() {
 
     const handleDragOver = (event) => {
         event.preventDefault();
-        const dropTarget = event.target.closest('.grid-cell, #unassigned-tasks-list, #assigned-tasks-list');
-        if (dropTarget) {
-            // Remove from other potential targets
-            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-            dropTarget.classList.add('drag-over');
+        const dropTarget = event.target.closest('.grid-cell, #unassigned-tasks-list');
+        if (!dropTarget) {
+            event.dataTransfer.dropEffect = 'none';
+            return;
         }
+
+        if (dropTarget.classList.contains('grid-cell')) {
+            const limit = dropTarget.dataset.taskLimit;
+            const tasksInCell = dropTarget.querySelectorAll('.task-item:not(.dragging)').length;
+            if (limit === '1' && tasksInCell >= 1) {
+                event.dataTransfer.dropEffect = 'none';
+                return;
+            }
+        }
+
+        event.dataTransfer.dropEffect = 'move';
+        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        dropTarget.classList.add('drag-over');
     };
 
     const handleDragLeave = (event) => {
-        const dropTarget = event.target.closest('.grid-cell, #unassigned-tasks-list, #assigned-tasks-list');
+        const dropTarget = event.target.closest('.grid-cell, #unassigned-tasks-list');
         if (dropTarget) {
             dropTarget.classList.remove('drag-over');
         }
@@ -646,7 +673,7 @@ function setupDragAndDropListeners() {
     const handleDragEnd = () => {
         document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
         document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-        draggedTaskId = null;
+        draggedTaskInfo = null;
     };
 
     plannerContainer.addEventListener('dragover', handleDragOver);
@@ -655,37 +682,69 @@ function setupDragAndDropListeners() {
 
     plannerContainer.addEventListener('drop', async (event) => {
         event.preventDefault();
-        if (!draggedTaskId) return;
+        if (!draggedTaskInfo) return;
 
         const dropTarget = event.target.closest('.grid-cell, #unassigned-tasks-list');
-        if (!dropTarget) return;
+
+        if (!dropTarget) {
+            draggedTaskInfo = null;
+            return;
+        }
 
         const tasks = await new Promise(resolve => getTasks(resolve));
-        const task = tasks.find(t => t.id === draggedTaskId);
-        if (!task) return;
+        const task = tasks.find(t => t.id === draggedTaskInfo.taskId);
+
+        if (!task) {
+            draggedTaskInfo = null;
+            return;
+        }
+
+        let scheduleChanged = false;
 
         if (dropTarget.id === 'unassigned-tasks-list') {
-            if (task.schedule.length > 0) {
+            if (draggedTaskInfo.sourceDay && draggedTaskInfo.sourceBlockId) {
+                const indexToRemove = task.schedule.findIndex(item => item.day === draggedTaskInfo.sourceDay && item.blockId === draggedTaskInfo.sourceBlockId);
+                if (indexToRemove > -1) {
+                    task.schedule.splice(indexToRemove, 1);
+                    scheduleChanged = true;
+                }
+            } else if (!draggedTaskInfo.sourceDay && task.schedule.length > 0) {
                 task.schedule = [];
-                await new Promise(resolve => saveTasks(tasks, resolve));
-                renderPage();
+                scheduleChanged = true;
             }
         } else if (dropTarget.classList.contains('grid-cell')) {
-            const limit = dropTarget.dataset.taskLimit;
             const day = dropTarget.dataset.day;
             const blockId = dropTarget.dataset.blockId;
 
-            if (limit === '0') return;
-            const tasksInCell = Array.from(dropTarget.querySelectorAll('.task-item')).length;
-            if (limit === '1' && tasksInCell >= 1) return;
+            if (day === draggedTaskInfo.sourceDay && blockId === draggedTaskInfo.sourceBlockId) {
+                draggedTaskInfo = null;
+                return;
+            }
 
             const alreadyExists = task.schedule.some(item => item.day === day && item.blockId === blockId);
-            if (!alreadyExists) {
-                task.schedule.push({ day, blockId });
-                await new Promise(resolve => saveTasks(tasks, resolve));
-                renderPage();
+            if (alreadyExists) {
+                draggedTaskInfo = null;
+                return;
             }
+
+            if (draggedTaskInfo.sourceDay && draggedTaskInfo.sourceBlockId) {
+                const indexToRemove = task.schedule.findIndex(item => item.day === draggedTaskInfo.sourceDay && item.blockId === draggedTaskInfo.sourceBlockId);
+                if (indexToRemove > -1) {
+                    task.schedule.splice(indexToRemove, 1);
+                }
+            }
+
+            task.schedule.push({ day, blockId, completed: false });
+            scheduleChanged = true;
         }
+
+        if (scheduleChanged) {
+            await new Promise(resolve => saveTasks(tasks, success => resolve(success)));
+            // Defer the render to avoid race conditions with the browser's drag/drop handling.
+            setTimeout(renderPage, 0);
+        }
+
+        draggedTaskInfo = null;
     });
 }
 
