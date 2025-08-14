@@ -598,6 +598,51 @@ h2 {
     box-shadow: inset 2px 2px 5px #8c2a20, inset -2px -2px 5px #c84a3c;
 }
 
+/* --- Modern Radio Button Styles --- */
+.radio-group-modern {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    background-color: #e0e5ec;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: inset 3px 3px 6px #babecc, inset -3px -3px 6px #ffffff;
+}
+
+.radio-group-modern.horizontal {
+    justify-content: center;
+}
+
+.radio-group-modern input[type="radio"] {
+    display: none; /* Hide the original radio button */
+}
+
+.radio-group-modern label {
+    flex-grow: 1;
+    text-align: center;
+    padding: 8px 12px;
+    background-color: #e0e5ec;
+    color: #555;
+    border-radius: 6px;
+    cursor: pointer;
+    box-shadow: 4px 4px 8px #babecc, -4px -4px 8px #ffffff;
+    transition: all 0.2s ease-in-out;
+    font-weight: normal;
+    margin-bottom: 0 !important; /* Override other label styles */
+}
+
+.radio-group-modern input[type="radio"]:checked + label {
+    background-color: #cad3dc; /* A slightly darker shade */
+    box-shadow: inset 2px 2px 5px #babecc, inset -2px -2px 5px #ffffff;
+    color: #333;
+    font-weight: bold;
+}
+
+.radio-group-modern label:hover {
+    background-color: #d9e0e8;
+}
+
+
 #info-message-area {
     padding: 10px 15px;
     margin-bottom: 15px; /* Space between message and tabs */

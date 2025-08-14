@@ -40,27 +40,32 @@
                     <input type="url" id="task-url" class="neumorphic-input" placeholder="Enter URL">
                 </div>
                 <div class="form-group">
-                    <label for="task-priority">Priority:</label>
-                    <select id="task-priority" class="neumorphic-select">
-                        <option value="SOMEDAY">Someday</option>
-                        <option value="IMPORTANT">Important</option>
-                        <option value="CRITICAL">Critical</option>
-                    </select>
+                    <label>Priority:</label>
+                    <div class="radio-group-modern">
+                        <input type="radio" id="priority-someday" name="priority" value="SOMEDAY" checked>
+                        <label for="priority-someday">Someday</label>
+                        <input type="radio" id="priority-important" name="priority" value="IMPORTANT">
+                        <label for="priority-important">Important</label>
+                        <input type="radio" id="priority-critical" name="priority" value="CRITICAL">
+                        <label for="priority-critical">Critical</label>
+                    </div>
                 </div>
                 <div class="form-group" id="task-deadline-group" style="display: none;">
                     <label for="task-deadline">Deadline (for Critical):</label>
                     <input type="date" id="task-deadline" class="neumorphic-input">
                 </div>
                 <div class="form-group">
-                    <label for="task-type">Type:</label>
-                    <select id="task-type" class="neumorphic-select">
-                        <option value="home">Home</option>
-                        <option value="work">Work</option>
-                    </select>
+                    <label>Type:</label>
+                    <div class="radio-group-modern">
+                        <input type="radio" id="type-home" name="type" value="home" checked>
+                        <label for="type-home">Home</label>
+                        <input type="radio" id="type-work" name="type" value="work">
+                        <label for="type-work">Work</label>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Energy:</label>
-                    <div class="radio-group">
+                    <div class="radio-group-modern horizontal">
                         <input type="radio" id="energy-low" name="energy" value="low" checked>
                         <label for="energy-low">Low</label>
                         <input type="radio" id="energy-high" name="energy" value="high">

@@ -680,8 +680,8 @@ function setupTaskManagementListeners() {
                 showInfoMessage("Task title is required.", "error"); return;
             }
             const url = document.getElementById('task-url').value.trim();
-            const priority = document.getElementById('task-priority').value;
-            const type = document.getElementById('task-type').value;
+            const priority = document.querySelector('input[name="manager-priority"]:checked').value;
+            const type = document.querySelector('input[name="manager-type"]:checked').value;
             const energy = document.querySelector('input[name="manager-energy"]:checked').value;
             let deadline = document.getElementById('task-deadline').value;
             if (priority !== 'CRITICAL' || !deadline) deadline = null;
@@ -690,8 +690,8 @@ function setupTaskManagementListeners() {
             // Clear form
             titleInput.value = '';
             document.getElementById('task-url').value = '';
-            document.getElementById('task-priority').value = 'SOMEDAY';
-            document.getElementById('task-type').value = 'home';
+            document.getElementById('manager-priority-someday').checked = true;
+            document.getElementById('manager-type-home').checked = true;
             document.getElementById('task-deadline').value = '';
             document.getElementById('task-deadline-group').style.display = 'none';
 
@@ -700,10 +700,12 @@ function setupTaskManagementListeners() {
         });
     }
 
-    const prioritySelect = document.getElementById('task-priority');
-    if(prioritySelect) {
-        prioritySelect.addEventListener('change', (e) => {
-            document.getElementById('task-deadline-group').style.display = e.target.value === 'CRITICAL' ? 'block' : 'none';
+    const priorityRadios = document.querySelectorAll('input[name="manager-priority"]');
+    if(priorityRadios.length > 0) {
+        priorityRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                document.getElementById('task-deadline-group').style.display = e.target.value === 'CRITICAL' ? 'block' : 'none';
+            });
         });
     }
 
@@ -758,19 +760,56 @@ function setupTaskManagementListeners() {
 
                 const formHtml = `
                     <div class="inline-edit-form">
-                        <input type="text" class="neumorphic-input edit-task-title" value="${task.title}">
-                        <select class="neumorphic-select edit-task-priority"><option value="SOMEDAY" ${task.priority === 'SOMEDAY' ? 'selected' : ''}>Someday</option><option value="IMPORTANT" ${task.priority === 'IMPORTANT' ? 'selected' : ''}>Important</option><option value="CRITICAL" ${task.priority === 'CRITICAL' ? 'selected' : ''}>Critical</option></select>
-                        <div class="form-group-inline"><label>Energy:</label>
-                            <div class="radio-group">
-                                <input type="radio" id="manager-edit-energy-low-${task.id}" name="manager-edit-energy-${task.id}" value="low" ${task.energy === 'low' ? 'checked' : ''}>
-                                <label for="manager-edit-energy-low-${task.id}">Low</label>
-                                <input type="radio" id="manager-edit-energy-high-${task.id}" name="manager-edit-energy-${task.id}" value="high" ${task.energy === 'high' ? 'checked' : ''}>
-                                <label for="manager-edit-energy-high-${task.id}">High</label>
+                        <div class="form-group-inline"><label>Title:</label><input type="text" class="neumorphic-input edit-task-title" value="${task.title}"></div>
+                        <div class="form-group-inline"><label>URL:</label><input type="url" class="neumorphic-input edit-task-url" value="${task.url || ''}"></div>
+                        <div class="form-group-inline">
+                            <label>Priority:</label>
+                            <div class="radio-group-modern edit-task-priority">
+                                <input type="radio" id="edit-priority-someday-${task.id}" name="edit-priority-${task.id}" value="SOMEDAY" ${task.priority === 'SOMEDAY' ? 'checked' : ''}>
+                                <label for="edit-priority-someday-${task.id}">Someday</label>
+                                <input type="radio" id="edit-priority-important-${task.id}" name="edit-priority-${task.id}" value="IMPORTANT" ${task.priority === 'IMPORTANT' ? 'checked' : ''}>
+                                <label for="edit-priority-important-${task.id}">Important</label>
+                                <input type="radio" id="edit-priority-critical-${task.id}" name="edit-priority-${task.id}" value="CRITICAL" ${task.priority === 'CRITICAL' ? 'checked' : ''}>
+                                <label for="edit-priority-critical-${task.id}">Critical</label>
                             </div>
                         </div>
+                        <div class="form-group-inline edit-task-deadline-group" style="display: ${task.priority === 'CRITICAL' ? 'block' : 'none'};"><label>Deadline:</label><input type="date" class="neumorphic-input edit-task-deadline" value="${task.deadline || ''}"></div>
+                        <div class="form-group-inline">
+                            <label>Type:</label>
+                            <div class="radio-group-modern edit-task-type">
+                                <input type="radio" id="edit-type-home-${task.id}" name="edit-type-${task.id}" value="home" ${task.type === 'home' ? 'checked' : ''}>
+                                <label for="edit-type-home-${task.id}">Home</label>
+                                <input type="radio" id="edit-type-work-${task.id}" name="edit-type-${task.id}" value="work" ${task.type === 'work' ? 'checked' : ''}>
+                                <label for="edit-type-work-${task.id}">Work</label>
+                            </div>
+                        </div>
+                        <div class="form-group-inline">
+                            <label>Energy:</label>
+                            <div class="radio-group-modern horizontal edit-task-energy">
+                                <input type="radio" id="edit-energy-low-${task.id}" name="edit-energy-${task.id}" value="low" ${task.energy === 'low' ? 'checked' : ''}>
+                                <label for="edit-energy-low-${task.id}">Low</label>
+                                <input type="radio" id="edit-energy-high-${task.id}" name="edit-energy-${task.id}" value="high" ${task.energy === 'high' ? 'checked' : ''}>
+                                <label for="edit-energy-high-${task.id}">High</label>
+                            </div>
+                        </div>
+                        <div class="form-group-inline form-group-inline-checkbox"><label for="edit-task-completed-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}">Completed:</label><input type="checkbox" id="edit-task-completed-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}" class="edit-task-completed" ${task.completed ? 'checked' : ''} style="width: auto; margin-right: 5px;"></div>
                         <div class="inline-edit-actions"><button class="neumorphic-btn save-inline-btn">Save</button><button class="neumorphic-btn cancel-inline-btn">Cancel</button></div>
                     </div>`;
                 taskItem.insertAdjacentHTML('beforeend', formHtml);
+
+                const priorityRadios = taskItem.querySelectorAll('input[name^="edit-priority-"]');
+                const deadlineGroup = taskItem.querySelector('.edit-task-deadline-group');
+                if (priorityRadios.length > 0 && deadlineGroup) {
+                    priorityRadios.forEach(radio => {
+                        radio.addEventListener('change', function() {
+                            deadlineGroup.style.display = this.value === 'CRITICAL' ? 'block' : 'none';
+                            if (this.value !== 'CRITICAL') {
+                                const deadlineInput = deadlineGroup.querySelector('.edit-task-deadline');
+                                if(deadlineInput) deadlineInput.value = '';
+                            }
+                        });
+                    });
+                }
 
             } else if (target.matches('.cancel-inline-btn')) {
                 const taskItem = target.closest('.editing-task-item');
@@ -782,8 +821,20 @@ function setupTaskManagementListeners() {
                 const taskItem = target.closest('.editing-task-item');
                 const updatedTask = { ...originalTaskDataForEdit };
                 updatedTask.title = taskItem.querySelector('.edit-task-title').value.trim();
-                updatedTask.priority = taskItem.querySelector('.edit-task-priority').value;
-                updatedTask.energy = taskItem.querySelector(`input[name="manager-edit-energy-${originalTaskDataForEdit.id}"]:checked`).value;
+                updatedTask.url = taskItem.querySelector('.edit-task-url').value.trim();
+                updatedTask.priority = taskItem.querySelector('input[name^="edit-priority-"]:checked').value;
+                let newDeadline = taskItem.querySelector('.edit-task-deadline').value;
+                if (updatedTask.priority !== 'CRITICAL') newDeadline = null;
+                updatedTask.deadline = newDeadline;
+                updatedTask.type = taskItem.querySelector('input[name^="edit-type-"]:checked').value;
+                updatedTask.energy = taskItem.querySelector('input[name^="edit-energy-"]:checked').value;
+                updatedTask.completed = taskItem.querySelector('.edit-task-completed').checked;
+
+                if (!updatedTask.title) {
+                    showInfoMessage("Task title cannot be empty.", "error");
+                    return;
+                }
+
                 await updateTask(updatedTask);
                 renderPage();
             }
