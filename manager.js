@@ -105,21 +105,24 @@ function setupSchedulingListeners() {
             });
 
             const schedulableBlocks = TIME_BLOCKS.filter(b => b.limit !== '0');
+            const dayHeaders = DAYS.map(day => `<div class="schedule-header-cell" style="font-size: 0.8em; text-align: center;">${day.charAt(0).toUpperCase() + day.slice(1, 3)}</div>`).join('');
+
+            const bodyRows = schedulableBlocks.map(block => `
+                <div class="schedule-block-label" style="font-size: 0.8em; text-align: right; padding-right: 5px;">${block.label}</div>
+                ${DAYS.map(day => `
+                    <div class="schedule-grid-cell" style="text-align: center;">
+                        <input type="checkbox" class="schedule-checkbox" data-day="${day}" data-block-id="${block.id}"
+                            ${task.schedule.some(s => s.day === day && s.blockId === block.id) ? 'checked' : ''}>
+                    </div>
+                `).join('')}
+            `).join('');
+
             const formHtml = `
                 <div class="inline-schedule-form">
-                    <div class="schedule-form-grid" style="display: grid; grid-template-columns: 60px repeat(${schedulableBlocks.length}, 1fr); gap: 5px;">
+                    <div class="schedule-form-grid" style="display: grid; grid-template-columns: 120px repeat(7, 1fr); gap: 5px;">
                         <div class="schedule-header-cell"></div>
-                        ${schedulableBlocks.map(block => `<div class="schedule-header-cell" style="font-size: 0.7em; text-align: center;">${block.label}</div>`).join('')}
-
-                        ${DAYS.map(day => `
-                            <div class="schedule-day-label" style="text-align: right; padding-right: 5px;">${day.charAt(0).toUpperCase() + day.slice(1)}</div>
-                            ${schedulableBlocks.map(block => `
-                                <div class="schedule-grid-cell" style="text-align: center;">
-                                    <input type="checkbox" class="schedule-checkbox" data-day="${day}" data-block-id="${block.id}"
-                                        ${task.schedule.some(s => s.day === day && s.blockId === block.id) ? 'checked' : ''}>
-                                </div>
-                            `).join('')}
-                        `).join('')}
+                        ${dayHeaders}
+                        ${bodyRows}
                     </div>
                     <div class="inline-schedule-actions" style="margin-top: 10px; text-align: right;">
                         <button class="neumorphic-btn save-schedule-btn">Save</button>
@@ -307,9 +310,16 @@ function createTaskElement(task, options = {}) {
 
     if (context === 'sidebar') {
         const scheduleButton = document.createElement('button');
-        scheduleButton.textContent = 'Schedule';
-        scheduleButton.classList.add('neumorphic-btn', 'schedule-task-btn');
+        scheduleButton.innerHTML = '⏱️';
+        scheduleButton.classList.add('neumorphic-btn', 'schedule-task-btn', 'schedule-btn-icon');
         scheduleButton.setAttribute('data-task-id', task.id);
+        scheduleButton.setAttribute('title', 'Schedule Task');
+        scheduleButton.style.width = '30px';
+        scheduleButton.style.height = '30px';
+        scheduleButton.style.borderRadius = '50%';
+        scheduleButton.style.padding = '0';
+        scheduleButton.style.lineHeight = '30px';
+        scheduleButton.style.marginLeft = 'auto';
         taskItem.appendChild(scheduleButton);
     }
 
@@ -534,68 +544,68 @@ function setupTaskManagementListeners() {
         area.addEventListener('click', async (event) => {
             const target = event.target;
             const taskItem = target.closest('.task-item');
-        const taskId = taskItem?.dataset.taskId;
+            const taskId = taskItem?.dataset.taskId;
 
-        if (target.matches('.task-complete-checkbox')) {
-            const isCompleted = target.checked;
-            const task = await getTaskById(taskId);
-            if (task) {
-                task.completed = isCompleted;
-                await updateTask(task);
+            if (target.matches('.task-complete-checkbox')) {
+                const isCompleted = target.checked;
+                const task = await getTaskById(taskId);
+                if (task) {
+                    task.completed = isCompleted;
+                    await updateTask(task);
+                    renderPage();
+                }
+            } else if (target.matches('.delete-task-btn-list')) {
+                if (confirm('Are you sure you want to delete this task?')) {
+                    await deleteTask(taskId);
+                    renderPage();
+                }
+            } else if (target.matches('.move-task-up-btn') || target.matches('.move-task-down-btn')) {
+                const direction = target.matches('.move-task-up-btn') ? 'up' : 'down';
+                const tasks = await new Promise(getTasks);
+                const taskToMove = tasks.find(t => t.id === taskId);
+                const priorityGroup = tasks.filter(t => t.priority === taskToMove.priority).sort((a,b) => a.displayOrder - b.displayOrder);
+                const currentIndex = priorityGroup.findIndex(t => t.id === taskId);
+                const otherIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+                if (otherIndex >= 0 && otherIndex < priorityGroup.length) {
+                    const otherTask = priorityGroup[otherIndex];
+                    [taskToMove.displayOrder, otherTask.displayOrder] = [otherTask.displayOrder, taskToMove.displayOrder];
+                    await saveTasks(tasks);
+                    renderPage();
+                }
+            } else if (target.matches('.edit-task-btn-list')) {
+                if (taskItem.classList.contains('editing-task-item')) return;
+                const currentlyEditing = document.querySelector('.editing-task-item');
+                if (currentlyEditing) currentlyEditing.querySelector('.cancel-inline-btn').click();
+
+                const task = await getTaskById(taskId);
+                originalTaskDataForEdit = { ...task };
+                taskItem.classList.add('editing-task-item');
+                taskItem.querySelector('.task-title').style.display = 'none';
+                taskItem.querySelectorAll('.task-item-actions, .edit-task-btn-list, .delete-task-btn-list').forEach(el => el.style.display = 'none');
+
+                const formHtml = `
+                    <div class="inline-edit-form">
+                        <input type="text" class="neumorphic-input edit-task-title" value="${task.title}">
+                        <select class="neumorphic-select edit-task-priority"><option value="SOMEDAY" ${task.priority === 'SOMEDAY' ? 'selected' : ''}>Someday</option><option value="IMPORTANT" ${task.priority === 'IMPORTANT' ? 'selected' : ''}>Important</option><option value="CRITICAL" ${task.priority === 'CRITICAL' ? 'selected' : ''}>Critical</option></select>
+                        <div class="inline-edit-actions"><button class="neumorphic-btn save-inline-btn">Save</button><button class="neumorphic-btn cancel-inline-btn">Cancel</button></div>
+                    </div>`;
+                taskItem.insertAdjacentHTML('beforeend', formHtml);
+
+            } else if (target.matches('.cancel-inline-btn')) {
+                const taskItem = target.closest('.editing-task-item');
+                taskItem.classList.remove('editing-task-item');
+                taskItem.querySelector('.inline-edit-form').remove();
+                taskItem.querySelector('.task-title').style.display = '';
+                taskItem.querySelectorAll('.task-item-actions, .edit-task-btn-list, .delete-task-btn-list').forEach(el => el.style.display = '');
+            } else if (target.matches('.save-inline-btn')) {
+                const taskItem = target.closest('.editing-task-item');
+                const updatedTask = { ...originalTaskDataForEdit };
+                updatedTask.title = taskItem.querySelector('.edit-task-title').value.trim();
+                updatedTask.priority = taskItem.querySelector('.edit-task-priority').value;
+                await updateTask(updatedTask);
                 renderPage();
             }
-        } else if (target.matches('.delete-task-btn-list')) {
-            if (confirm('Are you sure you want to delete this task?')) {
-                await deleteTask(taskId);
-                renderPage();
-            }
-        } else if (target.matches('.move-task-up-btn') || target.matches('.move-task-down-btn')) {
-            const direction = target.matches('.move-task-up-btn') ? 'up' : 'down';
-            const tasks = await new Promise(getTasks);
-            const taskToMove = tasks.find(t => t.id === taskId);
-            const priorityGroup = tasks.filter(t => t.priority === taskToMove.priority).sort((a,b) => a.displayOrder - b.displayOrder);
-            const currentIndex = priorityGroup.findIndex(t => t.id === taskId);
-            const otherIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-
-            if (otherIndex >= 0 && otherIndex < priorityGroup.length) {
-                const otherTask = priorityGroup[otherIndex];
-                [taskToMove.displayOrder, otherTask.displayOrder] = [otherTask.displayOrder, taskToMove.displayOrder];
-                await saveTasks(tasks);
-                renderPage();
-            }
-        } else if (target.matches('.edit-task-btn-list')) {
-            if (taskItem.classList.contains('editing-task-item')) return;
-            const currentlyEditing = document.querySelector('.editing-task-item');
-            if (currentlyEditing) currentlyEditing.querySelector('.cancel-inline-btn').click();
-
-            const task = await getTaskById(taskId);
-            originalTaskDataForEdit = { ...task };
-            taskItem.classList.add('editing-task-item');
-            taskItem.querySelector('.task-title').style.display = 'none';
-            taskItem.querySelectorAll('.task-item-actions, .edit-task-btn-list, .delete-task-btn-list').forEach(el => el.style.display = 'none');
-
-            const formHtml = `
-                <div class="inline-edit-form">
-                    <input type="text" class="neumorphic-input edit-task-title" value="${task.title}">
-                    <select class="neumorphic-select edit-task-priority"><option value="SOMEDAY" ${task.priority === 'SOMEDAY' ? 'selected' : ''}>Someday</option><option value="IMPORTANT" ${task.priority === 'IMPORTANT' ? 'selected' : ''}>Important</option><option value="CRITICAL" ${task.priority === 'CRITICAL' ? 'selected' : ''}>Critical</option></select>
-                    <div class="inline-edit-actions"><button class="neumorphic-btn save-inline-btn">Save</button><button class="neumorphic-btn cancel-inline-btn">Cancel</button></div>
-                </div>`;
-            taskItem.insertAdjacentHTML('beforeend', formHtml);
-
-        } else if (target.matches('.cancel-inline-btn')) {
-            const taskItem = target.closest('.editing-task-item');
-            taskItem.classList.remove('editing-task-item');
-            taskItem.querySelector('.inline-edit-form').remove();
-            taskItem.querySelector('.task-title').style.display = '';
-            taskItem.querySelectorAll('.task-item-actions, .edit-task-btn-list, .delete-task-btn-list').forEach(el => el.style.display = '');
-        } else if (target.matches('.save-inline-btn')) {
-            const taskItem = target.closest('.editing-task-item');
-            const updatedTask = { ...originalTaskDataForEdit };
-            updatedTask.title = taskItem.querySelector('.edit-task-title').value.trim();
-            updatedTask.priority = taskItem.querySelector('.edit-task-priority').value;
-            await updateTask(updatedTask);
-            renderPage();
-        }
         });
     });
 }
