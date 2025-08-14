@@ -300,7 +300,15 @@ function createTaskElement(task, options = {}) {
 
     const taskItem = document.createElement('div');
     taskItem.classList.add('task-item', `priority-${task.priority.toLowerCase()}`);
-    if (task.completed) taskItem.classList.add('task-completed');
+    if (task.completed) {
+        taskItem.classList.add('task-completed');
+    } else {
+        if (task.energy === 'low') {
+            taskItem.classList.add('energy-low-incomplete');
+        } else if (task.energy === 'high') {
+            taskItem.classList.add('energy-high-incomplete');
+        }
+    }
     taskItem.setAttribute('data-task-id', task.id);
 
     // --- Checkbox (for management view) ---
@@ -537,10 +545,11 @@ function setupTaskManagementListeners() {
             const url = document.getElementById('task-url').value.trim();
             const priority = document.getElementById('task-priority').value;
             const type = document.getElementById('task-type').value;
+            const energy = document.querySelector('input[name="manager-energy"]:checked').value;
             let deadline = document.getElementById('task-deadline').value;
             if (priority !== 'CRITICAL' || !deadline) deadline = null;
 
-            await addNewTask(title, url, priority, deadline, type);
+            await addNewTask(title, url, priority, deadline, type, energy);
             // Clear form
             titleInput.value = '';
             document.getElementById('task-url').value = '';
@@ -614,6 +623,14 @@ function setupTaskManagementListeners() {
                     <div class="inline-edit-form">
                         <input type="text" class="neumorphic-input edit-task-title" value="${task.title}">
                         <select class="neumorphic-select edit-task-priority"><option value="SOMEDAY" ${task.priority === 'SOMEDAY' ? 'selected' : ''}>Someday</option><option value="IMPORTANT" ${task.priority === 'IMPORTANT' ? 'selected' : ''}>Important</option><option value="CRITICAL" ${task.priority === 'CRITICAL' ? 'selected' : ''}>Critical</option></select>
+                        <div class="form-group-inline"><label>Energy:</label>
+                            <div class="radio-group">
+                                <input type="radio" id="manager-edit-energy-low-${task.id}" name="manager-edit-energy-${task.id}" value="low" ${task.energy === 'low' ? 'checked' : ''}>
+                                <label for="manager-edit-energy-low-${task.id}">Low</label>
+                                <input type="radio" id="manager-edit-energy-high-${task.id}" name="manager-edit-energy-${task.id}" value="high" ${task.energy === 'high' ? 'checked' : ''}>
+                                <label for="manager-edit-energy-high-${task.id}">High</label>
+                            </div>
+                        </div>
                         <div class="inline-edit-actions"><button class="neumorphic-btn save-inline-btn">Save</button><button class="neumorphic-btn cancel-inline-btn">Cancel</button></div>
                     </div>`;
                 taskItem.insertAdjacentHTML('beforeend', formHtml);
@@ -629,6 +646,7 @@ function setupTaskManagementListeners() {
                 const updatedTask = { ...originalTaskDataForEdit };
                 updatedTask.title = taskItem.querySelector('.edit-task-title').value.trim();
                 updatedTask.priority = taskItem.querySelector('.edit-task-priority').value;
+                updatedTask.energy = taskItem.querySelector(`input[name="manager-edit-energy-${originalTaskDataForEdit.id}"]:checked`).value;
                 await updateTask(updatedTask);
                 renderPage();
             }

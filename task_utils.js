@@ -2,7 +2,7 @@
 
 // --- Task Data Structure and Storage ---
 class Task {
-    constructor(id, title, url = '', priority = 'SOMEDAY', completed = false, deadline = null, type = 'home', displayOrder = 0, schedule = []) {
+    constructor(id, title, url = '', priority = 'SOMEDAY', completed = false, deadline = null, type = 'home', displayOrder = 0, schedule = [], energy = 'low') {
         this.id = id || `task_${new Date().getTime()}_${Math.random().toString(36).substr(2, 9)}`;
         this.title = title;
         this.url = url;
@@ -12,6 +12,7 @@ class Task {
         this.type = type;
         this.displayOrder = displayOrder;
         this.schedule = schedule;
+        this.energy = energy;
     }
 }
 
@@ -33,6 +34,10 @@ function getTasks(callback) {
                 }
                 if (typeof taskInstance.schedule === 'undefined') {
                     taskInstance.schedule = []; // Backfill schedule property
+                    needsSave = true;
+                }
+                if (typeof taskInstance.energy === 'undefined') {
+                    taskInstance.energy = 'low'; // Backfill energy property
                     needsSave = true;
                 }
                 return taskInstance;
@@ -67,7 +72,7 @@ function saveTasks(tasks, callback) {
 }
 
 // Function to add a new task
-async function addNewTask(title, url, priority, deadline, type) {
+async function addNewTask(title, url, priority, deadline, type, energy = 'low') {
     return new Promise((resolve) => {
         getTasks(tasks => {
             const tasksInSamePriorityGroup = tasks.filter(task => task.priority === priority && !task.completed); // Consider only active tasks for new displayOrder
@@ -80,7 +85,7 @@ async function addNewTask(title, url, priority, deadline, type) {
                 newDisplayOrder = allDisplayOrders.length > 0 ? Math.max(...allDisplayOrders) + 1 : 0;
             }
 
-            const newTask = new Task(null, title, url, priority, false, deadline, type, newDisplayOrder);
+            const newTask = new Task(null, title, url, priority, false, deadline, type, newDisplayOrder, [], energy);
             tasks.push(newTask);
 
             saveTasks(tasks, (success) => {

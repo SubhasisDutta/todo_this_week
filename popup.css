@@ -842,3 +842,12 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
 .grid-cell.drag-over {
     outline: 2px dashed #007bff;
 }
+
+/* --- Energy Level Styles --- */
+.task-item.energy-low-incomplete {
+    background-color: #E6E6FA; /* Engagement Block color */
+}
+
+.task-item.energy-high-incomplete {
+    background-color: #FFFFE0; /* Deep Work Block 1 color */
+}

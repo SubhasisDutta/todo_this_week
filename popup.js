@@ -61,7 +61,16 @@ function renderTasks(tabName = 'display') {
 
         tasksToRender.forEach((task, index) => {
             const taskItem = document.createElement('div');
-            taskItem.classList.add('task-item', `priority-${task.priority}`);
+            taskItem.classList.add('task-item', `priority-${task.priority.toLowerCase()}`);
+            if (task.completed) {
+                taskItem.classList.add('task-completed');
+            } else {
+                if (task.energy === 'low') {
+                    taskItem.classList.add('energy-low-incomplete');
+                } else if (task.energy === 'high') {
+                    taskItem.classList.add('energy-high-incomplete');
+                }
+            }
             taskItem.setAttribute('data-task-id', task.id);
 
             const checkbox = document.createElement('input');
@@ -294,6 +303,14 @@ function setupInlineTaskEditingListeners() {
                         <option value="home" ${task.type === 'home' ? 'selected' : ''}>Home</option>
                         <option value="work" ${task.type === 'work' ? 'selected' : ''}>Work</option>
                     </select></div>
+                    <div class="form-group-inline"><label>Energy:</label>
+                        <div class="radio-group">
+                            <input type="radio" id="edit-energy-low-${task.id}" name="edit-energy-${task.id}" value="low" ${task.energy === 'low' ? 'checked' : ''}>
+                            <label for="edit-energy-low-${task.id}">Low</label>
+                            <input type="radio" id="edit-energy-high-${task.id}" name="edit-energy-${task.id}" value="high" ${task.energy === 'high' ? 'checked' : ''}>
+                            <label for="edit-energy-high-${task.id}">High</label>
+                        </div>
+                    </div>
                     <div class="form-group-inline form-group-inline-checkbox"><label for="edit-task-completed-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}">Completed:</label><input type="checkbox" id="edit-task-completed-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}" class="edit-task-completed" ${task.completed ? 'checked' : ''} style="width: auto; margin-right: 5px;"></div>
                     <div class="inline-edit-actions"><button class="neumorphic-btn save-inline-btn">Save</button><button class="neumorphic-btn cancel-inline-btn">Cancel</button></div>
                 </div>`;
@@ -345,10 +362,11 @@ function setupInlineTaskEditingListeners() {
             let newDeadline = editForm.querySelector('.edit-task-deadline').value;
             const newType = editForm.querySelector('.edit-task-type').value;
             const newCompleted = editForm.querySelector('.edit-task-completed').checked;
+            const newEnergy = editForm.querySelector(`input[name="edit-energy-${taskId}"]:checked`).value;
             if (!newTitle) { showInfoMessage("Task title cannot be empty.", "error", 3000, document); return; }
             if (newPriority === 'CRITICAL' && !newDeadline) { showInfoMessage("Deadline is required for CRITICAL tasks.", "error", 3000, document); return; }
             if (newPriority !== 'CRITICAL') newDeadline = null;
-            const updatedTask = { ...originalTaskDataBeforeEdit, title: newTitle, url: newUrl, priority: newPriority, deadline: newDeadline, type: newType, completed: newCompleted };
+            const updatedTask = { ...originalTaskDataBeforeEdit, title: newTitle, url: newUrl, priority: newPriority, deadline: newDeadline, type: newType, completed: newCompleted, energy: newEnergy };
             const success = await updateTask(updatedTask);
             if (success) {
                 taskItem.classList.remove('editing-task-item');
@@ -685,6 +703,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const priority = taskPriorityInput.value;
         const type = taskTypeInput.value;
         let deadline = taskDeadlineInput.value;
+        const energy = document.querySelector('input[name="energy"]:checked').value;
 
         if (!title) {
             showInfoMessage("Task title is required.", "error", 3000, document);
@@ -696,7 +715,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (priority !== 'CRITICAL') deadline = null;
 
-        const newTask = await addNewTask(title, url, priority, deadline, type);
+        const newTask = await addNewTask(title, url, priority, deadline, type, energy);
         if (newTask) {
             taskTitleInput.value = '';
             taskUrlInput.value = '';
