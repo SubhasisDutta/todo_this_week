@@ -53,9 +53,7 @@ function getTasks(callback) {
 
 // Function to save all tasks to storage
 function saveTasks(tasks, callback) {
-    // Ensure we are always saving plain objects, not class instances
-    const plainTasks = JSON.parse(JSON.stringify(tasks));
-    chrome.storage.local.set({ tasks: plainTasks }, () => {
+    chrome.storage.local.set({ tasks: tasks }, () => {
         if (chrome.runtime.lastError) {
             console.error("Error saving tasks:", chrome.runtime.lastError.message || chrome.runtime.lastError);
             if (callback) callback(false, chrome.runtime.lastError.message || String(chrome.runtime.lastError));

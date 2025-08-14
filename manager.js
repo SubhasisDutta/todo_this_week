@@ -4,7 +4,7 @@
 const TIME_BLOCKS = [
     { id: 'late-night-read', label: 'Late Night Read', time: '[12AM-1AM]', limit: 'multiple', colorClass: 'block-color-sakura' },
     { id: 'sleep', label: 'Sleep', time: '[1AM-7AM]', limit: '0', colorClass: '' },
-    { id: 'ai-study', label: 'AI study time', time: '[7AM-8AM]', limit: '1', colorClass: 'block-color-yellow' },
+    { id: 'ai-study', label: 'AI study time', time: '[7AM-8AM]', limit: '0', colorClass: '' },
     { id: 'morning-prep', label: 'Morning Prep Time', time: '[8AM-9AM]', limit: '0', colorClass: '' },
     { id: 'engagement', label: 'Engagement Block', time: '[9AM-12PM]', limit: 'multiple', colorClass: 'block-color-purple' },
     { id: 'lunch', label: 'Lunch Break', time: '[12PM-1PM]', limit: '0', colorClass: '' },
@@ -28,7 +28,6 @@ function setupAllListeners() {
     setupDragAndDropListeners();
     setupCoreFeatureListeners();
     setupTaskManagementListeners();
-    setupSchedulingListeners();
 }
 
 // --- RENDERING LOGIC ---
@@ -51,6 +50,44 @@ async function renderPage() {
     // --- Render All Tasks Tab (all tasks) ---
     clearHomeWorkLists();
     renderHomeWorkLists(tasks);
+}
+
+function renderHomeWorkLists(tasks) {
+    const homeList = document.getElementById('home-tasks-list');
+    const workList = document.getElementById('work-tasks-list');
+
+    const homeTasks = tasks.filter(t => t.type === 'home');
+    const workTasks = tasks.filter(t => t.type === 'work');
+
+    const renderColumn = (tasksForColumn, columnElement) => {
+        if (tasksForColumn.length === 0) {
+            columnElement.innerHTML = `<p class="empty-list-msg">No tasks in this category.</p>`;
+            return;
+        }
+
+        const groupedByPriority = { 'CRITICAL': [], 'IMPORTANT': [], 'SOMEDAY': [] };
+        tasksForColumn.forEach(t => {
+            if (groupedByPriority[t.priority]) {
+                groupedByPriority[t.priority].push(t);
+            }
+        });
+
+        ['CRITICAL', 'IMPORTANT', 'SOMEDAY'].forEach(priority => {
+            const group = groupedByPriority[priority].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+            if (group.length > 0) {
+                 if (columnElement.innerHTML.includes('empty-list-msg')) {
+                    columnElement.innerHTML = ''; // Clear empty message if we are adding tasks
+                }
+                group.forEach((task, index) => {
+                    const taskElement = createTaskElement(task, { context: 'management', index: index, total: group.length });
+                    columnElement.appendChild(taskElement);
+                });
+            }
+        });
+    };
+
+    renderColumn(homeTasks, homeList);
+    renderColumn(workTasks, workList);
 }
 
 function generatePlannerGrid() {
@@ -76,94 +113,6 @@ function generatePlannerGrid() {
             cell.appendChild(cellLabel);
             plannerGrid.appendChild(cell);
         });
-    });
-}
-
-function setupSchedulingListeners() {
-    const plannerContainer = document.querySelector('.planner-container');
-    if (!plannerContainer) return;
-
-    plannerContainer.addEventListener('click', async (event) => {
-        const target = event.target;
-
-        if (target.matches('.schedule-task-btn')) {
-            const taskItem = target.closest('.task-item');
-            const taskId = target.dataset.taskId;
-            const currentlyEditing = plannerContainer.querySelector('.editing-schedule');
-            if (currentlyEditing) {
-                currentlyEditing.querySelector('.cancel-schedule-btn').click();
-            }
-
-            const task = await getTaskById(taskId);
-            if (!task) return;
-
-            taskItem.classList.add('editing-schedule');
-            Array.from(taskItem.children).forEach(child => {
-                if (!child.classList.contains('inline-schedule-form')) {
-                    child.style.display = 'none';
-                }
-            });
-
-            const schedulableBlocks = TIME_BLOCKS.filter(b => b.limit !== '0');
-            const dayHeaders = DAYS.map(day => `<div class="schedule-header-cell" style="font-size: 0.8em; text-align: center;">${day.charAt(0).toUpperCase() + day.slice(1, 3)}</div>`).join('');
-
-            const bodyRows = schedulableBlocks.map(block => `
-                <div class="schedule-block-label" style="font-size: 0.8em; text-align: right; padding-right: 5px;">${block.label}</div>
-                ${DAYS.map(day => `
-                    <div class="schedule-grid-cell" style="text-align: center;">
-                        <input type="checkbox" class="schedule-checkbox" data-day="${day}" data-block-id="${block.id}"
-                            ${task.schedule.some(s => s.day === day && s.blockId === block.id) ? 'checked' : ''}>
-                    </div>
-                `).join('')}
-            `).join('');
-
-            const formHtml = `
-                <div class="inline-schedule-form">
-                    <div class="schedule-form-grid" style="display: grid; grid-template-columns: 120px repeat(7, 1fr); gap: 5px;">
-                        <div class="schedule-header-cell"></div>
-                        ${dayHeaders}
-                        ${bodyRows}
-                    </div>
-                    <div class="inline-schedule-actions" style="margin-top: 10px; text-align: right;">
-                        <button class="neumorphic-btn save-schedule-btn">Save</button>
-                        <button class="neumorphic-btn cancel-schedule-btn">Cancel</button>
-                    </div>
-                </div>
-            `;
-            taskItem.insertAdjacentHTML('beforeend', formHtml);
-        }
-
-        if (target.matches('.cancel-schedule-btn')) {
-            const taskItem = target.closest('.editing-schedule');
-            if (taskItem) {
-                taskItem.classList.remove('editing-schedule');
-                const form = taskItem.querySelector('.inline-schedule-form');
-                if (form) form.remove();
-                Array.from(taskItem.children).forEach(child => {
-                    child.style.display = '';
-                });
-            }
-        }
-
-        if (target.matches('.save-schedule-btn')) {
-            const taskItem = target.closest('.editing-schedule');
-            const taskId = taskItem.dataset.taskId;
-            const task = await getTaskById(taskId);
-            if (!task) return;
-
-            const newSchedule = [];
-            const checkboxes = taskItem.querySelectorAll('.schedule-checkbox:checked');
-            checkboxes.forEach(cb => {
-                newSchedule.push({
-                    day: cb.dataset.day,
-                    blockId: cb.dataset.blockId
-                });
-            });
-
-            task.schedule = newSchedule;
-            await updateTask(task);
-            renderPage();
-        }
     });
 }
 
@@ -246,41 +195,6 @@ function renderPriorityLists(tasks) {
     renderColumn(somedayTasks, somedayList);
 }
 
-function renderHomeWorkLists(tasks) {
-    const homeList = document.getElementById('home-tasks-list');
-    const workList = document.getElementById('work-tasks-list');
-
-    const homeTasks = tasks.filter(t => t.type === 'home');
-    const workTasks = tasks.filter(t => t.type === 'work');
-
-    const priorityOrder = { 'CRITICAL': 1, 'IMPORTANT': 2, 'SOMEDAY': 3 };
-
-    const sortTasks = (a, b) => {
-        const priorityComparison = priorityOrder[a.priority] - priorityOrder[b.priority];
-        if (priorityComparison !== 0) {
-            return priorityComparison;
-        }
-        return (a.displayOrder || 0) - (b.displayOrder || 0);
-    };
-
-    homeTasks.sort(sortTasks);
-    workTasks.sort(sortTasks);
-
-    const renderColumn = (tasksForColumn, columnElement) => {
-        if (tasksForColumn.length === 0) {
-            columnElement.innerHTML = `<p class="empty-list-msg">No tasks in this category.</p>`;
-            return;
-        }
-        tasksForColumn.forEach((task, index) => {
-            const taskElement = createTaskElement(task, { context: 'management', index: index, total: tasksForColumn.length });
-            columnElement.appendChild(taskElement);
-        });
-    };
-
-    renderColumn(homeTasks, homeList);
-    renderColumn(workTasks, workList);
-}
-
 function createTaskElement(task, options = {}) {
     const { context = 'sidebar', isAssigned = false, index = -1, total = -1 } = options;
 
@@ -294,33 +208,11 @@ function createTaskElement(task, options = {}) {
         checkbox.type = 'checkbox';
         checkbox.checked = task.completed;
         checkbox.classList.add('task-complete-checkbox');
-        const checkboxId = `checkbox-manager-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}`;
-        checkbox.id = checkboxId;
         taskItem.appendChild(checkbox);
-
-        const checkboxLabel = document.createElement('label');
-        checkboxLabel.classList.add('neumorphic-checkbox-label');
-        checkboxLabel.setAttribute('for', checkboxId);
-        taskItem.appendChild(checkboxLabel);
     }
 
     if (context !== 'grid') {
         taskItem.setAttribute('draggable', 'true');
-    }
-
-    if (context === 'sidebar') {
-        const scheduleButton = document.createElement('button');
-        scheduleButton.innerHTML = '⏱️';
-        scheduleButton.classList.add('neumorphic-btn', 'schedule-task-btn', 'schedule-btn-icon');
-        scheduleButton.setAttribute('data-task-id', task.id);
-        scheduleButton.setAttribute('title', 'Schedule Task');
-        scheduleButton.style.width = '30px';
-        scheduleButton.style.height = '30px';
-        scheduleButton.style.borderRadius = '50%';
-        scheduleButton.style.padding = '0';
-        scheduleButton.style.lineHeight = '30px';
-        scheduleButton.style.marginLeft = 'auto';
-        taskItem.appendChild(scheduleButton);
     }
 
     const titleSpan = document.createElement('span');
@@ -339,21 +231,10 @@ function createTaskElement(task, options = {}) {
     taskItem.appendChild(titleSpan);
 
     if (isAssigned) {
-        const labelsContainer = document.createElement('div');
-        labelsContainer.classList.add('task-schedule-labels');
-
-        const dayMapping = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
-
-        task.schedule.forEach(item => {
-            const block = TIME_BLOCKS.find(b => b.id === item.blockId);
-            if (block) {
-                const label = document.createElement('span');
-                label.classList.add('task-schedule-label');
-                label.textContent = `${dayMapping[item.day] || 'Unk'}: ${block.label}`;
-                labelsContainer.appendChild(label);
-            }
-        });
-        taskItem.appendChild(labelsContainer);
+        const summary = document.createElement('div');
+        summary.classList.add('task-schedule-summary');
+        summary.textContent = formatSchedule(task.schedule);
+        taskItem.appendChild(summary);
     }
 
     if (context === 'management') {
@@ -389,6 +270,24 @@ function createTaskElement(task, options = {}) {
     }
 
     return taskItem;
+}
+
+function formatSchedule(schedule) {
+    if (!schedule || schedule.length === 0) return '';
+    const dayMapping = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
+    const groupedByDay = schedule.reduce((acc, item) => {
+        const day = dayMapping[item.day] || 'Unk';
+        if (!acc[day]) {
+            acc[day] = [];
+        }
+        const block = TIME_BLOCKS.find(b => b.id === item.blockId);
+        acc[day].push(block ? block.label : 'Unknown');
+        return acc;
+    }, {});
+
+    return Object.entries(groupedByDay).map(([day, blocks]) => {
+        return `${day}: ${blocks.join(', ')}`;
+    }).join('; ');
 }
 
 // --- EVENT LISTENERS ---
@@ -536,76 +435,76 @@ function setupTaskManagementListeners() {
     }
 
     const tasksDisplayAreas = document.querySelectorAll('.tasks-display-area');
-    if (tasksDisplayAreas.length === 0) return;
+    if (!tasksDisplayAreas.length) return;
 
     let originalTaskDataForEdit = null;
 
     tasksDisplayAreas.forEach(area => {
-        area.addEventListener('click', async (event) => {
-            const target = event.target;
-            const taskItem = target.closest('.task-item');
-            const taskId = taskItem?.dataset.taskId;
+      area.addEventListener('click', async (event) => {
+        const target = event.target;
+        const taskItem = target.closest('.task-item');
+        const taskId = taskItem?.dataset.taskId;
 
-            if (target.matches('.task-complete-checkbox')) {
-                const isCompleted = target.checked;
-                const task = await getTaskById(taskId);
-                if (task) {
-                    task.completed = isCompleted;
-                    await updateTask(task);
-                    renderPage();
-                }
-            } else if (target.matches('.delete-task-btn-list')) {
-                if (confirm('Are you sure you want to delete this task?')) {
-                    await deleteTask(taskId);
-                    renderPage();
-                }
-            } else if (target.matches('.move-task-up-btn') || target.matches('.move-task-down-btn')) {
-                const direction = target.matches('.move-task-up-btn') ? 'up' : 'down';
-                const tasks = await new Promise(getTasks);
-                const taskToMove = tasks.find(t => t.id === taskId);
-                const priorityGroup = tasks.filter(t => t.priority === taskToMove.priority).sort((a,b) => a.displayOrder - b.displayOrder);
-                const currentIndex = priorityGroup.findIndex(t => t.id === taskId);
-                const otherIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-
-                if (otherIndex >= 0 && otherIndex < priorityGroup.length) {
-                    const otherTask = priorityGroup[otherIndex];
-                    [taskToMove.displayOrder, otherTask.displayOrder] = [otherTask.displayOrder, taskToMove.displayOrder];
-                    await saveTasks(tasks);
-                    renderPage();
-                }
-            } else if (target.matches('.edit-task-btn-list')) {
-                if (taskItem.classList.contains('editing-task-item')) return;
-                const currentlyEditing = document.querySelector('.editing-task-item');
-                if (currentlyEditing) currentlyEditing.querySelector('.cancel-inline-btn').click();
-
-                const task = await getTaskById(taskId);
-                originalTaskDataForEdit = { ...task };
-                taskItem.classList.add('editing-task-item');
-                taskItem.querySelector('.task-title').style.display = 'none';
-                taskItem.querySelectorAll('.task-item-actions, .edit-task-btn-list, .delete-task-btn-list').forEach(el => el.style.display = 'none');
-
-                const formHtml = `
-                    <div class="inline-edit-form">
-                        <input type="text" class="neumorphic-input edit-task-title" value="${task.title}">
-                        <select class="neumorphic-select edit-task-priority"><option value="SOMEDAY" ${task.priority === 'SOMEDAY' ? 'selected' : ''}>Someday</option><option value="IMPORTANT" ${task.priority === 'IMPORTANT' ? 'selected' : ''}>Important</option><option value="CRITICAL" ${task.priority === 'CRITICAL' ? 'selected' : ''}>Critical</option></select>
-                        <div class="inline-edit-actions"><button class="neumorphic-btn save-inline-btn">Save</button><button class="neumorphic-btn cancel-inline-btn">Cancel</button></div>
-                    </div>`;
-                taskItem.insertAdjacentHTML('beforeend', formHtml);
-
-            } else if (target.matches('.cancel-inline-btn')) {
-                const taskItem = target.closest('.editing-task-item');
-                taskItem.classList.remove('editing-task-item');
-                taskItem.querySelector('.inline-edit-form').remove();
-                taskItem.querySelector('.task-title').style.display = '';
-                taskItem.querySelectorAll('.task-item-actions, .edit-task-btn-list, .delete-task-btn-list').forEach(el => el.style.display = '');
-            } else if (target.matches('.save-inline-btn')) {
-                const taskItem = target.closest('.editing-task-item');
-                const updatedTask = { ...originalTaskDataForEdit };
-                updatedTask.title = taskItem.querySelector('.edit-task-title').value.trim();
-                updatedTask.priority = taskItem.querySelector('.edit-task-priority').value;
-                await updateTask(updatedTask);
+        if (target.matches('.task-complete-checkbox')) {
+            const isCompleted = target.checked;
+            const task = await getTaskById(taskId);
+            if (task) {
+                task.completed = isCompleted;
+                await updateTask(task);
                 renderPage();
             }
-        });
+        } else if (target.matches('.delete-task-btn-list')) {
+            if (confirm('Are you sure you want to delete this task?')) {
+                await deleteTask(taskId);
+                renderPage();
+            }
+        } else if (target.matches('.move-task-up-btn') || target.matches('.move-task-down-btn')) {
+            const direction = target.matches('.move-task-up-btn') ? 'up' : 'down';
+            const tasks = await new Promise(getTasks);
+            const taskToMove = tasks.find(t => t.id === taskId);
+            const priorityGroup = tasks.filter(t => t.priority === taskToMove.priority).sort((a,b) => a.displayOrder - b.displayOrder);
+            const currentIndex = priorityGroup.findIndex(t => t.id === taskId);
+            const otherIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+            if (otherIndex >= 0 && otherIndex < priorityGroup.length) {
+                const otherTask = priorityGroup[otherIndex];
+                [taskToMove.displayOrder, otherTask.displayOrder] = [otherTask.displayOrder, taskToMove.displayOrder];
+                await saveTasks(tasks);
+                renderPage();
+            }
+        } else if (target.matches('.edit-task-btn-list')) {
+            if (taskItem.classList.contains('editing-task-item')) return;
+            const currentlyEditing = tasksDisplayArea.querySelector('.editing-task-item');
+            if (currentlyEditing) currentlyEditing.querySelector('.cancel-inline-btn').click();
+
+            const task = await getTaskById(taskId);
+            originalTaskDataForEdit = { ...task };
+            taskItem.classList.add('editing-task-item');
+            taskItem.querySelector('.task-title').style.display = 'none';
+            taskItem.querySelectorAll('.task-item-actions, .edit-task-btn-list, .delete-task-btn-list').forEach(el => el.style.display = 'none');
+
+            const formHtml = `
+                <div class="inline-edit-form">
+                    <input type="text" class="neumorphic-input edit-task-title" value="${task.title}">
+                    <select class="neumorphic-select edit-task-priority"><option value="SOMEDAY" ${task.priority === 'SOMEDAY' ? 'selected' : ''}>Someday</option><option value="IMPORTANT" ${task.priority === 'IMPORTANT' ? 'selected' : ''}>Important</option><option value="CRITICAL" ${task.priority === 'CRITICAL' ? 'selected' : ''}>Critical</option></select>
+                    <div class="inline-edit-actions"><button class="neumorphic-btn save-inline-btn">Save</button><button class="neumorphic-btn cancel-inline-btn">Cancel</button></div>
+                </div>`;
+            taskItem.insertAdjacentHTML('beforeend', formHtml);
+
+        } else if (target.matches('.cancel-inline-btn')) {
+            const taskItem = target.closest('.editing-task-item');
+            taskItem.classList.remove('editing-task-item');
+            taskItem.querySelector('.inline-edit-form').remove();
+            taskItem.querySelector('.task-title').style.display = '';
+            taskItem.querySelectorAll('.task-item-actions, .edit-task-btn-list, .delete-task-btn-list').forEach(el => el.style.display = '');
+        } else if (target.matches('.save-inline-btn')) {
+            const taskItem = target.closest('.editing-task-item');
+            const updatedTask = { ...originalTaskDataForEdit };
+            updatedTask.title = taskItem.querySelector('.edit-task-title').value.trim();
+            updatedTask.priority = taskItem.querySelector('.edit-task-priority').value;
+            await updateTask(updatedTask);
+            renderPage();
+        }
+      });
     });
 }
