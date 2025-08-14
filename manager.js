@@ -20,6 +20,7 @@ const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'
 document.addEventListener('DOMContentLoaded', function() {
     setupTabSwitching();
     generatePlannerGrid();
+    highlightCurrentDay();
     renderPage();
     setupAllListeners();
 });
@@ -78,6 +79,28 @@ function generatePlannerGrid() {
             cell.appendChild(cellLabel);
             plannerGrid.appendChild(cell);
         });
+    });
+}
+
+function highlightCurrentDay() {
+    const now = new Date();
+    // JS getDay(): 0 for Sunday, 1 for Monday, ..., 6 for Saturday
+    // Our DAYS array: 0 for Monday, ..., 6 for Sunday
+    const dayIndex = now.getDay();
+    const todayName = DAYS[(dayIndex + 6) % 7];
+
+    // Highlight header
+    const headers = document.querySelectorAll('.grid-header');
+    headers.forEach(header => {
+        if (header.textContent.toLowerCase() === todayName) {
+            header.classList.add('today');
+        }
+    });
+
+    // Highlight cells
+    const todayCells = document.querySelectorAll(`.grid-cell[data-day='${todayName}']`);
+    todayCells.forEach(cell => {
+        cell.classList.add('today');
     });
 }
 

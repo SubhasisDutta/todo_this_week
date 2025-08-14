@@ -848,6 +848,10 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
     outline: 2px dashed #007bff;
 }
 
+.grid-header.today, .grid-cell.today {
+    background-color: #d1ecf1 !important; /* A light, informative blue, !important to override potential block colors */
+}
+
 /* --- Energy Level Styles --- */
 .task-item.energy-low-incomplete {
     background-color: #E6E6FA; /* Engagement Block color */
