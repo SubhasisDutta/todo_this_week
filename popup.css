@@ -356,7 +356,7 @@ h2 {
 }
 
 /* Custom Neumorphic Checkbox */
-.task-item input[type="checkbox"].task-complete-checkbox {
+.task-item input[type="checkbox"] {
     opacity: 0; /* Hide the original checkbox */
     position: absolute; /* Take it out of flow */
     width: 0;
@@ -374,14 +374,15 @@ h2 {
     position: relative;
     margin-right: 12px; /* Space it from the title */
     transition: all 0.2s ease-in-out;
+    vertical-align: middle;
 }
 
-.task-item input[type="checkbox"].task-complete-checkbox:checked + .neumorphic-checkbox-label {
+.task-item input[type="checkbox"]:checked + .neumorphic-checkbox-label {
     box-shadow: inset 2px 2px 4px #babecc, inset -2px -2px 4px #ffffff; /* Inner shadow for pressed state */
     background-color: #ffffff; /* White background also when checked */
 }
 
-.task-item input[type="checkbox"].task-complete-checkbox:checked + .neumorphic-checkbox-label::after {
+.task-item input[type="checkbox"]:checked + .neumorphic-checkbox-label::after {
     content: '\2713'; /* Checkmark character */
     font-size: 14px;
     color: #333; /* Checkmark color */
@@ -392,7 +393,7 @@ h2 {
     font-weight: bold;
 }
 
-.task-item input[type="checkbox"].task-complete-checkbox:focus + .neumorphic-checkbox-label {
+.task-item input[type="checkbox"]:focus + .neumorphic-checkbox-label {
     /* Optional: add a focus style if needed, e.g., a subtle outer ring */
     /* box-shadow: 0 0 0 2px #007bff40, 3px 3px 6px #babecc, -3px -3px 6px #ffffff; */
 }
@@ -401,6 +402,7 @@ h2 {
     flex-grow: 1;
     color: #333;
     font-size: 16px;
+    vertical-align: middle;
 }
 
 .task-title a {
@@ -410,6 +412,11 @@ h2 {
 
 .task-title a:hover {
     text-decoration: underline;
+}
+
+.time-marker {
+    font-weight: bold;
+    color: #6c757d;
 }
 
 .task-deadline-display { /* Base style, already exists but can be ensured */
