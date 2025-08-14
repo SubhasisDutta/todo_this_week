@@ -1,7 +1,7 @@
 // manager.js
 
 // --- CONSTANTS ---
-const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', function() {
@@ -186,9 +186,9 @@ function showInfoMessage(message, type = 'info', duration = 3000) {
 function highlightCurrentDay() {
     const now = new Date();
     // JS getDay(): 0 for Sunday, 1 for Monday, ..., 6 for Saturday
-    // Our DAYS array: 0 for Monday, ..., 6 for Sunday
+    // Our new DAYS array also starts with Sunday at index 0, so the mapping is direct.
     const dayIndex = now.getDay();
-    const todayName = DAYS[(dayIndex + 6) % 7];
+    const todayName = DAYS[dayIndex];
 
     // Highlight header
     const headers = document.querySelectorAll('.grid-header');
