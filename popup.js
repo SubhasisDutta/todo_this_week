@@ -2,59 +2,62 @@
 
 // --- Task Rendering Functions ---
 
-function renderTasks(tabName = 'display') {
+function renderTasks(tabName = 'today') {
     getTasks(allTasks => {
-        let tasksToRender = allTasks.filter(task => !task.completed);
+        let tasksToRender = [];
         let taskListElement;
-        let filterType = null;
 
-        if (tabName === 'display') {
+        const dayMapping = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const today = new Date();
+        const todayName = dayMapping[today.getDay()];
+
+        if (tabName === 'today') {
+            taskListElement = document.getElementById('today-task-list');
+            const todaysTasks = allTasks.filter(task => !task.completed && task.schedule.some(s => s.day === todayName));
+
+            const timeBlockOrder = TIME_BLOCKS.reduce((acc, block, index) => {
+                acc[block.id] = index;
+                return acc;
+            }, {});
+
+            todaysTasks.forEach(task => {
+                const firstBlock = task.schedule
+                    .filter(s => s.day === todayName)
+                    .sort((a, b) => timeBlockOrder[a.blockId] - timeBlockOrder[b.blockId])[0];
+                tasksToRender.push({ ...task, sortOrder: timeBlockOrder[firstBlock.blockId] });
+            });
+            tasksToRender.sort((a, b) => a.sortOrder - b.sortOrder);
+
+        } else if (tabName === 'display') {
             taskListElement = document.getElementById('display-task-list');
-            filterType = 'all';
-        } else if (tabName === 'home') {
-            taskListElement = document.getElementById('home-task-list');
-            filterType = 'home';
-        } else if (tabName === 'work') {
-            taskListElement = document.getElementById('work-task-list');
-            filterType = 'work';
+            tasksToRender = allTasks.filter(task => !task.completed);
+            const priorityOrder = { 'CRITICAL': 1, 'IMPORTANT': 2, 'SOMEDAY': 3 };
+            tasksToRender.sort((a, b) => {
+                const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+                if (priorityDiff !== 0) return priorityDiff;
+                return (a.displayOrder || 0) - (b.displayOrder || 0);
+            });
         } else if (tabName === 'edit') {
             taskListElement = document.getElementById('edit-task-list');
-            tasksToRender = allTasks;
-            filterType = 'all';
+            tasksToRender = allTasks.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+        } else if (tabName === 'add') {
+            // No tasks to render in the ADD tab
+            return;
         }
+
 
         if (!taskListElement) {
             console.error(`Task list element for tab '${tabName}' not found.`);
             return;
         }
 
-        if (filterType === 'home') {
-            tasksToRender = tasksToRender.filter(task => task.type === 'home');
-        } else if (filterType === 'work') {
-            tasksToRender = tasksToRender.filter(task => task.type === 'work');
-        }
-
-        if (tabName === 'edit') {
-            tasksToRender.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-        } else {
-            const priorityOrder = { 'CRITICAL': 1, 'IMPORTANT': 2, 'SOMEDAY': 3 };
-            tasksToRender.sort((a, b) => {
-                const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
-                if (priorityDiff !== 0) {
-                    return priorityDiff;
-                }
-                return (a.displayOrder || 0) - (b.displayOrder || 0);
-            });
-        }
-
         taskListElement.innerHTML = '';
 
         if (tasksToRender.length === 0) {
             let message = "No tasks yet.";
-            if (tabName === 'display') message = "No active tasks. Add some in the Edit tab!";
-            else if (tabName === 'home') message = "No active home tasks.";
-            else if (tabName === 'work') message = "No active work tasks.";
-            else if (tabName === 'edit') message = "No tasks to edit. Add some first!";
+            if (tabName === 'today') message = "No tasks scheduled for today.";
+            else if (tabName === 'display') message = "No active tasks. Add some in the ADD tab!";
+            else if (tabName === 'edit') message = "No tasks to edit. Add one in the ADD tab!";
             taskListElement.innerHTML = `<p>${message}</p>`;
             return;
         }
@@ -689,9 +692,14 @@ document.addEventListener('DOMContentLoaded', function() {
         tab.addEventListener('click', () => {
             tabs.forEach(item => item.classList.remove('active'));
             tabContents.forEach(content => content.classList.remove('active'));
+
             tab.classList.add('active');
             const targetTabId = tab.getAttribute('data-tab');
-            document.getElementById(targetTabId).classList.add('active');
+            const targetContent = document.getElementById(targetTabId);
+            if(targetContent) {
+                targetContent.classList.add('active');
+            }
+
             renderTasks(targetTabId);
         });
     });
@@ -714,39 +722,44 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    addTaskBtn.addEventListener('click', async () => {
-        const title = taskTitleInput.value.trim();
-        const url = taskUrlInput.value.trim();
-        const priority = document.querySelector('input[name="priority"]:checked').value;
-        const type = document.querySelector('input[name="type"]:checked').value;
-        let deadline = taskDeadlineInput.value;
-        const energy = document.querySelector('input[name="energy"]:checked').value;
+    if (addTaskBtn) {
+        addTaskBtn.addEventListener('click', async () => {
+            const title = taskTitleInput.value.trim();
+            const url = taskUrlInput.value.trim();
+            const priority = document.querySelector('input[name="priority"]:checked').value;
+            const type = document.querySelector('input[name="type"]:checked').value;
+            let deadline = taskDeadlineInput.value;
+            const energy = document.querySelector('input[name="energy"]:checked').value;
 
-        if (!title) {
-            showInfoMessage("Task title is required.", "error", 3000, document);
-            return;
-        }
-        if (priority === 'CRITICAL' && !deadline) {
-            showInfoMessage("Deadline is required for CRITICAL tasks.", "error", 3000, document);
-            return;
-        }
-        if (priority !== 'CRITICAL') deadline = null;
+            if (!title) {
+                showInfoMessage("Task title is required.", "error", 3000, document);
+                return;
+            }
+            if (priority === 'CRITICAL' && !deadline) {
+                showInfoMessage("Deadline is required for CRITICAL tasks.", "error", 3000, document);
+                return;
+            }
+            if (priority !== 'CRITICAL') deadline = null;
 
-        const newTask = await addNewTask(title, url, priority, deadline, type, energy);
-        if (newTask) {
-            taskTitleInput.value = '';
-            taskUrlInput.value = '';
-            document.getElementById('priority-someday').checked = true;
-            document.getElementById('type-home').checked = true;
-            taskDeadlineInput.value = '';
-            taskDeadlineGroup.style.display = 'none';
-            showInfoMessage("Task added successfully!", "success", 3000, document);
-            renderTasks('display'); renderTasks('edit'); renderTasks('home'); renderTasks('work');
-        } else {
-            showInfoMessage("Failed to add task. Please try again.", "error", 3000, document);
-        }
-    });
+            const newTask = await addNewTask(title, url, priority, deadline, type, energy);
+            if (newTask) {
+                taskTitleInput.value = '';
+                taskUrlInput.value = '';
+                document.getElementById('priority-someday').checked = true;
+                document.getElementById('type-home').checked = true;
+                taskDeadlineInput.value = '';
+                taskDeadlineGroup.style.display = 'none';
+                showInfoMessage("Task added successfully!", "success", 3000, document);
+                renderTasks('today');
+                renderTasks('display');
+                renderTasks('edit');
+            } else {
+                showInfoMessage("Failed to add task. Please try again.", "error", 3000, document);
+            }
+        });
+    }
 
+    renderTasks('today');
     renderTasks('display');
     renderTasks('edit');
 

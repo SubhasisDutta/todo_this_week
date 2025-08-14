@@ -15,20 +15,27 @@
         </div>
 
         <div class="tabs">
-            <button class="tab-link active" data-tab="display">Display</button>
+            <button class="tab-link active" data-tab="today">TODAY</button>
+            <button class="tab-link" data-tab="display">Display</button>
+            <button class="tab-link" data-tab="add">ADD</button>
             <button class="tab-link" data-tab="edit">Edit</button>
-            <button class="tab-link" data-tab="home">Home</button>
-            <button class="tab-link" data-tab="work">Work</button>
         </div>
 
-        <div id="display" class="tab-content active">
-            <div id="display-task-list">
-                <!-- Tasks will be listed here -->
-                <p>No active tasks. Add some in the Edit tab!</p>
+        <div id="today" class="tab-content active">
+            <div id="today-task-list">
+                <!-- Today's tasks will be listed here -->
+                <p>No tasks scheduled for today.</p>
             </div>
         </div>
 
-        <div id="edit" class="tab-content">
+        <div id="display" class="tab-content">
+            <div id="display-task-list">
+                <!-- Tasks will be listed here -->
+                <p>No active tasks. Add some in the ADD tab!</p>
+            </div>
+        </div>
+
+        <div id="add" class="tab-content">
             <div class="add-task-form">
                 <h3>Add New Task</h3>
                 <div class="form-group">
@@ -74,25 +81,14 @@
                 </div>
                 <button id="add-task-btn" class="neumorphic-btn">Add Task</button>
             </div>
+        </div>
+
+        <div id="edit" class="tab-content">
             <hr class="neumorphic-divider">
             <h3>Current Tasks</h3>
             <div id="edit-task-list">
                 <!-- Tasks will be listed here for editing/deleting -->
-                <p>No tasks yet. Add one above!</p>
-            </div>
-        </div>
-
-        <div id="home" class="tab-content">
-            <div id="home-task-list">
-                <!-- Home tasks will be listed here -->
-                <p>No active home tasks.</p>
-            </div>
-        </div>
-
-        <div id="work" class="tab-content">
-            <div id="work-task-list">
-                <!-- Work tasks will be listed here -->
-                <p>No active work tasks.</p>
+                <p>No tasks yet. Add one in the ADD tab!</p>
             </div>
         </div>
     </div>

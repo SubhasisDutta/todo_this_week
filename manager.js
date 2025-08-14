@@ -1,19 +1,6 @@
 // manager.js
 
 // --- CONSTANTS ---
-const TIME_BLOCKS = [
-    { id: 'late-night-read', label: 'Late Night Read', time: '[12AM-1AM]', limit: 'multiple', colorClass: 'block-color-sakura' },
-    { id: 'sleep', label: 'Sleep', time: '[1AM-7AM]', limit: '0', colorClass: '' },
-    { id: 'ai-study', label: 'AI study time', time: '[7AM-8AM]', limit: '1', colorClass: 'block-color-yellow' },
-    { id: 'morning-prep', label: '🌞🚽🚿🥛💊', time: '[8AM-9AM]', limit: '0', colorClass: '' },
-    { id: 'engagement', label: 'Engagement Block', time: '[9AM-12PM]', limit: 'multiple', colorClass: 'block-color-purple' },
-    { id: 'lunch', label: 'Lunch Break', time: '[12PM-1PM]', limit: '0', colorClass: '' },
-    { id: 'deep-work-1', label: 'Deep Work Block 1', time: '[1PM-3PM]', limit: '1', colorClass: 'block-color-yellow' },
-    { id: 'deep-work-2', label: 'Deep Work Block 2', time: '[3PM-6PM]', limit: '1', colorClass: 'block-color-yellow' },
-    { id: 'commute-relax', label: 'Commute and Relax', time: '[6PM-8PM]', limit: 'multiple', colorClass: 'block-color-sage' },
-    { id: 'family-time', label: 'Family time Block', time: '[8PM-10PM]', limit: 'multiple', colorClass: 'block-color-skyblue' },
-    { id: 'night-build', label: 'Night Build Block', time: '[10PM-11PM]', limit: '1', colorClass: 'block-color-orange' }
-];
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
 // --- INITIALIZATION ---
