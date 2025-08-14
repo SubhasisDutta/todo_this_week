@@ -860,3 +860,25 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
 .task-item.energy-high-incomplete {
     background-color: #FFFFE0; /* Deep Work Block 1 color */
 }
+
+.feature-container {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 8px;
+    background: #e0e5ec;
+    box-shadow: inset 5px 5px 10px #a3b1c6, inset -5px -5px 10px #ffffff;
+}
+
+.feature-container h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+    font-size: 1.2em;
+    text-align: center;
+}
+
+.buttons-container {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}

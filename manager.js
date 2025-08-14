@@ -30,6 +30,7 @@ function setupAllListeners() {
     setupCoreFeatureListeners();
     setupTaskManagementListeners();
     setupSchedulingListeners();
+    setupFeatureListeners();
 }
 
 // --- RENDERING LOGIC ---
@@ -80,6 +81,119 @@ function generatePlannerGrid() {
             plannerGrid.appendChild(cell);
         });
     });
+}
+
+function setupFeatureListeners() {
+    const exportBtn = document.getElementById('export-tasks-btn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', async () => {
+            const tasks = await new Promise(resolve => getTasks(resolve));
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tasks, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "tasks.json");
+            document.body.appendChild(downloadAnchorNode); // required for firefox
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+            showInfoMessage("Tasks exported successfully!", "success");
+        });
+    }
+
+    const importBtn = document.getElementById('import-tasks-btn');
+    const fileInput = document.getElementById('import-file-input');
+
+    if (importBtn && fileInput) {
+        importBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                showInfoMessage("No file selected.", "error");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const importedTasks = JSON.parse(e.target.result);
+                    if (!Array.isArray(importedTasks)) {
+                        throw new Error("Invalid format: JSON file should contain an array of tasks.");
+                    }
+
+                    const existingTasks = await new Promise(resolve => getTasks(resolve));
+                    const existingTaskIds = new Set(existingTasks.map(t => t.id));
+
+                    const tasksToCreate = [];
+                    const tasksToUpdate = [];
+
+                    for (const importedTask of importedTasks) {
+                        if (!importedTask.id || !importedTask.title) {
+                             console.warn("Skipping invalid task object:", importedTask);
+                             continue;
+                        }
+
+                        if (existingTaskIds.has(importedTask.id)) {
+                            tasksToUpdate.push(importedTask);
+                        } else {
+                            tasksToCreate.push(importedTask);
+                        }
+                    }
+
+                    // Process updates and creates
+                    const updatedTasks = existingTasks.map(existingTask => {
+                        const taskToUpdate = tasksToUpdate.find(t => t.id === existingTask.id);
+                        return taskToUpdate ? taskToUpdate : existingTask;
+                    });
+
+                    const finalTasks = [...updatedTasks, ...tasksToCreate];
+
+                    await new Promise(resolve => saveTasks(finalTasks, resolve));
+
+
+                    await renderPage();
+                    showInfoMessage("Tasks imported successfully!", "success");
+
+                } catch (error) {
+                    showInfoMessage(`Error importing tasks: ${error.message}`, "error");
+                } finally {
+                    // Reset file input so the user can import the same file again if they want
+                    fileInput.value = '';
+                }
+            };
+            reader.onerror = () => {
+                showInfoMessage("Error reading file.", "error");
+                fileInput.value = '';
+            };
+            reader.readAsText(file);
+        });
+    }
+}
+
+function showInfoMessage(message, type = 'info', duration = 3000) {
+    const infoArea = document.getElementById('info-message-area');
+    if (!infoArea) return;
+
+    // Set message and type
+    infoArea.textContent = message;
+    infoArea.className = 'info-message'; // Reset classes
+    infoArea.classList.add(type); // 'success', 'error', or 'info'
+
+    // Make it visible
+    infoArea.style.display = 'block';
+    setTimeout(() => {
+        infoArea.classList.add('visible');
+    }, 10); // Small delay to allow CSS transition to trigger
+
+    // Hide it after 'duration'
+    setTimeout(() => {
+        infoArea.classList.remove('visible');
+        // Wait for fade out transition to finish before setting display to none
+        setTimeout(() => {
+            infoArea.style.display = 'none';
+        }, 500); // This should match the transition duration in CSS
+    }, duration);
 }
 
 function highlightCurrentDay() {
