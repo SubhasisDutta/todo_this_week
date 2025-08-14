@@ -88,6 +88,16 @@ function setupSchedulingListeners() {
     plannerContainer.addEventListener('click', async (event) => {
         const target = event.target;
 
+        if (target.matches('.toggle-schedule-btn')) {
+            const taskItem = target.closest('.task-item');
+            const scheduleDetails = taskItem.querySelector('.task-schedule-details');
+            if (scheduleDetails) {
+                const isHidden = scheduleDetails.style.display === 'none';
+                scheduleDetails.style.display = isHidden ? 'block' : 'none';
+                target.textContent = isHidden ? 'Hide Schedule' : 'Show Schedule';
+            }
+        }
+
         if (target.matches('.schedule-task-btn')) {
             const taskItem = target.closest('.task-item');
             const taskId = target.dataset.taskId;
@@ -341,21 +351,27 @@ function createTaskElement(task, options = {}) {
     taskItem.appendChild(titleSpan);
 
     if (isAssigned) {
-        const labelsContainer = document.createElement('div');
-        labelsContainer.classList.add('task-schedule-labels');
+        const toggleButton = document.createElement('button');
+        toggleButton.textContent = 'Show Schedule';
+        toggleButton.classList.add('neumorphic-btn', 'toggle-schedule-btn');
+        taskItem.appendChild(toggleButton);
+
+        const scheduleContainer = document.createElement('div');
+        scheduleContainer.classList.add('task-schedule-details');
+        scheduleContainer.style.display = 'none';
 
         const dayMapping = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
 
-        task.schedule.forEach(item => {
+        task.schedule.forEach((item, index) => {
             const block = TIME_BLOCKS.find(b => b.id === item.blockId);
             if (block) {
-                const label = document.createElement('span');
-                label.classList.add('task-schedule-label');
-                label.textContent = `${dayMapping[item.day] || 'Unk'}: ${block.label}`;
-                labelsContainer.appendChild(label);
+                const scheduleItem = document.createElement('div');
+                scheduleItem.classList.add('task-schedule-list-item');
+                scheduleItem.textContent = `${index + 1}) ${dayMapping[item.day] || 'Unk'}: ${block.label}`;
+                scheduleContainer.appendChild(scheduleItem);
             }
         });
-        taskItem.appendChild(labelsContainer);
+        taskItem.appendChild(scheduleContainer);
     }
 
     if (context === 'management') {

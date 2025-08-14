@@ -223,6 +223,11 @@ h1 {
     transform: translateY(1px) translateX(1px); /* Slight press down effect */
 }
 
+.schedule-task-btn.schedule-btn-icon {
+    background-color: purple;
+    color: white;
+}
+
 /* Placeholder for h2 styling */
 h2 {
     color: #444;
@@ -303,6 +308,7 @@ h2 {
     background-color: #e0e5ec;
     box-shadow: 4px 4px 8px #babecc, -4px -4px 8px #ffffff;
     transition: all 0.3s ease;
+    flex-wrap: wrap;
 }
 
 .task-item:hover {
@@ -312,6 +318,24 @@ h2 {
 
 .task-item:last-child {
     margin-bottom: 0;
+}
+
+.task-item .toggle-schedule-btn {
+    margin-left: 10px;
+    padding: 5px 10px;
+    font-size: 0.8em;
+}
+
+.task-schedule-details {
+    margin-top: 10px;
+    padding-left: 15px;
+    width: 100%;
+    flex-basis: 100%;
+}
+
+.task-schedule-list-item {
+    padding: 2px 0;
+    font-size: 0.9em;
 }
 
 /* Custom Neumorphic Checkbox */
