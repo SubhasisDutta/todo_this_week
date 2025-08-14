@@ -4,7 +4,7 @@
 const TIME_BLOCKS = [
     { id: 'late-night-read', label: 'Late Night Read', time: '[12AM-1AM]', limit: 'multiple', colorClass: 'block-color-sakura' },
     { id: 'sleep', label: 'Sleep', time: '[1AM-7AM]', limit: '0', colorClass: '' },
-    { id: 'ai-study', label: 'AI study time', time: '[7AM-8AM]', limit: '0', colorClass: '' },
+    { id: 'ai-study', label: 'AI study time', time: '[7AM-8AM]', limit: '1', colorClass: 'block-color-yellow' },
     { id: 'morning-prep', label: 'Morning Prep Time', time: '[8AM-9AM]', limit: '0', colorClass: '' },
     { id: 'engagement', label: 'Engagement Block', time: '[9AM-12PM]', limit: 'multiple', colorClass: 'block-color-purple' },
     { id: 'lunch', label: 'Lunch Break', time: '[12PM-1PM]', limit: '0', colorClass: '' },
@@ -235,10 +235,21 @@ function createTaskElement(task, options = {}) {
     taskItem.appendChild(titleSpan);
 
     if (isAssigned) {
-        const summary = document.createElement('div');
-        summary.classList.add('task-schedule-summary');
-        summary.textContent = formatSchedule(task.schedule);
-        taskItem.appendChild(summary);
+        const labelsContainer = document.createElement('div');
+        labelsContainer.classList.add('task-schedule-labels');
+
+        const dayMapping = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
+
+        task.schedule.forEach(item => {
+            const block = TIME_BLOCKS.find(b => b.id === item.blockId);
+            if (block) {
+                const label = document.createElement('span');
+                label.classList.add('task-schedule-label');
+                label.textContent = `${dayMapping[item.day] || 'Unk'}: ${block.label}`;
+                labelsContainer.appendChild(label);
+            }
+        });
+        taskItem.appendChild(labelsContainer);
     }
 
     if (context === 'management') {
@@ -274,24 +285,6 @@ function createTaskElement(task, options = {}) {
     }
 
     return taskItem;
-}
-
-function formatSchedule(schedule) {
-    if (!schedule || schedule.length === 0) return '';
-    const dayMapping = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
-    const groupedByDay = schedule.reduce((acc, item) => {
-        const day = dayMapping[item.day] || 'Unk';
-        if (!acc[day]) {
-            acc[day] = [];
-        }
-        const block = TIME_BLOCKS.find(b => b.id === item.blockId);
-        acc[day].push(block ? block.label : 'Unknown');
-        return acc;
-    }, {});
-
-    return Object.entries(groupedByDay).map(([day, blocks]) => {
-        return `${day}: ${blocks.join(', ')}`;
-    }).join('; ');
 }
 
 // --- EVENT LISTENERS ---
