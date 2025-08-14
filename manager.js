@@ -534,15 +534,47 @@ function createTaskElement(task, options = {}) {
 
         const dayMapping = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
 
-        task.schedule.forEach((item, index) => {
-            const block = TIME_BLOCKS.find(b => b.id === item.blockId);
-            if (block) {
-                const scheduleItem = document.createElement('div');
-                scheduleItem.classList.add('task-schedule-list-item');
-                scheduleItem.textContent = `${index + 1}) ${dayMapping[item.day] || 'Unk'}: ${block.label}`;
-                scheduleContainer.appendChild(scheduleItem);
-            }
-        });
+        const timeBlockOrder = TIME_BLOCKS.reduce((acc, block, index) => {
+            acc[block.id] = index;
+            return acc;
+        }, {});
+
+        task.schedule
+            .slice() // Create a shallow copy to avoid sorting the original array
+            .sort((a, b) => {
+                const dayA = DAYS.indexOf(a.day);
+                const dayB = DAYS.indexOf(b.day);
+                if (dayA !== dayB) return dayA - dayB;
+                return timeBlockOrder[a.blockId] - timeBlockOrder[b.blockId];
+            })
+            .forEach((item, index) => {
+                const block = TIME_BLOCKS.find(b => b.id === item.blockId);
+                if (block) {
+                    const scheduleItem = document.createElement('div');
+                    scheduleItem.classList.add('task-schedule-list-item');
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.checked = item.completed;
+                    checkbox.classList.add('assignment-complete-checkbox');
+                    const checkboxId = `assign-check-${task.id}-${item.day}-${item.blockId}`;
+                    checkbox.id = checkboxId;
+                    checkbox.dataset.taskId = task.id;
+                    checkbox.dataset.day = item.day;
+                    checkbox.dataset.blockId = item.blockId;
+                    scheduleItem.appendChild(checkbox);
+
+                    const label = document.createElement('label');
+                    label.setAttribute('for', checkboxId);
+                    label.textContent = ` ${dayMapping[item.day] || 'Unk'}: ${block.label}`;
+                    if (item.completed) {
+                        label.style.textDecoration = 'line-through';
+                    }
+                    scheduleItem.appendChild(label);
+
+                    scheduleContainer.appendChild(scheduleItem);
+                }
+            });
         taskItem.appendChild(scheduleContainer);
     }
 
@@ -707,13 +739,31 @@ function setupTaskManagementListeners() {
             const taskItem = target.closest('.task-item');
             const taskId = taskItem?.dataset.taskId;
 
-            if (target.matches('.task-complete-checkbox')) {
+            if (target.matches('.task-complete-checkbox')) { // This is the "master" checkbox
                 const isCompleted = target.checked;
                 const task = await getTaskById(taskId);
                 if (task) {
                     task.completed = isCompleted;
-                    await updateTask(task);
+                    // If it's an assigned task, cascade the completion status to all assignments
+                    if (task.schedule && task.schedule.length > 0) {
+                        task.schedule.forEach(item => item.completed = isCompleted);
+                    }
+                    await updateTask(task); // updateTask will call updateTaskCompletion automatically
                     renderPage();
+                }
+            } else if (target.matches('.assignment-complete-checkbox')) {
+                const isCompleted = target.checked;
+                const day = target.dataset.day;
+                const blockId = target.dataset.blockId;
+                const task = await getTaskById(target.dataset.taskId);
+                if (task) {
+                    const scheduleItem = task.schedule.find(item => item.day === day && item.blockId === blockId);
+                    if (scheduleItem) {
+                        scheduleItem.completed = isCompleted;
+                        // updateTask will call updateTaskCompletion, which syncs the parent `completed` status
+                        await updateTask(task);
+                        renderPage();
+                    }
                 }
             } else if (target.matches('.delete-task-btn-list')) {
                 if (confirm('Are you sure you want to delete this task?')) {

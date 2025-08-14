@@ -39,29 +39,36 @@ function getTasks(callback) {
         } else {
             let needsSave = false;
             const tasks = result.tasks.map((taskData, index) => {
-                // Ensure tasks are instances of Task or have the full structure
-                // and backfill missing properties
                 let taskInstance = Object.assign(new Task(taskData.id, ''), taskData);
+
+                // --- Backfill/Migration Logic ---
                 if (typeof taskInstance.displayOrder === 'undefined') {
-                    taskInstance.displayOrder = index; // Assign based on current array order
+                    taskInstance.displayOrder = index;
                     needsSave = true;
                 }
                 if (typeof taskInstance.schedule === 'undefined') {
-                    taskInstance.schedule = []; // Backfill schedule property
+                    taskInstance.schedule = [];
                     needsSave = true;
+                } else {
+                    // This is the new migration logic for schedule items
+                    taskInstance.schedule.forEach(scheduleItem => {
+                        if (typeof scheduleItem.completed === 'undefined') {
+                            scheduleItem.completed = false;
+                            needsSave = true;
+                        }
+                    });
                 }
                 if (typeof taskInstance.energy === 'undefined') {
-                    taskInstance.energy = 'low'; // Backfill energy property
+                    taskInstance.energy = 'low';
                     needsSave = true;
                 }
                 return taskInstance;
             });
 
             if (needsSave) {
-                // Save tasks back to storage if any displayOrder was backfilled
                 saveTasks(tasks, (success) => {
-                    if (!success) console.error("Failed to save tasks after backfilling displayOrder.");
-                    callback(tasks); // Proceed with callback regardless of this save's success for now
+                    if (!success) console.error("Failed to save tasks after backfilling properties.");
+                    callback(tasks);
                 });
             } else {
                 callback(tasks);
@@ -122,12 +129,24 @@ async function getTaskById(taskId) {
     });
 }
 
+// --- New utility function to update parent task completion status ---
+function updateTaskCompletion(task) {
+    if (task.schedule && task.schedule.length > 0) {
+        const allAssignmentsCompleted = task.schedule.every(item => item.completed);
+        task.completed = allAssignmentsCompleted;
+    }
+    // If there is no schedule, task.completed is managed directly by its own checkbox.
+}
+
+
 // Function to update a task
 async function updateTask(updatedTask) {
     return new Promise((resolve) => {
         getTasks(tasks => {
             const taskIndex = tasks.findIndex(task => task.id === updatedTask.id);
             if (taskIndex > -1) {
+                // Before saving, ensure the parent task's completion status is up-to-date
+                updateTaskCompletion(updatedTask);
                 tasks[taskIndex] = updatedTask;
                 saveTasks(tasks, (success) => resolve(success)); // Pass boolean success
             } else {
