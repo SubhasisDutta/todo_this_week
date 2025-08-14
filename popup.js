@@ -297,11 +297,11 @@ function setupInlineTaskEditingListeners() {
                         <label>Priority:</label>
                         <div class="radio-group-modern edit-task-priority">
                             <input type="radio" id="edit-priority-someday-${task.id}" name="edit-priority-${task.id}" value="SOMEDAY" ${task.priority === 'SOMEDAY' ? 'checked' : ''}>
-                            <label for="edit-priority-someday-${task.id}">Someday</label>
+                            <label for="edit-priority-someday-${task.id}">🗓️ Someday</label>
                             <input type="radio" id="edit-priority-important-${task.id}" name="edit-priority-${task.id}" value="IMPORTANT" ${task.priority === 'IMPORTANT' ? 'checked' : ''}>
-                            <label for="edit-priority-important-${task.id}">Important</label>
+                            <label for="edit-priority-important-${task.id}">⭐ Important</label>
                             <input type="radio" id="edit-priority-critical-${task.id}" name="edit-priority-${task.id}" value="CRITICAL" ${task.priority === 'CRITICAL' ? 'checked' : ''}>
-                            <label for="edit-priority-critical-${task.id}">Critical</label>
+                            <label for="edit-priority-critical-${task.id}">🔥 Critical</label>
                         </div>
                     </div>
                     <div class="form-group-inline edit-task-deadline-group" style="display: ${task.priority === 'CRITICAL' ? 'block' : 'none'};"><label>Deadline:</label><input type="date" class="neumorphic-input edit-task-deadline" value="${task.deadline || ''}"></div>
@@ -309,18 +309,18 @@ function setupInlineTaskEditingListeners() {
                         <label>Type:</label>
                         <div class="radio-group-modern edit-task-type">
                             <input type="radio" id="edit-type-home-${task.id}" name="edit-type-${task.id}" value="home" ${task.type === 'home' ? 'checked' : ''}>
-                            <label for="edit-type-home-${task.id}">Home</label>
+                            <label for="edit-type-home-${task.id}">🏠 Home</label>
                             <input type="radio" id="edit-type-work-${task.id}" name="edit-type-${task.id}" value="work" ${task.type === 'work' ? 'checked' : ''}>
-                            <label for="edit-type-work-${task.id}">Work</label>
+                            <label for="edit-type-work-${task.id}">💼 Work</label>
                         </div>
                     </div>
                     <div class="form-group-inline">
                         <label>Energy:</label>
                         <div class="radio-group-modern horizontal edit-task-energy">
                             <input type="radio" id="edit-energy-low-${task.id}" name="edit-energy-${task.id}" value="low" ${task.energy === 'low' ? 'checked' : ''}>
-                            <label for="edit-energy-low-${task.id}">Low</label>
+                            <label for="edit-energy-low-${task.id}">🍃 Low</label>
                             <input type="radio" id="edit-energy-high-${task.id}" name="edit-energy-${task.id}" value="high" ${task.energy === 'high' ? 'checked' : ''}>
-                            <label for="edit-energy-high-${task.id}">High</label>
+                            <label for="edit-energy-high-${task.id}">⚡ High</label>
                         </div>
                     </div>
                     <div class="form-group-inline form-group-inline-checkbox"><label for="edit-task-completed-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}">Completed:</label><input type="checkbox" id="edit-task-completed-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}" class="edit-task-completed" ${task.completed ? 'checked' : ''} style="width: auto; margin-right: 5px;"></div>
