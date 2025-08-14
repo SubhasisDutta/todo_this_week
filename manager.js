@@ -42,7 +42,9 @@ async function renderPage() {
     const unassignedTasks = activeTasks.filter(t => !t.schedule || t.schedule.length === 0);
     const assignedTasks = activeTasks.filter(t => t.schedule && t.schedule.length > 0);
     renderSidebarLists(unassignedTasks, assignedTasks);
-    renderTasksOnGrid(assignedTasks);
+
+    const assignedGridTasks = tasks.filter(t => t.schedule && t.schedule.length > 0);
+    renderTasksOnGrid(assignedGridTasks);
 
     // --- Render Task Lists Tab (all tasks) ---
     clearPriorityLists();
@@ -286,7 +288,7 @@ function createTaskElement(task, options = {}) {
 
     const taskItem = document.createElement('div');
     taskItem.classList.add('task-item', `priority-${task.priority.toLowerCase()}`);
-    if (task.completed) taskItem.classList.add('task-completed-edit');
+    if (task.completed) taskItem.classList.add('task-completed');
     taskItem.setAttribute('data-task-id', task.id);
 
     if (context === 'management') {

@@ -432,6 +432,10 @@ h2 {
     text-decoration: line-through; /* Common styling for completed tasks */
 }
 
+.task-item.task-completed {
+    background-color: lightgreen;
+}
+
 /* Ensure priority border still has some effect or adjust as needed */
 .task-item.task-completed-edit.priority-CRITICAL {
     border-left-color: #28a745; /* Override critical red with green if desired, or blend */
