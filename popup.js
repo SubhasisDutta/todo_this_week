@@ -61,7 +61,7 @@ function renderTasks(tabName = 'display') {
 
         tasksToRender.forEach((task, index) => {
             const taskItem = document.createElement('div');
-            taskItem.classList.add('task-item', `priority-${task.priority.toLowerCase()}`);
+            taskItem.classList.add('task-item', `priority-${task.priority}`);
             if (task.completed) {
                 taskItem.classList.add('task-completed');
             } else {

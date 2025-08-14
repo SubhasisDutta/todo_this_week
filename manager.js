@@ -322,7 +322,7 @@ function createTaskElement(task, options = {}) {
     const { context = 'sidebar', isAssigned = false, index = -1, total = -1 } = options;
 
     const taskItem = document.createElement('div');
-    taskItem.classList.add('task-item', `priority-${task.priority.toLowerCase()}`);
+    taskItem.classList.add('task-item', `priority-${task.priority}`);
     if (task.completed) {
         taskItem.classList.add('task-completed');
     } else {
