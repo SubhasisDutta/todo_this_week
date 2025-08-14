@@ -94,7 +94,9 @@ function setupSchedulingListeners() {
             if (scheduleDetails) {
                 const isHidden = scheduleDetails.style.display === 'none';
                 scheduleDetails.style.display = isHidden ? 'block' : 'none';
-                target.textContent = isHidden ? 'Hide Schedule' : 'Show Schedule';
+                target.textContent = isHidden ? '🔽' : '▶️';
+                target.classList.toggle('show');
+                target.classList.toggle('hide');
             }
         }
 
@@ -320,20 +322,8 @@ function createTaskElement(task, options = {}) {
         taskItem.setAttribute('draggable', 'true');
     }
 
-    if (context === 'sidebar') {
-        const scheduleButton = document.createElement('button');
-        scheduleButton.innerHTML = '⏱️';
-        scheduleButton.classList.add('neumorphic-btn', 'schedule-task-btn', 'schedule-btn-icon');
-        scheduleButton.setAttribute('data-task-id', task.id);
-        scheduleButton.setAttribute('title', 'Schedule Task');
-        scheduleButton.style.width = '30px';
-        scheduleButton.style.height = '30px';
-        scheduleButton.style.borderRadius = '50%';
-        scheduleButton.style.padding = '0';
-        scheduleButton.style.lineHeight = '30px';
-        scheduleButton.style.marginLeft = 'auto';
-        taskItem.appendChild(scheduleButton);
-    }
+    const taskItemMain = document.createElement('div');
+    taskItemMain.classList.add('task-item-main');
 
     const titleSpan = document.createElement('span');
     titleSpan.classList.add('task-title');
@@ -348,14 +338,32 @@ function createTaskElement(task, options = {}) {
 
     const textNode = document.createTextNode(task.title);
     titleSpan.appendChild(textNode);
-    taskItem.appendChild(titleSpan);
+    taskItemMain.appendChild(titleSpan);
 
     if (isAssigned) {
         const toggleButton = document.createElement('button');
-        toggleButton.textContent = 'Show Schedule';
-        toggleButton.classList.add('neumorphic-btn', 'toggle-schedule-btn');
-        taskItem.appendChild(toggleButton);
+        toggleButton.textContent = '▶️';
+        toggleButton.classList.add('neumorphic-btn', 'toggle-schedule-btn', 'show');
+        taskItemMain.appendChild(toggleButton);
+    }
 
+    if (context === 'sidebar') {
+        const scheduleButton = document.createElement('button');
+        scheduleButton.innerHTML = '⏱️';
+        scheduleButton.classList.add('neumorphic-btn', 'schedule-task-btn', 'schedule-btn-icon');
+        scheduleButton.setAttribute('data-task-id', task.id);
+        scheduleButton.setAttribute('title', 'Schedule Task');
+        scheduleButton.style.width = '30px';
+        scheduleButton.style.height = '30px';
+        scheduleButton.style.borderRadius = '50%';
+        scheduleButton.style.padding = '0';
+        scheduleButton.style.lineHeight = '30px';
+        taskItemMain.appendChild(scheduleButton);
+    }
+
+    taskItem.appendChild(taskItemMain);
+
+    if (isAssigned) {
         const scheduleContainer = document.createElement('div');
         scheduleContainer.classList.add('task-schedule-details');
         scheduleContainer.style.display = 'none';

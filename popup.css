@@ -320,10 +320,28 @@ h2 {
     margin-bottom: 0;
 }
 
+.task-item-main {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.task-item-main .task-title {
+    flex-grow: 1;
+}
+
 .task-item .toggle-schedule-btn {
     margin-left: 10px;
     padding: 5px 10px;
     font-size: 0.8em;
+}
+
+.toggle-schedule-btn.show {
+    background-color: lightpink;
+}
+
+.toggle-schedule-btn.hide {
+    background-color: lightbrown;
 }
 
 .task-schedule-details {
