@@ -44,9 +44,6 @@ function renderTasks(tabName = 'today') {
                 if (priorityDiff !== 0) return priorityDiff;
                 return (a.displayOrder || 0) - (b.displayOrder || 0);
             });
-        } else if (tabName === 'edit') {
-            taskListElement = document.getElementById('edit-task-list');
-            itemsToRender = allTasks.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
         } else if (tabName === 'add') {
             return; // No tasks to render
         }
@@ -149,7 +146,6 @@ function renderTasks(tabName = 'today') {
 function renderAllTabs() {
     renderTasks('today');
     renderTasks('display');
-    renderTasks('edit');
 }
 
 function setupTaskCompletionListeners() {
@@ -195,179 +191,6 @@ function setupTaskCompletionListeners() {
     });
 }
 // --- End of Task Completion Functionality ---
-
-// --- Task Deletion Functionality (Edit Tab) ---
-function setupTaskDeletionListener() {
-    const editTaskListContainer = document.getElementById('edit-task-list');
-    if (!editTaskListContainer) return;
-    editTaskListContainer.addEventListener('click', async function(event) {
-        if (event.target.matches('.delete-task-btn-list')) {
-            const taskItem = event.target.closest('.task-item');
-            const taskId = taskItem.getAttribute('data-task-id');
-            if (!taskId) return;
-            if (!confirm("Are you sure you want to delete this task?")) {
-                return;
-            }
-            const success = await deleteTask(taskId);
-            if (success) {
-                renderTasks('edit');
-                renderTasks('display');
-                renderTasks('home');
-                renderTasks('work');
-            } else {
-                showInfoMessage(`Failed to delete task ${taskId}.`, "error", 3000, document);
-            }
-        }
-    });
-}
-// --- End of Task Deletion Functionality ---
-
-// --- Inline Task Editing Functionality (Edit Tab) ---
-let originalTaskDataBeforeEdit = null;
-
-function setupInlineTaskEditingListeners() {
-    const editTaskListContainer = document.getElementById('edit-task-list');
-    if (!editTaskListContainer) return;
-    editTaskListContainer.addEventListener('click', async function(event) {
-        const target = event.target;
-        if (target.matches('.edit-task-btn-list')) {
-            const taskItem = target.closest('.task-item');
-            const taskId = taskItem.getAttribute('data-task-id');
-            if (!taskId) return;
-            const currentlyEditing = editTaskListContainer.querySelector('.editing-task-item');
-            if (currentlyEditing && currentlyEditing !== taskItem) {
-                console.warn("Another task is already being edited. Please save or cancel it first.");
-                return;
-            }
-            if (taskItem.classList.contains('editing-task-item')) return;
-            const task = await getTaskById(taskId);
-            if (!task) return;
-            originalTaskDataBeforeEdit = { ...task };
-            taskItem.classList.add('editing-task-item');
-            const taskTitleSpan = taskItem.querySelector('.task-title');
-            const taskDeadlineDisplay = taskItem.querySelector('.task-deadline-display');
-            const existingEditButton = taskItem.querySelector('.edit-task-btn-list');
-            const existingDeleteButton = taskItem.querySelector('.delete-task-btn-list');
-            const existingActionsContainer = taskItem.querySelector('.task-item-actions');
-
-            let formHtml = `
-                <div class="inline-edit-form">
-                    <div class="form-group-inline"><label>Title:</label><input type="text" class="neumorphic-input edit-task-title" value="${task.title}"></div>
-                    <div class="form-group-inline"><label>URL:</label><input type="url" class="neumorphic-input edit-task-url" value="${task.url || ''}"></div>
-                    <div class="form-group-inline">
-                        <label>Priority:</label>
-                        <div class="radio-group-modern edit-task-priority">
-                            <input type="radio" id="edit-priority-someday-${task.id}" name="edit-priority-${task.id}" value="SOMEDAY" ${task.priority === 'SOMEDAY' ? 'checked' : ''}>
-                            <label for="edit-priority-someday-${task.id}">🗓️ Someday</label>
-                            <input type="radio" id="edit-priority-important-${task.id}" name="edit-priority-${task.id}" value="IMPORTANT" ${task.priority === 'IMPORTANT' ? 'checked' : ''}>
-                            <label for="edit-priority-important-${task.id}">⭐ Important</label>
-                            <input type="radio" id="edit-priority-critical-${task.id}" name="edit-priority-${task.id}" value="CRITICAL" ${task.priority === 'CRITICAL' ? 'checked' : ''}>
-                            <label for="edit-priority-critical-${task.id}">🔥 Critical</label>
-                        </div>
-                    </div>
-                    <div class="form-group-inline edit-task-deadline-group" style="display: ${task.priority === 'CRITICAL' ? 'block' : 'none'};"><label>Deadline:</label><input type="date" class="neumorphic-input edit-task-deadline" value="${task.deadline || ''}"></div>
-                    <div class="form-group-inline">
-                        <label>Type:</label>
-                        <div class="radio-group-modern edit-task-type">
-                            <input type="radio" id="edit-type-home-${task.id}" name="edit-type-${task.id}" value="home" ${task.type === 'home' ? 'checked' : ''}>
-                            <label for="edit-type-home-${task.id}">🏠 Home</label>
-                            <input type="radio" id="edit-type-work-${task.id}" name="edit-type-${task.id}" value="work" ${task.type === 'work' ? 'checked' : ''}>
-                            <label for="edit-type-work-${task.id}">💼 Work</label>
-                        </div>
-                    </div>
-                    <div class="form-group-inline">
-                        <label>Energy:</label>
-                        <div class="radio-group-modern horizontal edit-task-energy">
-                            <input type="radio" id="edit-energy-low-${task.id}" name="edit-energy-${task.id}" value="low" ${task.energy === 'low' ? 'checked' : ''}>
-                            <label for="edit-energy-low-${task.id}">🍃 Low</label>
-                            <input type="radio" id="edit-energy-high-${task.id}" name="edit-energy-${task.id}" value="high" ${task.energy === 'high' ? 'checked' : ''}>
-                            <label for="edit-energy-high-${task.id}">⚡ High</label>
-                        </div>
-                    </div>
-                    <div class="form-group-inline form-group-inline-checkbox"><label for="edit-task-completed-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}">Completed:</label><input type="checkbox" id="edit-task-completed-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}" class="edit-task-completed" ${task.completed ? 'checked' : ''} style="width: auto; margin-right: 5px;"></div>
-                    <div class="inline-edit-actions"><button class="neumorphic-btn save-inline-btn">Save</button><button class="neumorphic-btn cancel-inline-btn">Cancel</button></div>
-                </div>`;
-            if(taskTitleSpan) taskTitleSpan.style.display = 'none';
-            if(taskDeadlineDisplay) taskDeadlineDisplay.style.display = 'none';
-            if(existingEditButton) existingEditButton.style.display = 'none';
-            if(existingDeleteButton) existingDeleteButton.style.display = 'none';
-            if(existingActionsContainer) existingActionsContainer.style.display = 'none';
-            taskItem.insertAdjacentHTML('beforeend', formHtml);
-            const priorityRadios = taskItem.querySelectorAll('input[name^="edit-priority-"]');
-            const deadlineGroup = taskItem.querySelector('.edit-task-deadline-group');
-            if (priorityRadios.length > 0 && deadlineGroup) {
-                priorityRadios.forEach(radio => {
-                    radio.addEventListener('change', function() {
-                        deadlineGroup.style.display = this.value === 'CRITICAL' ? 'block' : 'none';
-                        if (this.value !== 'CRITICAL') {
-                            const deadlineInput = deadlineGroup.querySelector('.edit-task-deadline');
-                            if(deadlineInput) deadlineInput.value = '';
-                        }
-                    });
-                });
-            }
-        }
-        if (target.matches('.cancel-inline-btn')) {
-            const taskItem = target.closest('.editing-task-item');
-            if (!taskItem || !originalTaskDataBeforeEdit) return;
-            taskItem.classList.remove('editing-task-item');
-            const form = taskItem.querySelector('.inline-edit-form');
-            if (form) form.remove();
-            const taskTitleSpan = taskItem.querySelector('.task-title');
-            const taskDeadlineDisplay = taskItem.querySelector('.task-deadline-display');
-            const existingEditButton = taskItem.querySelector('.edit-task-btn-list');
-            const existingDeleteButton = taskItem.querySelector('.delete-task-btn-list');
-            const existingActionsContainer = taskItem.querySelector('.task-item-actions');
-            if(taskTitleSpan) taskTitleSpan.style.display = '';
-            if(taskDeadlineDisplay) taskDeadlineDisplay.style.display = '';
-            if(existingEditButton) existingEditButton.style.display = '';
-            if(existingDeleteButton) existingDeleteButton.style.display = '';
-            if(existingActionsContainer) existingActionsContainer.style.display = '';
-            originalTaskDataBeforeEdit = null;
-        }
-        if (target.matches('.save-inline-btn')) {
-            const taskItem = target.closest('.editing-task-item');
-            const taskId = taskItem.getAttribute('data-task-id');
-            if (!taskId || !originalTaskDataBeforeEdit) { console.error("Save error: No task ID or original data found."); return; }
-            const editForm = taskItem.querySelector('.inline-edit-form');
-            if (!editForm) { console.error("Save error: Edit form not found."); return; }
-            const newTitle = editForm.querySelector('.edit-task-title').value.trim();
-            const newUrl = editForm.querySelector('.edit-task-url').value.trim();
-            const newPriority = editForm.querySelector('input[name^="edit-priority-"]:checked').value;
-            let newDeadline = editForm.querySelector('.edit-task-deadline').value;
-            const newType = editForm.querySelector('input[name^="edit-type-"]:checked').value;
-            const newCompleted = editForm.querySelector('.edit-task-completed').checked;
-            const newEnergy = editForm.querySelector('input[name^="edit-energy-"]:checked').value;
-
-            if (!newTitle) { showInfoMessage("Task title cannot be empty.", "error", 3000, document); return; }
-            if (newPriority === 'CRITICAL' && !newDeadline) { showInfoMessage("Deadline is required for CRITICAL tasks.", "error", 3000, document); return; }
-            if (newPriority !== 'CRITICAL') newDeadline = null;
-
-            const updatedTask = { ...originalTaskDataBeforeEdit, title: newTitle, url: newUrl, priority: newPriority, deadline: newDeadline, type: newType, completed: newCompleted, energy: newEnergy };
-            const success = await updateTask(updatedTask);
-            if (success) {
-                taskItem.classList.remove('editing-task-item');
-                editForm.remove();
-                const taskTitleSpan = taskItem.querySelector('.task-title');
-                const taskDeadlineDisplay = taskItem.querySelector('.task-deadline-display');
-                const existingEditButton = taskItem.querySelector('.edit-task-btn-list');
-                const existingDeleteButton = taskItem.querySelector('.delete-task-btn-list');
-                const existingActionsContainer = taskItem.querySelector('.task-item-actions');
-                if(taskTitleSpan) taskTitleSpan.style.display = '';
-                if(taskDeadlineDisplay) taskDeadlineDisplay.style.display = '';
-                if(existingEditButton) existingEditButton.style.display = '';
-                if(existingDeleteButton) existingDeleteButton.style.display = '';
-                if(existingActionsContainer) existingActionsContainer.style.display = '';
-                originalTaskDataBeforeEdit = null;
-                renderTasks('edit'); renderTasks('display'); renderTasks('home'); renderTasks('work');
-                showInfoMessage("Task updated successfully!", "success", 3000, document);
-            } else {
-                showInfoMessage("Failed to update task. Please try again.", "error", 3000, document);
-            }
-        }
-    });
-}
-// --- End of Inline Task Editing Functionality ---
 
 // --- Drag and Drop Task Reordering (Display Tab - Within Priority) ---
 let draggedTaskElementDisplay = null;
@@ -708,25 +531,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 taskDeadlineInput.value = '';
                 taskDeadlineGroup.style.display = 'none';
                 showInfoMessage("Task added successfully!", "success", 3000, document);
-                renderTasks('today');
-                renderTasks('display');
-                renderTasks('edit');
+                renderAllTabs();
             } else {
                 showInfoMessage("Failed to add task. Please try again.", "error", 3000, document);
             }
         });
     }
 
-    renderTasks('today');
-    renderTasks('display');
-    renderTasks('edit');
+    renderAllTabs();
 
     setupTaskCompletionListeners();
-    setupTaskDeletionListener();
-    setupInlineTaskEditingListeners();
-    setupDragAndDropListeners();
     setupDisplayTabDragAndDropListeners();
-    setupMoveTaskButtonListeners();
 
     const openManagerBtn = document.getElementById('open-manager-btn');
     if (openManagerBtn) {
@@ -734,10 +549,4 @@ document.addEventListener('DOMContentLoaded', function() {
             chrome.tabs.create({ url: chrome.runtime.getURL('manager.html') });
         });
     }
-
-    let finalLogMessage = "Task Manager Loaded. Listeners initialized.";
-    if (typeof setupMoveTaskButtonListeners === 'function') {
-        finalLogMessage = "Task Manager Loaded. Move Task listeners also initialized.";
-    }
-    console.log(finalLogMessage);
 });
