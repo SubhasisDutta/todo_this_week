@@ -356,7 +356,8 @@ h2 {
 }
 
 /* Custom Neumorphic Checkbox */
-.task-item input[type="checkbox"] {
+/* Apply only to direct children checkboxes (i.e., the main task completion checkbox) */
+.task-item > input[type="checkbox"] {
     opacity: 0; /* Hide the original checkbox */
     position: absolute; /* Take it out of flow */
     width: 0;
