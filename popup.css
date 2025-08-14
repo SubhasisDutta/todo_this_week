@@ -836,6 +836,11 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
 .grid-cell[data-task-limit="0"] {
     background-color: #d1d9e6;
     box-shadow: inset 2px 2px 4px #b8c0cc, inset -2px -2px 4px #eaf2ff;
+    min-height: 20px;
+    font-size: 0.7em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* --- Drag over state for grid cells --- */
