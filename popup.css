@@ -324,16 +324,6 @@ h2 {
     margin-bottom: 0;
 }
 
-.task-item-main {
-    display: flex;
-    align-items: center;
-    width: 100%;
-}
-
-.task-item-main .task-title {
-    flex-grow: 1;
-}
-
 .task-item .toggle-schedule-btn {
     margin-left: 10px;
     padding: 5px 10px;
@@ -479,7 +469,13 @@ h2 {
 }
 
 .task-item.task-completed {
-    background-color: lightgreen;
+    background-color: #d4edda; /* A light green background */
+    border-left-color: #28a745 !important; /* A darker green for the existing priority border */
+}
+
+.task-item.task-completed .task-title {
+    color: #155724; /* Darker green text for better readability */
+    text-decoration: line-through; /* Common styling for completed tasks */
 }
 
 /* Ensure priority border still has some effect or adjust as needed */
@@ -559,8 +555,9 @@ h2 {
 
 /* Container for action buttons within a task item (Edit tab) */
 .task-item-actions {
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    margin-left: auto;
 }
 
 /* Common style for small action buttons in task list */

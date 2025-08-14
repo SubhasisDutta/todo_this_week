@@ -303,6 +303,7 @@ function createTaskElement(task, options = {}) {
     if (task.completed) taskItem.classList.add('task-completed');
     taskItem.setAttribute('data-task-id', task.id);
 
+    // --- Checkbox (for management view) ---
     if (context === 'management') {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
@@ -322,12 +323,9 @@ function createTaskElement(task, options = {}) {
         taskItem.setAttribute('draggable', 'true');
     }
 
-    const taskItemMain = document.createElement('div');
-    taskItemMain.classList.add('task-item-main');
-
+    // --- Task Title ---
     const titleSpan = document.createElement('span');
     titleSpan.classList.add('task-title');
-
     if (task.type) {
         const iconSpan = document.createElement('span');
         iconSpan.classList.add('task-type-icon');
@@ -335,16 +333,19 @@ function createTaskElement(task, options = {}) {
         iconSpan.setAttribute('aria-label', `${task.type} task`);
         titleSpan.appendChild(iconSpan);
     }
-
     const textNode = document.createTextNode(task.title);
     titleSpan.appendChild(textNode);
-    taskItemMain.appendChild(titleSpan);
+    taskItem.appendChild(titleSpan);
+
+    // --- Action Buttons ---
+    const actionsContainer = document.createElement('div');
+    actionsContainer.classList.add('task-item-actions');
 
     if (isAssigned) {
         const toggleButton = document.createElement('button');
         toggleButton.textContent = '▶️';
         toggleButton.classList.add('neumorphic-btn', 'toggle-schedule-btn', 'show');
-        taskItemMain.appendChild(toggleButton);
+        actionsContainer.appendChild(toggleButton);
     }
 
     if (context === 'sidebar') {
@@ -358,11 +359,42 @@ function createTaskElement(task, options = {}) {
         scheduleButton.style.borderRadius = '50%';
         scheduleButton.style.padding = '0';
         scheduleButton.style.lineHeight = '30px';
-        taskItemMain.appendChild(scheduleButton);
+        actionsContainer.appendChild(scheduleButton);
     }
 
-    taskItem.appendChild(taskItemMain);
+    if (context === 'management') {
+        if (index > 0) {
+            const moveUpButton = document.createElement('button');
+            moveUpButton.innerHTML = '&uarr;';
+            moveUpButton.classList.add('neumorphic-btn', 'move-task-up-btn');
+            moveUpButton.setAttribute('data-task-id', task.id);
+            actionsContainer.appendChild(moveUpButton);
+        }
+        if (index < total - 1) {
+            const moveDownButton = document.createElement('button');
+            moveDownButton.innerHTML = '&darr;';
+            moveDownButton.classList.add('neumorphic-btn', 'move-task-down-btn');
+            moveDownButton.setAttribute('data-task-id', task.id);
+            actionsContainer.appendChild(moveDownButton);
+        }
+        const editButton = document.createElement('button');
+        editButton.textContent = 'Edit';
+        editButton.classList.add('neumorphic-btn', 'edit-task-btn-list');
+        editButton.setAttribute('data-task-id', task.id);
+        actionsContainer.appendChild(editButton);
 
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Delete';
+        deleteButton.classList.add('neumorphic-btn', 'delete-task-btn-list');
+        deleteButton.setAttribute('data-task-id', task.id);
+        actionsContainer.appendChild(deleteButton);
+    }
+
+    if (actionsContainer.hasChildNodes()) {
+        taskItem.appendChild(actionsContainer);
+    }
+
+    // --- Schedule Details (collapsible) ---
     if (isAssigned) {
         const scheduleContainer = document.createElement('div');
         scheduleContainer.classList.add('task-schedule-details');
@@ -380,38 +412,6 @@ function createTaskElement(task, options = {}) {
             }
         });
         taskItem.appendChild(scheduleContainer);
-    }
-
-    if (context === 'management') {
-        const buttonContainer = document.createElement('div');
-        buttonContainer.classList.add('task-item-actions');
-        if (index > 0) {
-            const moveUpButton = document.createElement('button');
-            moveUpButton.innerHTML = '&uarr;';
-            moveUpButton.classList.add('neumorphic-btn', 'move-task-up-btn');
-            moveUpButton.setAttribute('data-task-id', task.id);
-            buttonContainer.appendChild(moveUpButton);
-        }
-        if (index < total - 1) {
-            const moveDownButton = document.createElement('button');
-            moveDownButton.innerHTML = '&darr;';
-            moveDownButton.classList.add('neumorphic-btn', 'move-task-down-btn');
-            moveDownButton.setAttribute('data-task-id', task.id);
-            buttonContainer.appendChild(moveDownButton);
-        }
-        taskItem.appendChild(buttonContainer);
-
-        const editButton = document.createElement('button');
-        editButton.textContent = 'Edit';
-        editButton.classList.add('neumorphic-btn', 'edit-task-btn-list');
-        editButton.setAttribute('data-task-id', task.id);
-        taskItem.appendChild(editButton);
-
-        const deleteButton = document.createElement('button');
-        deleteButton.textContent = 'Delete';
-        deleteButton.classList.add('neumorphic-btn', 'delete-task-btn-list');
-        deleteButton.setAttribute('data-task-id', task.id);
-        taskItem.appendChild(deleteButton);
     }
 
     return taskItem;
