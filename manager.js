@@ -28,6 +28,7 @@ function setupAllListeners() {
     setupDragAndDropListeners();
     setupCoreFeatureListeners();
     setupTaskManagementListeners();
+    setupSchedulingListeners();
 }
 
 // --- RENDERING LOGIC ---
@@ -75,6 +76,91 @@ function generatePlannerGrid() {
             cell.appendChild(cellLabel);
             plannerGrid.appendChild(cell);
         });
+    });
+}
+
+function setupSchedulingListeners() {
+    const plannerContainer = document.querySelector('.planner-container');
+    if (!plannerContainer) return;
+
+    plannerContainer.addEventListener('click', async (event) => {
+        const target = event.target;
+
+        if (target.matches('.schedule-task-btn')) {
+            const taskItem = target.closest('.task-item');
+            const taskId = target.dataset.taskId;
+            const currentlyEditing = plannerContainer.querySelector('.editing-schedule');
+            if (currentlyEditing) {
+                currentlyEditing.querySelector('.cancel-schedule-btn').click();
+            }
+
+            const task = await getTaskById(taskId);
+            if (!task) return;
+
+            taskItem.classList.add('editing-schedule');
+            Array.from(taskItem.children).forEach(child => {
+                if (!child.classList.contains('inline-schedule-form')) {
+                    child.style.display = 'none';
+                }
+            });
+
+            const schedulableBlocks = TIME_BLOCKS.filter(b => b.limit !== '0');
+            const formHtml = `
+                <div class="inline-schedule-form">
+                    <div class="schedule-form-grid" style="display: grid; grid-template-columns: 60px repeat(${schedulableBlocks.length}, 1fr); gap: 5px;">
+                        <div class="schedule-header-cell"></div>
+                        ${schedulableBlocks.map(block => `<div class="schedule-header-cell" style="font-size: 0.7em; text-align: center;">${block.label}</div>`).join('')}
+
+                        ${DAYS.map(day => `
+                            <div class="schedule-day-label" style="text-align: right; padding-right: 5px;">${day.charAt(0).toUpperCase() + day.slice(1)}</div>
+                            ${schedulableBlocks.map(block => `
+                                <div class="schedule-grid-cell" style="text-align: center;">
+                                    <input type="checkbox" class="schedule-checkbox" data-day="${day}" data-block-id="${block.id}"
+                                        ${task.schedule.some(s => s.day === day && s.blockId === block.id) ? 'checked' : ''}>
+                                </div>
+                            `).join('')}
+                        `).join('')}
+                    </div>
+                    <div class="inline-schedule-actions" style="margin-top: 10px; text-align: right;">
+                        <button class="neumorphic-btn save-schedule-btn">Save</button>
+                        <button class="neumorphic-btn cancel-schedule-btn">Cancel</button>
+                    </div>
+                </div>
+            `;
+            taskItem.insertAdjacentHTML('beforeend', formHtml);
+        }
+
+        if (target.matches('.cancel-schedule-btn')) {
+            const taskItem = target.closest('.editing-schedule');
+            if (taskItem) {
+                taskItem.classList.remove('editing-schedule');
+                const form = taskItem.querySelector('.inline-schedule-form');
+                if (form) form.remove();
+                Array.from(taskItem.children).forEach(child => {
+                    child.style.display = '';
+                });
+            }
+        }
+
+        if (target.matches('.save-schedule-btn')) {
+            const taskItem = target.closest('.editing-schedule');
+            const taskId = taskItem.dataset.taskId;
+            const task = await getTaskById(taskId);
+            if (!task) return;
+
+            const newSchedule = [];
+            const checkboxes = taskItem.querySelectorAll('.schedule-checkbox:checked');
+            checkboxes.forEach(cb => {
+                newSchedule.push({
+                    day: cb.dataset.day,
+                    blockId: cb.dataset.blockId
+                });
+            });
+
+            task.schedule = newSchedule;
+            await updateTask(task);
+            renderPage();
+        }
     });
 }
 
@@ -217,6 +303,14 @@ function createTaskElement(task, options = {}) {
 
     if (context !== 'grid') {
         taskItem.setAttribute('draggable', 'true');
+    }
+
+    if (context === 'sidebar') {
+        const scheduleButton = document.createElement('button');
+        scheduleButton.textContent = 'Schedule';
+        scheduleButton.classList.add('neumorphic-btn', 'schedule-task-btn');
+        scheduleButton.setAttribute('data-task-id', task.id);
+        taskItem.appendChild(scheduleButton);
     }
 
     const titleSpan = document.createElement('span');
