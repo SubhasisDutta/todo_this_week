@@ -2,6 +2,7 @@
 
 // --- CONSTANTS ---
 const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+let currentDays = [];
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', function() {
@@ -44,9 +45,43 @@ async function renderPage() {
     renderHomeWorkLists(tasks);
 }
 
-function generatePlannerGrid() {
+function generateDayHeaders() {
+    const now = new Date();
+    const dayIndex = now.getDay(); // 0 for Sunday, 1 for Monday, etc.
+
+    // Rotate days array to start from today
+    const rotatedDays = [...DAYS.slice(dayIndex), ...DAYS.slice(0, dayIndex)];
+    currentDays = rotatedDays;
+
     const plannerGrid = document.getElementById('planner-grid');
-    if (plannerGrid.childElementCount > 8) return;
+    plannerGrid.innerHTML = ''; // Clear previous grid
+
+    // Create "Time" header
+    const timeHeader = document.createElement('div');
+    timeHeader.classList.add('grid-header');
+    timeHeader.textContent = 'Time';
+    plannerGrid.appendChild(timeHeader);
+
+    // Create headers for the next 7 days
+    for (let i = 0; i < 7; i++) {
+        const date = new Date(now);
+        date.setDate(now.getDate() + i);
+
+        const header = document.createElement('div');
+        header.classList.add('grid-header');
+
+        const month = date.toLocaleString('default', { month: 'short' });
+        const dayOfMonth = date.getDate();
+
+        header.innerHTML = `<span class="header-month">${month} ${dayOfMonth}</span><span class="header-day">${rotatedDays[i].charAt(0).toUpperCase() + rotatedDays[i].slice(1)}</span>`;
+        header.dataset.day = rotatedDays[i];
+        plannerGrid.appendChild(header);
+    }
+}
+
+function generatePlannerGrid() {
+    generateDayHeaders();
+    const plannerGrid = document.getElementById('planner-grid');
 
     TIME_BLOCKS.forEach(block => {
         const timeLabel = document.createElement('div');
@@ -54,7 +89,7 @@ function generatePlannerGrid() {
         timeLabel.textContent = block.time;
         plannerGrid.appendChild(timeLabel);
 
-        DAYS.forEach(day => {
+        currentDays.forEach(day => {
             const cell = document.createElement('div');
             cell.classList.add('grid-cell');
             if (block.colorClass) cell.classList.add(block.colorClass);
@@ -184,19 +219,14 @@ function showInfoMessage(message, type = 'info', duration = 3000) {
 }
 
 function highlightCurrentDay() {
-    const now = new Date();
-    // JS getDay(): 0 for Sunday, 1 for Monday, ..., 6 for Saturday
-    // Our new DAYS array also starts with Sunday at index 0, so the mapping is direct.
-    const dayIndex = now.getDay();
-    const todayName = DAYS[dayIndex];
+    const todayName = currentDays[0];
+    if (!todayName) return;
 
     // Highlight header
-    const headers = document.querySelectorAll('.grid-header');
-    headers.forEach(header => {
-        if (header.textContent.toLowerCase() === todayName) {
-            header.classList.add('today');
-        }
-    });
+    const header = document.querySelector(`.grid-header[data-day='${todayName}']`);
+    if (header) {
+        header.classList.add('today');
+    }
 
     // Highlight cells
     const todayCells = document.querySelectorAll(`.grid-cell[data-day='${todayName}']`);
@@ -243,11 +273,11 @@ function setupSchedulingListeners() {
             });
 
             const schedulableBlocks = TIME_BLOCKS.filter(b => b.limit !== '0');
-            const dayHeaders = DAYS.map(day => `<div class="schedule-header-cell" style="font-size: 0.8em; text-align: center;">${day.charAt(0).toUpperCase() + day.slice(1, 3)}</div>`).join('');
+            const dayHeaders = currentDays.map(day => `<div class="schedule-header-cell" style="font-size: 0.8em; text-align: center;">${day.charAt(0).toUpperCase() + day.slice(1, 3)}</div>`).join('');
 
             const bodyRows = schedulableBlocks.map(block => `
                 <div class="schedule-block-label" style="font-size: 0.8em; text-align: right; padding-right: 5px;">${block.label}</div>
-                ${DAYS.map(day => `
+                ${currentDays.map(day => `
                     <div class="schedule-grid-cell" style="text-align: center;">
                         <input type="checkbox" class="schedule-checkbox" data-day="${day}" data-block-id="${block.id}"
                             ${task.schedule.some(s => s.day === day && s.blockId === block.id) ? 'checked' : ''}>
@@ -549,8 +579,8 @@ function createTaskElement(task, options = {}) {
         task.schedule
             .slice() // Create a shallow copy to avoid sorting the original array
             .sort((a, b) => {
-                const dayA = DAYS.indexOf(a.day);
-                const dayB = DAYS.indexOf(b.day);
+                const dayA = currentDays.indexOf(a.day);
+                const dayB = currentDays.indexOf(b.day);
                 if (dayA !== dayB) return dayA - dayB;
                 return timeBlockOrder[a.blockId] - timeBlockOrder[b.blockId];
             })
