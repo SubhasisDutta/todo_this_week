@@ -2,7 +2,6 @@
 
 // --- CONSTANTS ---
 const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-let currentDays = [];
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', function() {
@@ -45,43 +44,9 @@ async function renderPage() {
     renderHomeWorkLists(tasks);
 }
 
-function generateDayHeaders() {
-    const now = new Date();
-    const dayIndex = now.getDay(); // 0 for Sunday, 1 for Monday, etc.
-
-    // Rotate days array to start from today
-    const rotatedDays = [...DAYS.slice(dayIndex), ...DAYS.slice(0, dayIndex)];
-    currentDays = rotatedDays;
-
-    const plannerGrid = document.getElementById('planner-grid');
-    plannerGrid.innerHTML = ''; // Clear previous grid
-
-    // Create "Time" header
-    const timeHeader = document.createElement('div');
-    timeHeader.classList.add('grid-header');
-    timeHeader.textContent = 'Time';
-    plannerGrid.appendChild(timeHeader);
-
-    // Create headers for the next 7 days
-    for (let i = 0; i < 7; i++) {
-        const date = new Date(now);
-        date.setDate(now.getDate() + i);
-
-        const header = document.createElement('div');
-        header.classList.add('grid-header');
-
-        const month = date.toLocaleString('default', { month: 'short' });
-        const dayOfMonth = date.getDate();
-
-        header.innerHTML = `<span class="header-month">${month} ${dayOfMonth}</span><span class="header-day">${rotatedDays[i].charAt(0).toUpperCase() + rotatedDays[i].slice(1)}</span>`;
-        header.dataset.day = rotatedDays[i];
-        plannerGrid.appendChild(header);
-    }
-}
-
 function generatePlannerGrid() {
-    generateDayHeaders();
     const plannerGrid = document.getElementById('planner-grid');
+    if (plannerGrid.childElementCount > 8) return;
 
     TIME_BLOCKS.forEach(block => {
         const timeLabel = document.createElement('div');
@@ -89,7 +54,7 @@ function generatePlannerGrid() {
         timeLabel.textContent = block.time;
         plannerGrid.appendChild(timeLabel);
 
-        currentDays.forEach(day => {
+        DAYS.forEach(day => {
             const cell = document.createElement('div');
             cell.classList.add('grid-cell');
             if (block.colorClass) cell.classList.add(block.colorClass);
@@ -219,14 +184,19 @@ function showInfoMessage(message, type = 'info', duration = 3000) {
 }
 
 function highlightCurrentDay() {
-    const todayName = currentDays[0];
-    if (!todayName) return;
+    const now = new Date();
+    // JS getDay(): 0 for Sunday, 1 for Monday, ..., 6 for Saturday
+    // Our new DAYS array also starts with Sunday at index 0, so the mapping is direct.
+    const dayIndex = now.getDay();
+    const todayName = DAYS[dayIndex];
 
     // Highlight header
-    const header = document.querySelector(`.grid-header[data-day='${todayName}']`);
-    if (header) {
-        header.classList.add('today');
-    }
+    const headers = document.querySelectorAll('.grid-header');
+    headers.forEach(header => {
+        if (header.textContent.toLowerCase() === todayName) {
+            header.classList.add('today');
+        }
+    });
 
     // Highlight cells
     const todayCells = document.querySelectorAll(`.grid-cell[data-day='${todayName}']`);
@@ -242,7 +212,23 @@ function setupSchedulingListeners() {
     plannerContainer.addEventListener('click', async (event) => {
         const target = event.target;
 
-        if (target.matches('.toggle-schedule-btn')) {
+        if (target.matches('.task-complete-checkbox')) {
+            const taskItem = target.closest('.task-item');
+            const taskId = taskItem?.dataset.taskId;
+            if (!taskId) return;
+
+            const isCompleted = target.checked;
+            const task = await getTaskById(taskId);
+            if (task) {
+                task.completed = isCompleted;
+                // If it's an assigned task, cascade the completion status to all assignments
+                if (task.schedule && task.schedule.length > 0) {
+                    task.schedule.forEach(item => item.completed = isCompleted);
+                }
+                await updateTask(task); // updateTask will call updateTaskCompletion automatically
+                renderPage(); // Re-render the entire page to reflect the change
+            }
+        } else if (target.matches('.toggle-schedule-btn')) {
             const taskItem = target.closest('.task-item');
             const scheduleDetails = taskItem.querySelector('.task-schedule-details');
             if (scheduleDetails) {
@@ -273,11 +259,11 @@ function setupSchedulingListeners() {
             });
 
             const schedulableBlocks = TIME_BLOCKS.filter(b => b.limit !== '0');
-            const dayHeaders = currentDays.map(day => `<div class="schedule-header-cell" style="font-size: 0.8em; text-align: center;">${day.charAt(0).toUpperCase() + day.slice(1, 3)}</div>`).join('');
+            const dayHeaders = DAYS.map(day => `<div class="schedule-header-cell" style="font-size: 0.8em; text-align: center;">${day.charAt(0).toUpperCase() + day.slice(1, 3)}</div>`).join('');
 
             const bodyRows = schedulableBlocks.map(block => `
                 <div class="schedule-block-label" style="font-size: 0.8em; text-align: right; padding-right: 5px;">${block.label}</div>
-                ${currentDays.map(day => `
+                ${DAYS.map(day => `
                     <div class="schedule-grid-cell" style="text-align: center;">
                         <input type="checkbox" class="schedule-checkbox" data-day="${day}" data-block-id="${block.id}"
                             ${task.schedule.some(s => s.day === day && s.blockId === block.id) ? 'checked' : ''}>
@@ -472,13 +458,14 @@ function createTaskElement(task, options = {}) {
     }
     taskItem.setAttribute('data-task-id', task.id);
 
-    // --- Checkbox (for management view) ---
-    if (context === 'management') {
+    // --- Checkbox (for management and sidebar views) ---
+    if (context === 'management' || context === 'sidebar') {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.checked = task.completed;
+        // Use a more generic class and a specific one for targeting
         checkbox.classList.add('task-complete-checkbox');
-        const checkboxId = `checkbox-manager-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}`;
+        const checkboxId = `checkbox-${context}-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}`;
         checkbox.id = checkboxId;
         taskItem.appendChild(checkbox);
 
@@ -579,8 +566,8 @@ function createTaskElement(task, options = {}) {
         task.schedule
             .slice() // Create a shallow copy to avoid sorting the original array
             .sort((a, b) => {
-                const dayA = currentDays.indexOf(a.day);
-                const dayB = currentDays.indexOf(b.day);
+                const dayA = DAYS.indexOf(a.day);
+                const dayB = DAYS.indexOf(b.day);
                 if (dayA !== dayB) return dayA - dayB;
                 return timeBlockOrder[a.blockId] - timeBlockOrder[b.blockId];
             })

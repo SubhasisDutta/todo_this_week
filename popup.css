@@ -841,27 +841,13 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
 }
 
 .grid-header {
-    padding: 8px 2px;
+    padding: 10px 5px;
     border-radius: 6px;
     background-color: #d1d9e6;
     text-align: center;
-    box-shadow: 3px 3px 6px #bec3c9, -3px -3px 6px #ffffff;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 2px;
-}
-
-.header-month {
-    font-size: 0.8em;
-    font-weight: normal;
-    color: #555;
-}
-
-.header-day {
-    font-size: 1em;
     font-weight: bold;
+    font-size: 0.9em;
+    box-shadow: 3px 3px 6px #bec3c9, -3px -3px 6px #ffffff;
 }
 
 .time-label {
