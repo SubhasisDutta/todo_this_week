@@ -8,37 +8,37 @@
 </head>
 <body>
     <div class="container">
-        <div id="info-message-area" class="info-message" style="display: none;"></div> <!-- Added this line -->
+        <div id="info-message-area" class="info-message" style="display: none;" role="status" aria-live="polite"></div>
 
         <div class="manager-link-container">
-            <button id="open-manager-btn" class="neumorphic-btn"><span class="icon">🗓️</span> PLANNER</button>
+            <button id="open-manager-btn" class="neumorphic-btn" aria-label="Open Weekly Planner"><span class="icon">🗓️</span> PLANNER</button>
         </div>
 
-        <div class="tabs">
-            <button class="tab-link active" data-tab="today">TODAY</button>
-            <button class="tab-link" data-tab="display">Display</button>
-            <button class="tab-link" data-tab="add">ADD</button>
+        <div class="tabs" role="tablist">
+            <button class="tab-link active" data-tab="today" role="tab" aria-selected="true" aria-controls="today">TODAY</button>
+            <button class="tab-link" data-tab="display" role="tab" aria-selected="false" aria-controls="display">Display</button>
+            <button class="tab-link" data-tab="add" role="tab" aria-selected="false" aria-controls="add">ADD</button>
         </div>
 
-        <div id="today" class="tab-content active">
+        <div id="today" class="tab-content active" role="tabpanel" aria-labelledby="today">
             <div id="today-task-list">
                 <!-- Today's tasks will be listed here -->
                 <p>No tasks scheduled for today.</p>
             </div>
         </div>
 
-        <div id="display" class="tab-content">
+        <div id="display" class="tab-content" role="tabpanel" aria-labelledby="display">
             <div id="display-task-list">
                 <!-- Tasks will be listed here -->
                 <p>No active tasks. Add some in the ADD tab!</p>
             </div>
         </div>
 
-        <div id="add" class="tab-content">
+        <div id="add" class="tab-content" role="tabpanel" aria-labelledby="add">
             <div class="add-task-form">
                 <div class="form-group">
                     <label for="task-title">Title:</label>
-                    <input type="text" id="task-title" class="neumorphic-input" placeholder="Enter task title">
+                    <input type="text" id="task-title" class="neumorphic-input" placeholder="Enter task title" aria-required="true">
                 </div>
                 <div class="form-group">
                     <label for="task-url">URL (Optional):</label>

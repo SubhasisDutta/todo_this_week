@@ -183,53 +183,109 @@ async function deleteTask(taskId) {
 
 
 // --- Info Message Functionality ---
-let infoMessageTimeout = null; // This state should be managed per-document (popup vs manager)
-                               // For now, keeping it simple. If issues arise, this needs scoping.
 
 function showInfoMessage(message, type = 'info', duration = 3000, documentContext = document) {
     const messageArea = documentContext.getElementById('info-message-area');
     if (!messageArea) {
-        // If it's a shared util, it shouldn't assume 'alert' is always best.
-        // But for this extension, it's a safe fallback.
         console.error("Info message area not found in the provided document context!");
-        if (documentContext === document) { // Only alert if it's the main popup's document
+        if (documentContext === document) {
             alert(message);
         }
         return;
     }
 
-    // Clear existing timeout if any (specific to this messageArea's context, effectively)
-    // This simple global timeout might lead to issues if both popup and manager page are manipulated fast.
-    // A more robust solution would associate the timeout with the messageArea element itself.
-    if (infoMessageTimeout) { // This will use the global `infoMessageTimeout` from task_utils.js
-        clearTimeout(infoMessageTimeout);
+    // Clear existing timeout attached to this specific message element
+    if (messageArea._infoTimeout) {
+        clearTimeout(messageArea._infoTimeout);
     }
 
     messageArea.textContent = message;
-    messageArea.classList.remove('success', 'error', 'info'); // Reset classes
-    messageArea.classList.add(type); // Add current type
+    messageArea.classList.remove('success', 'error', 'info');
+    messageArea.classList.add(type);
 
-    messageArea.style.display = 'block'; // Make it visible
-    requestAnimationFrame(() => { // Ensure display:block is processed before adding 'visible' for transition
+    messageArea.style.display = 'block';
+    requestAnimationFrame(() => {
         messageArea.classList.add('visible');
     });
 
-    infoMessageTimeout = setTimeout(() => {
+    messageArea._infoTimeout = setTimeout(() => {
         messageArea.classList.remove('visible');
-        // Wait for opacity transition to finish before hiding
         setTimeout(() => {
-            // Check if it's still not visible (another message might have taken over)
             if (!messageArea.classList.contains('visible')) {
                  messageArea.style.display = 'none';
-                 messageArea.textContent = ''; // Clear text
-                 messageArea.classList.remove(type); // Clean up class
+                 messageArea.textContent = '';
+                 messageArea.classList.remove(type);
             }
-        }, 500); // Should match transition duration in CSS
-        infoMessageTimeout = null; // Clear the global timeout ID
+        }, 500);
+        messageArea._infoTimeout = null;
     }, duration);
 }
 // --- End of Info Message Functionality ---
 
-// Note: renderTasks and specific event listeners (like drag-and-drop, inline-edit buttons)
-// will be handled in popup.js and manager.js respectively, or further refactored if common
-// rendering logic (like creating a single task item's DOM) is identified.
+// --- Promise Wrappers ---
+function getTasksAsync() {
+    return new Promise(resolve => getTasks(resolve));
+}
+
+function saveTasksAsync(tasks) {
+    return new Promise((resolve, reject) => {
+        saveTasks(tasks, (success, errorMsg) => {
+            if (success) resolve(true);
+            else reject(new Error(errorMsg || "Failed to save tasks"));
+        });
+    });
+}
+
+// --- Operation Queue (prevents race conditions from rapid clicks) ---
+let _taskOperationQueue = Promise.resolve();
+
+function withTaskLock(asyncFn) {
+    _taskOperationQueue = _taskOperationQueue.then(asyncFn).catch(err => {
+        console.error("Task operation error:", err);
+    });
+    return _taskOperationQueue;
+}
+
+// --- Validation Utilities ---
+function validateTask(task) {
+    const errors = [];
+    if (!task.title || !task.title.trim()) errors.push("Task title is required.");
+    if (task.priority === 'CRITICAL' && !task.deadline) errors.push("Deadline is required for CRITICAL tasks.");
+    if (task.url && task.url.trim() && !isValidUrl(task.url.trim())) errors.push("Invalid URL format.");
+    return errors;
+}
+
+function isValidUrl(string) {
+    try { new URL(string); return true; }
+    catch { return false; }
+}
+
+// --- Debounce Utility ---
+function debounce(fn, delay) {
+    let timeoutId;
+    return function(...args) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => fn.apply(this, args), delay);
+    };
+}
+
+// --- Cross-Tab Sync ---
+let _lastSaveTimestamp = 0;
+
+function setupStorageSync(renderCallback) {
+    chrome.storage.onChanged.addListener((changes, namespace) => {
+        if (namespace === 'local' && changes.tasks) {
+            // Ignore changes we just made ourselves (within last 500ms)
+            if (Date.now() - _lastSaveTimestamp > 500) {
+                renderCallback();
+            }
+        }
+    });
+}
+
+// Patch saveTasks to track save timestamps for cross-tab sync
+const _originalSaveTasks = saveTasks;
+saveTasks = function(tasks, callback) {
+    _lastSaveTimestamp = Date.now();
+    _originalSaveTasks(tasks, callback);
+};

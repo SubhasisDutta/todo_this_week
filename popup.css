@@ -1,11 +1,42 @@
+/* --- CSS Custom Properties --- */
+:root {
+    --bg-primary: #e0e5ec;
+    --shadow-dark: #babecc;
+    --shadow-light: #ffffff;
+    --shadow-inset-dark: #b8c0cc;
+    --shadow-inset-light: #eaf2ff;
+    --text-primary: #333;
+    --text-secondary: #555;
+    --text-muted: #666;
+    --accent-blue: #007bff;
+    --priority-critical: #dc3545;
+    --priority-important: #ffc107;
+    --priority-someday: #6f42c1;
+    --success-bg: #d4edda;
+    --success-text: #155724;
+    --success-border: #c3e6cb;
+    --error-bg: #f8d7da;
+    --error-text: #721c24;
+    --error-border: #f5c6cb;
+    --info-bg: #d1ecf1;
+    --info-text: #0c5460;
+    --info-border: #bee5eb;
+    --inset-bg: #d1d9e6;
+    --border-radius-sm: 6px;
+    --border-radius-md: 8px;
+    --border-radius-lg: 12px;
+    --transition-speed: 0.3s;
+    --focus-ring: 0 0 0 3px rgba(0, 123, 255, 0.4);
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
-    background-color: #e0e5ec;
-    color: #333;
-    width: 500px; /* Changed to 500px */
-    min-height: 450px; /* Ensure enough height for content */
-    padding: 0; /* Remove body padding if container has it */
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    width: 500px;
+    min-height: 450px;
+    padding: 0;
 }
 
 /* --- Manager Page Specific Styles --- */
@@ -291,7 +322,7 @@ h2 {
 }
 
 .neumorphic-input::placeholder {
-    color: #888;
+    color: var(--text-muted);
 }
 
 .neumorphic-divider {
@@ -340,7 +371,7 @@ h2 {
 }
 
 .toggle-schedule-btn.hide {
-    background-color: lightbrown;
+    background-color: burlywood;
 }
 
 .task-schedule-details {
@@ -727,7 +758,8 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
     justify-content: space-between; /* Distribute space between columns */
     gap: 20px; /* Space between columns */
     margin-top: 20px;
-    width: 1560px;      /* Added */
+    width: 100%;        /* Responsive width */
+    max-width: 1560px;  /* Max width on large screens */
     margin-left: auto;  /* Added */
     margin-right: auto; /* Added */
 }
@@ -948,4 +980,115 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
     display: flex;
     justify-content: center;
     gap: 15px;
+}
+
+/* --- Accessibility: Focus Styles --- */
+.neumorphic-btn:focus-visible {
+    box-shadow: var(--focus-ring), 5px 5px 10px var(--shadow-dark), -5px -5px 10px var(--shadow-light);
+    outline: none;
+}
+
+.tab-link:focus-visible {
+    box-shadow: var(--focus-ring);
+    outline: none;
+}
+
+.neumorphic-input:focus-visible {
+    box-shadow: inset 2px 2px 4px var(--shadow-dark), inset -2px -2px 4px var(--shadow-light), var(--focus-ring);
+    outline: none;
+}
+
+.task-item input[type="checkbox"]:focus-visible + .neumorphic-checkbox-label {
+    box-shadow: var(--focus-ring), 3px 3px 6px var(--shadow-dark), -3px -3px 6px var(--shadow-light);
+}
+
+/* --- Button Disabled State --- */
+.neumorphic-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* --- Task Completion Animation --- */
+.task-item.completing {
+    transform: scale(0.98);
+    opacity: 0.6;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* --- Enhanced Drag-and-Drop Feedback --- */
+.task-item.dragging {
+    opacity: 0.4;
+    transform: scale(0.95);
+    box-shadow: inset 2px 2px 4px var(--shadow-dark), inset -2px -2px 4px var(--shadow-light);
+}
+
+.grid-cell.drag-over {
+    outline: 2px dashed var(--accent-blue);
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+/* --- Form Validation Error State --- */
+.form-group.has-error .neumorphic-input {
+    box-shadow: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light), 0 0 0 2px var(--priority-critical);
+}
+
+.field-error {
+    display: none;
+    color: var(--error-text);
+    font-size: 0.85em;
+    margin-top: 4px;
+}
+
+.form-group.has-error .field-error {
+    display: block;
+}
+
+/* --- Save Status Indicator --- */
+.save-status {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 10px;
+}
+.save-status.saving { color: var(--accent-blue); }
+.save-status.saved { color: var(--success-text); }
+.save-status.unsaved { color: var(--priority-important); }
+
+/* --- Responsive: Manager Page Large Screens --- */
+@media (max-width: 1200px) {
+    .manager-page .tasks-display-area {
+        width: 100%;
+    }
+    .planner-container {
+        flex-direction: column;
+    }
+    .tasks-column {
+        flex: 0 0 auto;
+        max-height: 300px;
+    }
+}
+
+/* --- Loading Spinner --- */
+.loading-overlay {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--bg-primary);
+    box-shadow: 5px 5px 10px var(--shadow-dark), -5px -5px 10px var(--shadow-light);
+    animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); box-shadow: 5px 5px 10px var(--shadow-dark), -5px -5px 10px var(--shadow-light); }
+    50% { transform: scale(0.9); box-shadow: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light); }
 }

@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
     highlightCurrentDay();
     renderPage();
     setupAllListeners();
+    setupStorageSync(renderPage);
 });
 
 function setupAllListeners() {
@@ -24,7 +25,7 @@ function setupAllListeners() {
 // --- RENDERING LOGIC ---
 
 async function renderPage() {
-    const tasks = await new Promise(resolve => getTasks(resolve));
+    const tasks = await getTasksAsync();
 
     // --- Render Planner Tab (only active tasks) ---
     clearPlannerTasks();
@@ -109,11 +110,12 @@ function setupFeatureListeners() {
     const exportBtn = document.getElementById('export-tasks-btn');
     if (exportBtn) {
         exportBtn.addEventListener('click', async () => {
-            const tasks = await new Promise(resolve => getTasks(resolve));
+            const tasks = await getTasksAsync();
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tasks, null, 2));
             const downloadAnchorNode = document.createElement('a');
             downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", "tasks.json");
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            downloadAnchorNode.setAttribute("download", `tasks-${timestamp}.json`);
             document.body.appendChild(downloadAnchorNode); // required for firefox
             downloadAnchorNode.click();
             downloadAnchorNode.remove();
@@ -144,7 +146,7 @@ function setupFeatureListeners() {
                         throw new Error("Invalid format: JSON file should contain an array of tasks.");
                     }
 
-                    const existingTasks = await new Promise(resolve => getTasks(resolve));
+                    const existingTasks = await getTasksAsync();
                     const existingTaskIds = new Set(existingTasks.map(t => t.id));
 
                     const tasksToCreate = [];
@@ -171,7 +173,7 @@ function setupFeatureListeners() {
 
                     const finalTasks = [...updatedTasks, ...tasksToCreate];
 
-                    await new Promise(resolve => saveTasks(finalTasks, resolve));
+                    await saveTasksAsync(finalTasks);
 
 
                     await renderPage();
@@ -193,30 +195,7 @@ function setupFeatureListeners() {
     }
 }
 
-function showInfoMessage(message, type = 'info', duration = 3000) {
-    const infoArea = document.getElementById('info-message-area');
-    if (!infoArea) return;
-
-    // Set message and type
-    infoArea.textContent = message;
-    infoArea.className = 'info-message'; // Reset classes
-    infoArea.classList.add(type); // 'success', 'error', or 'info'
-
-    // Make it visible
-    infoArea.style.display = 'block';
-    setTimeout(() => {
-        infoArea.classList.add('visible');
-    }, 10); // Small delay to allow CSS transition to trigger
-
-    // Hide it after 'duration'
-    setTimeout(() => {
-        infoArea.classList.remove('visible');
-        // Wait for fade out transition to finish before setting display to none
-        setTimeout(() => {
-            infoArea.style.display = 'none';
-        }, 500); // This should match the transition duration in CSS
-    }, duration);
-}
+// showInfoMessage is provided by task_utils.js (removed duplicate)
 
 function highlightCurrentDay() {
     const todayName = currentDays[0];
@@ -248,16 +227,17 @@ function setupSchedulingListeners() {
             if (!taskId) return;
 
             const isCompleted = target.checked;
-            const task = await getTaskById(taskId);
-            if (task) {
-                task.completed = isCompleted;
-                // If it's an assigned task, cascade the completion status to all assignments
-                if (task.schedule && task.schedule.length > 0) {
-                    task.schedule.forEach(item => item.completed = isCompleted);
+            withTaskLock(async () => {
+                const task = await getTaskById(taskId);
+                if (task) {
+                    task.completed = isCompleted;
+                    if (task.schedule && task.schedule.length > 0) {
+                        task.schedule.forEach(item => item.completed = isCompleted);
+                    }
+                    await updateTask(task);
+                    renderPage();
                 }
-                await updateTask(task); // updateTask will call updateTaskCompletion automatically
-                renderPage(); // Re-render the entire page to reflect the change
-            }
+            });
         } else if (target.matches('.toggle-schedule-btn')) {
             const taskItem = target.closest('.task-item');
             const scheduleDetails = taskItem.querySelector('.task-schedule-details');
@@ -642,9 +622,13 @@ function setupTabSwitching() {
     const tabContents = document.querySelectorAll('.tab-content');
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            tabs.forEach(item => item.classList.remove('active'));
+            tabs.forEach(item => {
+                item.classList.remove('active');
+                item.setAttribute('aria-selected', 'false');
+            });
             tabContents.forEach(content => content.classList.remove('active'));
             tab.classList.add('active');
+            tab.setAttribute('aria-selected', 'true');
             document.getElementById(tab.getAttribute('data-tab')).classList.add('active');
         });
     });
@@ -655,9 +639,9 @@ function setupCoreFeatureListeners() {
     if (unassignAllBtn) {
         unassignAllBtn.addEventListener('click', async () => {
             if (confirm("Are you sure you want to unschedule all tasks?")) {
-                const tasks = await new Promise(resolve => getTasks(resolve));
+                const tasks = await getTasksAsync();
                 tasks.forEach(task => { task.schedule = []; });
-                await new Promise(resolve => saveTasks(tasks, resolve));
+                await saveTasksAsync(tasks);
                 renderPage();
             }
         });
@@ -738,7 +722,7 @@ function setupDragAndDropListeners() {
             return;
         }
 
-        const tasks = await new Promise(resolve => getTasks(resolve));
+        const tasks = await getTasksAsync();
         const task = tasks.find(t => t.id === draggedTaskInfo.taskId);
 
         if (!task) {
@@ -786,7 +770,7 @@ function setupDragAndDropListeners() {
         }
 
         if (scheduleChanged) {
-            await new Promise(resolve => saveTasks(tasks, success => resolve(success)));
+            await saveTasksAsync(tasks);
             // Defer the render to avoid race conditions with the browser's drag/drop handling.
             setTimeout(renderPage, 0);
         }
@@ -796,29 +780,29 @@ function setupDragAndDropListeners() {
 }
 
 function setupTaskManagementListeners() {
-    const addTaskBtn = document.getElementById('add-task-btn');
+    const addTaskBtn = document.getElementById('manager-add-task-btn');
     if (addTaskBtn) {
         addTaskBtn.addEventListener('click', async () => {
-            const titleInput = document.getElementById('task-title');
+            const titleInput = document.getElementById('manager-task-title');
             const title = titleInput.value.trim();
             if (!title) {
                 showInfoMessage("Task title is required.", "error"); return;
             }
-            const url = document.getElementById('task-url').value.trim();
+            const url = document.getElementById('manager-task-url').value.trim();
             const priority = document.querySelector('input[name="manager-priority"]:checked').value;
             const type = document.querySelector('input[name="manager-type"]:checked').value;
             const energy = document.querySelector('input[name="manager-energy"]:checked').value;
-            let deadline = document.getElementById('task-deadline').value;
+            let deadline = document.getElementById('manager-task-deadline').value;
             if (priority !== 'CRITICAL' || !deadline) deadline = null;
 
             await addNewTask(title, url, priority, deadline, type, energy);
             // Clear form
             titleInput.value = '';
-            document.getElementById('task-url').value = '';
+            document.getElementById('manager-task-url').value = '';
             document.getElementById('manager-priority-someday').checked = true;
             document.getElementById('manager-type-home').checked = true;
-            document.getElementById('task-deadline').value = '';
-            document.getElementById('task-deadline-group').style.display = 'none';
+            document.getElementById('manager-task-deadline').value = '';
+            document.getElementById('manager-task-deadline-group').style.display = 'none';
 
             renderPage();
             showInfoMessage("Task added!", "success");
@@ -829,7 +813,7 @@ function setupTaskManagementListeners() {
     if(priorityRadios.length > 0) {
         priorityRadios.forEach(radio => {
             radio.addEventListener('change', (e) => {
-                document.getElementById('task-deadline-group').style.display = e.target.value === 'CRITICAL' ? 'block' : 'none';
+                document.getElementById('manager-task-deadline-group').style.display = e.target.value === 'CRITICAL' ? 'block' : 'none';
             });
         });
     }
@@ -845,32 +829,35 @@ function setupTaskManagementListeners() {
             const taskItem = target.closest('.task-item');
             const taskId = taskItem?.dataset.taskId;
 
-            if (target.matches('.task-complete-checkbox')) { // This is the "master" checkbox
+            if (target.matches('.task-complete-checkbox')) {
                 const isCompleted = target.checked;
-                const task = await getTaskById(taskId);
-                if (task) {
-                    task.completed = isCompleted;
-                    // If it's an assigned task, cascade the completion status to all assignments
-                    if (task.schedule && task.schedule.length > 0) {
-                        task.schedule.forEach(item => item.completed = isCompleted);
+                withTaskLock(async () => {
+                    const task = await getTaskById(taskId);
+                    if (task) {
+                        task.completed = isCompleted;
+                        if (task.schedule && task.schedule.length > 0) {
+                            task.schedule.forEach(item => item.completed = isCompleted);
+                        }
+                        await updateTask(task);
+                        renderPage();
                     }
-                    await updateTask(task); // updateTask will call updateTaskCompletion automatically
-                    renderPage();
-                }
+                });
             } else if (target.matches('.assignment-complete-checkbox')) {
                 const isCompleted = target.checked;
                 const day = target.dataset.day;
                 const blockId = target.dataset.blockId;
-                const task = await getTaskById(target.dataset.taskId);
-                if (task) {
-                    const scheduleItem = task.schedule.find(item => item.day === day && item.blockId === blockId);
-                    if (scheduleItem) {
-                        scheduleItem.completed = isCompleted;
-                        // updateTask will call updateTaskCompletion, which syncs the parent `completed` status
-                        await updateTask(task);
-                        renderPage();
+                const assignTaskId = target.dataset.taskId;
+                withTaskLock(async () => {
+                    const task = await getTaskById(assignTaskId);
+                    if (task) {
+                        const scheduleItem = task.schedule.find(item => item.day === day && item.blockId === blockId);
+                        if (scheduleItem) {
+                            scheduleItem.completed = isCompleted;
+                            await updateTask(task);
+                            renderPage();
+                        }
                     }
-                }
+                });
             } else if (target.matches('.delete-task-btn-list')) {
                 if (confirm('Are you sure you want to delete this task?')) {
                     await deleteTask(taskId);
@@ -878,7 +865,7 @@ function setupTaskManagementListeners() {
                 }
             } else if (target.matches('.move-task-up-btn') || target.matches('.move-task-down-btn')) {
                 const direction = target.matches('.move-task-up-btn') ? 'up' : 'down';
-                const tasks = await new Promise(getTasks);
+                const tasks = await getTasksAsync();
                 const taskToMove = tasks.find(t => t.id === taskId);
                 const priorityGroup = tasks.filter(t => t.priority === taskToMove.priority).sort((a,b) => a.displayOrder - b.displayOrder);
                 const currentIndex = priorityGroup.findIndex(t => t.id === taskId);
@@ -887,7 +874,11 @@ function setupTaskManagementListeners() {
                 if (otherIndex >= 0 && otherIndex < priorityGroup.length) {
                     const otherTask = priorityGroup[otherIndex];
                     [taskToMove.displayOrder, otherTask.displayOrder] = [otherTask.displayOrder, taskToMove.displayOrder];
-                    await saveTasks(tasks);
+                    try {
+                        await saveTasksAsync(tasks);
+                    } catch (e) {
+                        showInfoMessage("Failed to save task order.", "error");
+                    }
                     renderPage();
                 }
             } else if (target.matches('.edit-task-btn-list')) {
@@ -936,9 +927,61 @@ function setupTaskManagementListeners() {
                             </div>
                         </div>
                         <div class="form-group-inline form-group-inline-checkbox"><label for="edit-task-completed-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}">Completed:</label><input type="checkbox" id="edit-task-completed-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}" class="edit-task-completed" ${task.completed ? 'checked' : ''} style="width: auto; margin-right: 5px;"></div>
-                        <div class="inline-edit-actions"><button class="neumorphic-btn save-inline-btn">Save</button><button class="neumorphic-btn cancel-inline-btn">Cancel</button></div>
+                        <div class="inline-edit-actions"><span class="save-status"></span><button class="neumorphic-btn save-inline-btn">Save</button><button class="neumorphic-btn cancel-inline-btn">Cancel</button></div>
                     </div>`;
                 taskItem.insertAdjacentHTML('beforeend', formHtml);
+
+                // --- Auto-save setup ---
+                const editForm = taskItem.querySelector('.inline-edit-form');
+                const saveStatusEl = editForm.querySelector('.save-status');
+
+                function setSaveStatus(status) {
+                    if (!saveStatusEl) return;
+                    saveStatusEl.className = 'save-status ' + status;
+                    if (status === 'saving') saveStatusEl.textContent = 'Saving...';
+                    else if (status === 'saved') saveStatusEl.textContent = 'Saved';
+                    else if (status === 'unsaved') saveStatusEl.textContent = 'Unsaved';
+                    else saveStatusEl.textContent = '';
+
+                    if (status === 'saved') {
+                        setTimeout(() => {
+                            if (saveStatusEl.classList.contains('saved')) {
+                                saveStatusEl.textContent = '';
+                                saveStatusEl.className = 'save-status';
+                            }
+                        }, 2000);
+                    }
+                }
+
+                function collectFormValues() {
+                    const updatedTask = { ...originalTaskDataForEdit };
+                    updatedTask.title = taskItem.querySelector('.edit-task-title').value.trim();
+                    updatedTask.url = taskItem.querySelector('.edit-task-url').value.trim();
+                    updatedTask.priority = taskItem.querySelector('input[name^="edit-priority-"]:checked').value;
+                    let dl = taskItem.querySelector('.edit-task-deadline').value;
+                    if (updatedTask.priority !== 'CRITICAL') dl = null;
+                    updatedTask.deadline = dl;
+                    updatedTask.type = taskItem.querySelector('input[name^="edit-type-"]:checked').value;
+                    updatedTask.energy = taskItem.querySelector('input[name^="edit-energy-"]:checked').value;
+                    updatedTask.completed = taskItem.querySelector('.edit-task-completed').checked;
+                    return updatedTask;
+                }
+
+                const autoSave = debounce(async () => {
+                    const updatedTask = collectFormValues();
+                    const errors = validateTask(updatedTask);
+                    if (errors.length === 0) {
+                        setSaveStatus('saving');
+                        await updateTask(updatedTask);
+                        originalTaskDataForEdit = { ...updatedTask };
+                        setSaveStatus('saved');
+                    }
+                }, 1500);
+
+                editForm.querySelectorAll('input').forEach(input => {
+                    input.addEventListener('input', () => { setSaveStatus('unsaved'); autoSave(); });
+                    input.addEventListener('change', () => { setSaveStatus('unsaved'); autoSave(); });
+                });
 
                 const priorityRadios = taskItem.querySelectorAll('input[name^="edit-priority-"]');
                 const deadlineGroup = taskItem.querySelector('.edit-task-deadline-group');
@@ -975,6 +1018,10 @@ function setupTaskManagementListeners() {
 
                 if (!updatedTask.title) {
                     showInfoMessage("Task title cannot be empty.", "error");
+                    return;
+                }
+                if (updatedTask.priority === 'CRITICAL' && !updatedTask.deadline) {
+                    showInfoMessage("Deadline is required for CRITICAL tasks.", "error");
                     return;
                 }
 

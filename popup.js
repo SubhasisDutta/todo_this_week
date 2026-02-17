@@ -160,28 +160,32 @@ function setupTaskCompletionListeners() {
             const taskId = taskItem.dataset.taskId;
             const isCompleted = target.checked;
 
-            if (target.matches('.task-complete-checkbox')) { // Master checkbox
-                const task = await getTaskById(taskId);
-                if (task) {
-                    task.completed = isCompleted;
-                    if (task.schedule && task.schedule.length > 0) {
-                        task.schedule.forEach(item => item.completed = isCompleted);
-                    }
-                    await updateTask(task);
-                    renderAllTabs();
-                }
-            } else if (target.matches('.assignment-complete-checkbox')) { // Assignment checkbox
-                const day = taskItem.dataset.day;
-                const blockId = taskItem.dataset.blockId;
-                const task = await getTaskById(taskId);
-                if (task) {
-                    const scheduleItem = task.schedule.find(item => item.day === day && item.blockId === blockId);
-                    if (scheduleItem) {
-                        scheduleItem.completed = isCompleted;
+            if (target.matches('.task-complete-checkbox')) {
+                withTaskLock(async () => {
+                    const task = await getTaskById(taskId);
+                    if (task) {
+                        task.completed = isCompleted;
+                        if (task.schedule && task.schedule.length > 0) {
+                            task.schedule.forEach(item => item.completed = isCompleted);
+                        }
                         await updateTask(task);
                         renderAllTabs();
                     }
-                }
+                });
+            } else if (target.matches('.assignment-complete-checkbox')) {
+                const day = taskItem.dataset.day;
+                const blockId = taskItem.dataset.blockId;
+                withTaskLock(async () => {
+                    const task = await getTaskById(taskId);
+                    if (task) {
+                        const scheduleItem = task.schedule.find(item => item.day === day && item.blockId === blockId);
+                        if (scheduleItem) {
+                            scheduleItem.completed = isCompleted;
+                            await updateTask(task);
+                            renderAllTabs();
+                        }
+                    }
+                });
             }
         });
     });
@@ -274,10 +278,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            tabs.forEach(item => item.classList.remove('active'));
+            tabs.forEach(item => {
+                item.classList.remove('active');
+                item.setAttribute('aria-selected', 'false');
+            });
             tabContents.forEach(content => content.classList.remove('active'));
 
             tab.classList.add('active');
+            tab.setAttribute('aria-selected', 'true');
             const targetTabId = tab.getAttribute('data-tab');
             const targetContent = document.getElementById(targetTabId);
             if(targetContent) {
@@ -345,6 +353,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     setupTaskCompletionListeners();
     setupDisplayTabDragAndDropListeners();
+    setupStorageSync(renderAllTabs);
 
     const openManagerBtn = document.getElementById('open-manager-btn');
     if (openManagerBtn) {
