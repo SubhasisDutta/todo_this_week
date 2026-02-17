@@ -54,6 +54,32 @@ function createTaskItem(item, options = {}) {
     }
     taskItem.appendChild(titleSpan);
 
+    // Recurrence badge
+    if (task.recurrence) {
+        const badge = document.createElement('span');
+        badge.classList.add('recurrence-badge');
+        badge.textContent = '🔄 ' + task.recurrence;
+        taskItem.appendChild(badge);
+    }
+
+    // Notes expand/collapse
+    if (task.notes && task.notes.trim()) {
+        taskItem.classList.add('has-notes');
+        const notesToggle = document.createElement('button');
+        notesToggle.classList.add('task-notes-toggle');
+        notesToggle.textContent = '📝 Notes';
+        notesToggle.addEventListener('click', () => {
+            notesContent.classList.toggle('visible');
+            notesToggle.textContent = notesContent.classList.contains('visible') ? '📝 Hide' : '📝 Notes';
+        });
+        taskItem.appendChild(notesToggle);
+
+        const notesContent = document.createElement('div');
+        notesContent.classList.add('task-notes-content');
+        notesContent.textContent = task.notes;
+        taskItem.appendChild(notesContent);
+    }
+
     return taskItem;
 }
 
@@ -89,9 +115,7 @@ function renderTasks(tabName = 'today') {
 
             const groupedByBlock = todaysAssignments.reduce((acc, assignment) => {
                 const blockId = assignment.scheduleItem.blockId;
-                if (!acc[blockId]) {
-                    acc[blockId] = [];
-                }
+                if (!acc[blockId]) acc[blockId] = [];
                 acc[blockId].push(assignment);
                 return acc;
             }, {});
@@ -102,12 +126,12 @@ function renderTasks(tabName = 'today') {
                 const block = TIME_BLOCKS.find(b => b.id === blockId);
                 const blockHeader = document.createElement('h4');
                 blockHeader.classList.add('time-block-header');
-                blockHeader.textContent = `${block.time} ${block.label}`;
+                blockHeader.textContent = `${block ? block.time : ''} ${block ? block.label : blockId}`;
                 taskListElement.appendChild(blockHeader);
 
                 const assignmentsInBlock = groupedByBlock[blockId];
                 assignmentsInBlock.forEach(item => {
-                    const taskItem = createTaskItem(item, { isAssignment: true, tabName: tabName });
+                    const taskItem = createTaskItem(item, { isAssignment: true, tabName });
                     taskListElement.appendChild(taskItem);
                 });
             });
@@ -128,7 +152,7 @@ function renderTasks(tabName = 'today') {
                 return;
             }
             tasksToRender.forEach(task => {
-                const taskItem = createTaskItem(task, { tabName: tabName });
+                const taskItem = createTaskItem(task, { tabName });
                 taskListElement.appendChild(taskItem);
             });
         } else if (tabName === 'add') {
@@ -222,9 +246,7 @@ function setupDisplayTabDragAndDropListeners() {
         getTasks(tasks => {
             const draggedTask = tasks.find(t => t.id === draggedTaskId);
             const targetTask = tasks.find(t => t.id === targetTaskId);
-            if (!draggedTask || !targetTask) {
-                return;
-            }
+            if (!draggedTask || !targetTask) return;
             if (draggedTask.priority !== targetTask.priority) {
                 showInfoMessage("Tasks can only be reordered within the same priority group.", "error", 3000, document);
                 draggedTaskElementDisplay = null; return;
@@ -239,8 +261,8 @@ function setupDisplayTabDragAndDropListeners() {
             }
             const currentPriorityGroup = draggedTask.priority;
             const reorderedTaskIdsInDOM = Array.from(displayTaskListContainer.children)
-                                             .filter(el => el.classList.contains('task-item') && tasks.find(t => t.id === el.getAttribute('data-task-id'))?.priority === currentPriorityGroup)
-                                             .map(el => el.getAttribute('data-task-id'));
+                .filter(el => el.classList.contains('task-item') && tasks.find(t => t.id === el.getAttribute('data-task-id'))?.priority === currentPriorityGroup)
+                .map(el => el.getAttribute('data-task-id'));
             let displayOrderChanged = false;
             reorderedTaskIdsInDOM.forEach((taskId, newIndexInGroup) => {
                 const taskToUpdate = tasks.find(t => t.id === taskId);
@@ -264,15 +286,16 @@ function setupDisplayTabDragAndDropListeners() {
         });
     });
     displayTaskListContainer.addEventListener('dragend', function(event) {
-        if (draggedTaskElementDisplay) {
-            draggedTaskElementDisplay.style.opacity = '1';
-        }
+        if (draggedTaskElementDisplay) draggedTaskElementDisplay.style.opacity = '1';
         draggedTaskElementDisplay = null;
     });
 }
 
 // Existing tab switching code follows:
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    // Apply settings (theme, font) before rendering
+    await initSettings();
+
     const tabs = document.querySelectorAll('.tab-link');
     const tabContents = document.querySelectorAll('.tab-content');
 
@@ -283,15 +306,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 item.setAttribute('aria-selected', 'false');
             });
             tabContents.forEach(content => content.classList.remove('active'));
-
             tab.classList.add('active');
             tab.setAttribute('aria-selected', 'true');
             const targetTabId = tab.getAttribute('data-tab');
             const targetContent = document.getElementById(targetTabId);
-            if(targetContent) {
-                targetContent.classList.add('active');
-            }
-
+            if (targetContent) targetContent.classList.add('active');
             renderTasks(targetTabId);
         });
     });
@@ -322,6 +341,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const type = document.querySelector('input[name="type"]:checked').value;
             let deadline = taskDeadlineInput.value;
             const energy = document.querySelector('input[name="energy"]:checked').value;
+            const notes = document.getElementById('task-notes')?.value.trim() || '';
+            const recurrenceEl = document.getElementById('task-recurrence');
+            const recurrence = recurrenceEl?.value || null;
 
             if (!title) {
                 showInfoMessage("Task title is required.", "error", 3000, document);
@@ -333,10 +355,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             if (priority !== 'CRITICAL') deadline = null;
 
-            const newTask = await addNewTask(title, url, priority, deadline, type, energy);
+            const newTask = await addNewTask(title, url, priority, deadline, type, energy, notes, recurrence || null);
             if (newTask) {
                 taskTitleInput.value = '';
                 taskUrlInput.value = '';
+                if (document.getElementById('task-notes')) document.getElementById('task-notes').value = '';
+                if (recurrenceEl) recurrenceEl.value = '';
                 document.getElementById('priority-someday').checked = true;
                 document.getElementById('type-home').checked = true;
                 taskDeadlineInput.value = '';
@@ -350,7 +374,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     renderAllTabs();
-
     setupTaskCompletionListeners();
     setupDisplayTabDragAndDropListeners();
     setupStorageSync(renderAllTabs);

@@ -10,27 +10,31 @@ This is a **Weekly Task Manager** — a Chrome/Chromium browser extension (Manif
 
 ### Core Components
 
-- `task_utils.js` (~292 lines) — Shared utilities: Task class, CRUD operations, validation, debounce, operation queue, cross-tab sync
-- `popup.js` (~365 lines) — Popup interface: task rendering, tab switching, completion handlers, drag-and-drop reordering
-- `manager.js` (~1034 lines) — Full-page planner: weekly grid, drag-and-drop scheduling, inline editing with auto-save, import/export
-- `popup.html` (~89 lines) — Popup markup (3 tabs: TODAY, Display, ADD)
-- `manager.html` (~143 lines) — Planner markup (3 tabs: SCHEDULE, PRIORITY, LOCATION)
-- `popup.css` (~1095 lines) — Unified neumorphic styles for both popup and manager
+- `task_utils.js` (~490 lines) — Shared utilities: Task class, CRUD operations, settings, undo/redo, recurring tasks, time blocks, validation, debounce, operation queue, cross-tab sync
+- `settings.js` (~500 lines) — Settings management: theme/font application, settings modal UI, Notion import, Google Sheets import, time block management
+- `popup.js` (~390 lines) — Popup interface: task rendering (with notes/recurrence), tab switching, completion handlers, drag-and-drop reordering
+- `manager.js` (~850 lines) — Full-page planner: weekly grid, drag-and-drop scheduling, inline editing, archive tab, stats tab, search/filter, undo toast, keyboard undo, settings wiring
+- `popup.html` (~102 lines) — Popup markup (3 tabs: TODAY, Display, ADD — with notes textarea and recurrence select)
+- `manager.html` (~280 lines) — Planner markup (5 tabs: SCHEDULE, PRIORITY, LOCATION, ARCHIVE, STATS + settings/help modals)
+- `popup.css` (~1500 lines) — Unified styles: neumorphic design, dark mode, modals, charts, archive, help, toast, search, notes
 
 ### Extension Configuration
 
-- `manifest.json` — Manifest V3 with `storage` and `tabs` permissions
+- `manifest.json` — Manifest V3 with `storage`, `tabs` permissions, and `host_permissions` for `https://api.notion.com/*`
 - `images/` — Extension icons (16px, 48px, 128px)
 
 ### Test Infrastructure
 
 - `package.json` — Dev dependencies (Jest 29, jest-environment-jsdom)
 - `jest.config.js` — jsdom environment, collects coverage from source files
-- `tests/mocks/chrome.storage.mock.js` — Chrome API mocks and `loadScript` helper
-- `tests/task_utils.test.js` — 44 tests for task_utils.js
-- `tests/popup.test.js` — 17 tests for popup.js
-- `tests/manager.test.js` — 41 tests for manager.js
-- `tests/integration.test.js` — 12 end-to-end tests
+- `tests/mocks/chrome.storage.mock.js` — Chrome API mocks, `loadScript` helper, `seedSettings`, `seedTimeBlocks`, `global.fetch` stub
+- `tests/task_utils.test.js` — ~70 tests for task_utils.js (includes new fields, settings, time blocks, undo/redo, recurring)
+- `tests/popup.test.js` — ~17 tests for popup.js
+- `tests/manager.test.js` — ~60 tests for manager.js (includes async grid, new tabs, search filter)
+- `tests/integration.test.js` — ~25 end-to-end tests (includes recurring tasks, undo lifecycle)
+- `tests/settings.test.js` — ~20 tests for settings.js
+- `tests/features.test.js` — ~30 tests for notes, completedAt, undo/redo, recurring tasks, archive grouping
+- `tests/search.test.js` — ~10 tests for search/filter functionality
 
 ## Data Model
 
@@ -49,8 +53,30 @@ Tasks are stored in `chrome.storage.local` under the `tasks` key as an array of 
   type: string,            // 'home' | 'work'
   displayOrder: number,    // Sort order within priority group
   schedule: ScheduleItem[],// Weekly schedule assignments
-  energy: string           // 'low' | 'high'
+  energy: string,          // 'low' | 'high'
+  notes: string,           // Optional notes/description (default: '')
+  completedAt: string|null,// ISO timestamp when task was completed (default: null)
+  recurrence: string|null  // null | 'daily' | 'weekly' | 'monthly'
 }
+```
+
+### Storage Schema
+
+```javascript
+// chrome.storage.local keys:
+'tasks': Task[]          // All tasks
+
+'settings': {            // User preferences
+  theme: 'light' | 'dark',
+  fontFamily: 'system'|'inter'|'georgia'|'courier'|'roboto-mono',
+  fontSize: 'small'|'medium'|'large',
+  hasSeenSampleTasks: boolean,
+  notionApiKey: string,
+  notionDatabaseId: string,
+  googleSheetsUrl: string
+}
+
+'timeBlocks': Array<{id, label, time, limit, colorClass}>  // Optional; falls back to DEFAULT_TIME_BLOCKS
 ```
 
 ### Schedule Item
@@ -65,9 +91,9 @@ Each entry in the `schedule` array represents a task assignment to a specific da
 }
 ```
 
-### TIME_BLOCKS Constant
+### DEFAULT_TIME_BLOCKS Constant
 
-Defined in `task_utils.js`. Each block has: `id`, `label`, `time`, `limit` ('0', '1', or 'multiple'), `colorClass`.
+Defined in `task_utils.js` as `DEFAULT_TIME_BLOCKS`. A `TIME_BLOCKS` alias is kept for backward compatibility. Time blocks are now configurable via Settings modal and stored in `chrome.storage.local` under the `timeBlocks` key; `getTimeBlocks()` returns stored blocks or falls back to `DEFAULT_TIME_BLOCKS`. Each block has: `id`, `label`, `time`, `limit` ('0', '1', or 'multiple'), `colorClass`.
 
 | id | label | time | limit |
 |----|-------|------|-------|
@@ -87,17 +113,26 @@ Defined in `task_utils.js`. Each block has: `id`, `label`, `time`, `limit` ('0',
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `Task` | `new Task(id, title, url, priority, completed, deadline, type, displayOrder, schedule, energy)` | Constructor with defaults. Auto-generates ID if null. |
-| `getTasks` | `getTasks(callback)` | Reads tasks from storage. Backfills missing `displayOrder`, `schedule`, `schedule[].completed`, and `energy` fields. |
+| `Task` | `new Task(id, title, url, priority, completed, deadline, type, displayOrder, schedule, energy, notes, completedAt, recurrence)` | Constructor with defaults. Auto-generates ID if null. |
+| `getTasks` | `getTasks(callback)` | Reads tasks from storage. Backfills missing fields including `notes`, `completedAt`, `recurrence`. |
 | `getTasksAsync` | `getTasksAsync()` → Promise | Promise wrapper for `getTasks`. |
-| `saveTasks` | `saveTasks(tasks, callback)` | Serializes to plain objects via `JSON.parse(JSON.stringify())` and saves. Updates `_lastSaveTimestamp` for sync guard. |
+| `saveTasks` | `saveTasks(tasks, callback)` | Serializes to plain objects and saves. Updates `_lastSaveTimestamp` for sync guard. |
 | `saveTasksAsync` | `saveTasksAsync(tasks)` → Promise | Promise wrapper for `saveTasks`. Rejects on failure. |
-| `addNewTask` | `addNewTask(title, url, priority, deadline, type, energy)` → Promise | Creates a task with computed `displayOrder` (max in priority group + 1). |
+| `addNewTask` | `addNewTask(title, url, priority, deadline, type, energy, notes, recurrence)` → Promise | Creates task with computed `displayOrder`. |
 | `getTaskById` | `getTaskById(taskId)` → Promise | Returns single task or `undefined`. |
-| `updateTask` | `updateTask(updatedTask)` → Promise | Finds task by ID, calls `updateTaskCompletion`, saves. Returns boolean. |
-| `updateTaskCompletion` | `updateTaskCompletion(task)` | If task has schedule items, sets `task.completed = true` when all items are completed. |
+| `updateTask` | `updateTask(updatedTask)` → Promise | Finds task, calls `updateTaskCompletion`, sets `completedAt`, auto-creates recurring instance on completion. Returns boolean. |
+| `updateTaskCompletion` | `updateTaskCompletion(task)` | If all `schedule[].completed === true`, sets `task.completed = true`. |
 | `deleteTask` | `deleteTask(taskId)` → Promise | Removes by ID. Returns boolean. |
-| `validateTask` | `validateTask(task)` → string[] | Returns array of error messages. Checks: title required, CRITICAL needs deadline, URL format. |
+| `validateTask` | `validateTask(task)` → string[] | Returns error messages. Checks: title required, CRITICAL needs deadline, URL format. |
+| `getSettings` | `getSettings()` → Promise | Loads settings from storage, merges with `DEFAULT_SETTINGS`. |
+| `saveSettings` | `saveSettings(settings)` → Promise | Persists settings to `settings` key. |
+| `seedSampleTasks` | `seedSampleTasks()` → Promise | Creates 6 sample tasks; sets `hasSeenSampleTasks=true` in settings. |
+| `getTimeBlocks` | `getTimeBlocks()` → Promise | Returns stored time blocks or `DEFAULT_TIME_BLOCKS`. |
+| `saveTimeBlocks` | `saveTimeBlocks(blocks)` → Promise | Persists time blocks to `timeBlocks` key. |
+| `pushUndoState` | `pushUndoState(taskSnapshot)` | Deep-copies current tasks to `_undoStack` (max 5), clears `_redoStack`. |
+| `undo` | `undo()` → Promise | Restores from `_undoStack`, pushes current state to `_redoStack`. |
+| `redo` | `redo()` → Promise | Restores from `_redoStack`, pushes current state to `_undoStack`. |
+| `createRecurringInstance` | `createRecurringInstance(task)` → Task | Creates new Task with new ID, empty schedule, shifted deadline (daily +1d, weekly +7d, monthly +1mo). |
 | `isValidUrl` | `isValidUrl(string)` → boolean | Uses `new URL()` constructor for validation. |
 | `showInfoMessage` | `showInfoMessage(message, type, duration, documentContext)` | Displays toast notification in `#info-message-area`. Falls back to `alert()`. Timeout stored on element (`messageArea._infoTimeout`). |
 | `withTaskLock` | `withTaskLock(asyncFn)` → Promise | Queues async operations sequentially to prevent race conditions. |
@@ -197,8 +232,9 @@ The codebase uses the following ARIA patterns:
 
 ### Testing
 ```bash
+cd tests             # All test infrastructure is in tests/
 npm install          # Install Jest + jsdom
-npm test             # Run all 114 tests
+npm test             # Run all 200 tests
 npm run test:watch   # Watch mode
 npm run test:coverage # Coverage report
 ```
@@ -229,14 +265,22 @@ This makes all listed symbols available as globals in the test scope.
 - `chrome.storage.onChanged.addListener` — Collects listeners, notifies on `set()`
 - `chrome.runtime.lastError` — Settable for error path testing
 - `chrome.runtime.getURL` / `chrome.tabs.create` — Basic stubs
-- `resetChromeStorage()` — Clears store and mocks between tests
+- `global.fetch` — Jest mock stub for Notion/Sheets import tests
+- `resetChromeStorage()` — Clears store, mocks, and fetch mock between tests
 - `seedTasks(tasks)` — Seeds storage with task data for test setup
+- `seedSettings(settings)` — Seeds storage with settings data
+- `seedTimeBlocks(timeBlocks)` — Seeds storage with time block data
 
-### Test Suites (114 total)
-- **task_utils.test.js (44):** Task class, getTasks, saveTasks, addNewTask, getTaskById, updateTask, updateTaskCompletion, deleteTask, showInfoMessage, validateTask, isValidUrl, getTasksAsync, saveTasksAsync, debounce, withTaskLock
-- **popup.test.js (17):** createTaskItem, renderTasks, renderAllTabs, tab switching, add-task validation, open-manager button
-- **manager.test.js (41):** generateDayHeaders, generatePlannerGrid, createTaskElement, renderSidebarLists, renderTasksOnGrid, renderPriorityLists, renderHomeWorkLists, setupTabSwitching, renderPage, highlightCurrentDay
-- **integration.test.js (12):** Task lifecycle (add/retrieve/update/delete), schedule management, cascade completion, ordering, import/merge, validation, cross-tab sync
+The `loadScript` regex also handles `async function` DOMContentLoaded handlers (needed because manager.js and popup.js DOMContentLoaded handlers are now `async`).
+
+### Test Suites (200 total)
+- **task_utils.test.js (~70):** Task class (new fields), getTasks backfill, CRUD, settings CRUD, time blocks, undo/redo stacks, createRecurringInstance, seedSampleTasks, showInfoMessage, validateTask, debounce, withTaskLock
+- **popup.test.js (~17):** createTaskItem (notes, recurrence), renderTasks, renderAllTabs, tab switching, add-task validation, open-manager button
+- **manager.test.js (~60):** generateDayHeaders/generatePlannerGrid (now async), createTaskElement (notes/recurrence badges), renderSidebarLists, renderPriorityLists, renderHomeWorkLists, renderArchiveTab, renderStatsTab, applySearchFilter, setupTabSwitching, renderPage, highlightCurrentDay
+- **integration.test.js (~25):** Task lifecycle, schedule management, cascade completion, ordering, import/merge, validation, cross-tab sync, recurring tasks (auto-instance creation), undo/redo lifecycle
+- **settings.test.js (~20):** applySettings (theme, font-family, font-size CSS vars), initSettings (first-run seeding), populateSettingsForm, openSettingsModal/closeSettingsModal, FONT_FAMILY_MAP/FONT_SIZE_MAP constants
+- **features.test.js (~30):** Notes field (CRUD, backfill), completedAt (set on complete, clear on uncomplete, backfill), undo/redo cycle, createRecurringInstance (daily/weekly/monthly deadline shift), recurring auto-instance via updateTask, archive date grouping
+- **search.test.js (~10):** applySearchFilter (hide non-matching, show all for empty query, case insensitive, multi-container, partial match), setupPrioritySearch, setupLocationSearch
 
 ### Known Limitation
 Coverage reporting via `jest --coverage` shows 0% because `new Function()` execution bypasses Istanbul's code instrumentation. Tests still validate behavior correctly.
@@ -264,10 +308,15 @@ Coverage reporting via `jest --coverage` shows 0% because `new Function()` execu
 
 ## Important Notes
 
-- **Chrome Storage:** `chrome.storage.local` — no external dependencies, no backend
-- **Permissions:** `storage` (data persistence) and `tabs` (open manager page)
+- **Chrome Storage:** `chrome.storage.local` — no external dependencies, no backend. Keys: `tasks`, `settings`, `timeBlocks`
+- **Permissions:** `storage` (data persistence), `tabs` (open manager page), `host_permissions` for `https://api.notion.com/*`
 - **Cross-Page Sync:** Popup and manager stay in sync via `chrome.storage.onChanged` listener with 500ms self-change guard
 - **Task IDs:** Format `task_{timestamp}_{random9chars}` for uniqueness
-- **Backfill/Migration:** `getTasks()` auto-adds missing `displayOrder`, `schedule`, `schedule[].completed`, and `energy` fields on read
+- **Backfill/Migration:** `getTasks()` auto-adds missing `displayOrder`, `schedule`, `schedule[].completed`, `energy`, `notes`, `completedAt`, and `recurrence` fields on read
+- **Script Load Order:** `task_utils.js` → `settings.js` → `manager.js` / `popup.js`. Both HTML files must follow this order.
+- **Async DOMContentLoaded:** Both `manager.js` and `popup.js` DOMContentLoaded handlers are `async`. The `loadScript` helper in tests handles both `function` and `async function` variants.
+- **Undo/Redo Stacks:** `_undoStack` and `_redoStack` are module-level variables in `task_utils.js`. They persist between tests in the same test file since `loadScript` runs once at the top of non-beforeEach files. Ensure tests that depend on an empty redo stack call `pushUndoState()` first (which clears `_redoStack`).
+- **Recurring Task Auto-Instance:** Created inside `updateTask()` within the same `getTasks` callback before `saveTasks()` is called — avoids double-read race condition.
+- **Dark Mode:** Applied via `data-theme` attribute on `<html>` element. CSS uses `:root[data-theme="dark"]` selector. `initSettings()` must be `await`-ed before any render.
 - **No Build Process:** Load directly as unpacked extension; vanilla JS with no transpilation
-- **Test Coverage Limitation:** `new Function()` bypasses Istanbul instrumentation; behavioral coverage is validated through 114 passing tests
+- **Test Coverage Limitation:** `new Function()` bypasses Istanbul instrumentation; behavioral coverage is validated through 200 passing tests

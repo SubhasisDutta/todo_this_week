@@ -4,10 +4,15 @@ const path = require('path');
 
 // Load task_utils
 loadScript(path.join(__dirname, '..', 'task_utils.js'), [
-    'TIME_BLOCKS', 'Task', 'getTasks', 'saveTasks', 'addNewTask', 'getTaskById',
+    'DEFAULT_TIME_BLOCKS', 'TIME_BLOCKS', 'DEFAULT_SETTINGS',
+    'Task', 'getTasks', 'saveTasks', 'addNewTask', 'getTaskById',
     'updateTaskCompletion', 'updateTask', 'deleteTask', 'showInfoMessage',
     'getTasksAsync', 'saveTasksAsync', 'withTaskLock', 'validateTask', 'isValidUrl',
-    'debounce', 'setupStorageSync', '_lastSaveTimestamp'
+    'debounce', 'setupStorageSync', '_lastSaveTimestamp',
+    'getSettings', 'saveSettings', 'seedSampleTasks',
+    'getTimeBlocks', 'saveTimeBlocks',
+    'pushUndoState', 'undo', 'redo',
+    'createRecurringInstance'
 ]);
 
 beforeEach(() => {
@@ -254,4 +259,92 @@ describe('End-to-end: Cross-tab sync', () => {
             done();
         }, 600);
     }, 10000);
+});
+
+describe('End-to-end: Recurring tasks', () => {
+    test('completing a recurring task creates a new instance', async () => {
+        const task = await addNewTask('Daily Standup', '', 'SOMEDAY', null, 'home', 'low', '', 'daily');
+        expect(task.recurrence).toBe('daily');
+
+        const retrieved = await getTaskById(task.id);
+        retrieved.completed = true;
+        await updateTask(retrieved);
+
+        const allTasks = await getTasksAsync();
+        // Should have at least 2 tasks: the completed one + the new recurring instance
+        expect(allTasks.length).toBeGreaterThanOrEqual(2);
+
+        const completedTasks = allTasks.filter(t => t.completed);
+        const activeTasks = allTasks.filter(t => !t.completed);
+        expect(completedTasks.length).toBeGreaterThanOrEqual(1);
+        expect(activeTasks.length).toBeGreaterThanOrEqual(1);
+    });
+
+    test('non-recurring task does not create a new instance on completion', async () => {
+        const task = await addNewTask('One-time task', '', 'SOMEDAY', null, 'home', 'low', '', null);
+        const retrieved = await getTaskById(task.id);
+        retrieved.completed = true;
+        await updateTask(retrieved);
+
+        const allTasks = await getTasksAsync();
+        expect(allTasks.length).toBe(1);
+    });
+
+    test('recurring task instance inherits title and priority', async () => {
+        const task = await addNewTask('Weekly Review', '', 'IMPORTANT', null, 'work', 'high', 'Check KPIs', 'weekly');
+        const retrieved = await getTaskById(task.id);
+        retrieved.completed = true;
+        await updateTask(retrieved);
+
+        const allTasks = await getTasksAsync();
+        const newInstance = allTasks.find(t => !t.completed);
+        expect(newInstance).toBeDefined();
+        expect(newInstance.title).toBe('Weekly Review');
+        expect(newInstance.priority).toBe('IMPORTANT');
+        expect(newInstance.recurrence).toBe('weekly');
+    });
+});
+
+describe('End-to-end: Undo/Redo lifecycle', () => {
+    test('undo restores tasks after deletion', async () => {
+        await addNewTask('Task to delete', '', 'SOMEDAY', null, 'home', 'low');
+        const tasksBefore = await getTasksAsync();
+        pushUndoState(tasksBefore);
+
+        await deleteTask(tasksBefore[0].id);
+        expect((await getTasksAsync()).length).toBe(0);
+
+        await undo();
+        const afterUndo = await getTasksAsync();
+        expect(afterUndo.length).toBe(1);
+        expect(afterUndo[0].title).toBe('Task to delete');
+    });
+
+    test('redo re-applies the undone deletion', async () => {
+        await addNewTask('Task to redo-delete', '', 'SOMEDAY', null, 'home', 'low');
+        const tasksBefore = await getTasksAsync();
+        pushUndoState(tasksBefore);
+
+        await deleteTask(tasksBefore[0].id);
+        await undo();
+        expect((await getTasksAsync()).length).toBe(1);
+
+        await redo();
+        expect((await getTasksAsync()).length).toBe(0);
+    });
+
+    test('pushUndoState caps stack at 5 entries', async () => {
+        // Push 6 states
+        for (let i = 0; i < 6; i++) {
+            const tasks = await getTasksAsync();
+            pushUndoState(tasks);
+            await addNewTask(`Task ${i}`, '', 'SOMEDAY', null, 'home', 'low');
+        }
+        // Undo 5 times should work without error
+        for (let i = 0; i < 5; i++) {
+            await undo();
+        }
+        // 6th undo should be a no-op (stack empty)
+        await undo(); // Should not throw
+    });
 });

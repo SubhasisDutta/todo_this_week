@@ -49,12 +49,39 @@ global.resetChromeStorage = () => {
     chrome.storage.local.set.mockClear();
     chrome.storage.onChanged.addListener.mockClear();
     chromeStorageListeners.length = 0;
+    if (global.fetch && global.fetch.mockClear) global.fetch.mockClear();
+    // Reset undo/redo stacks if they exist in global scope
+    if (typeof global._undoStack !== 'undefined') {
+        global._undoStack.length = 0;
+    }
+    if (typeof global._redoStack !== 'undefined') {
+        global._redoStack.length = 0;
+    }
 };
 
 // Helper to seed storage with tasks
 global.seedTasks = (tasks) => {
     store.tasks = JSON.parse(JSON.stringify(tasks));
 };
+
+// Helper to seed storage with settings
+global.seedSettings = (settings) => {
+    store.settings = JSON.parse(JSON.stringify(settings));
+};
+
+// Helper to seed storage with time blocks
+global.seedTimeBlocks = (timeBlocks) => {
+    store.timeBlocks = JSON.parse(JSON.stringify(timeBlocks));
+};
+
+// Stub global.fetch for Notion/Sheets import tests
+global.fetch = jest.fn(() =>
+    Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({}),
+        text: () => Promise.resolve(''),
+    })
+);
 
 /**
  * Load a browser script file into the global (globalThis) scope for testing.
@@ -74,10 +101,12 @@ global.loadScript = (filePath, exports = [], options = {}) => {
 
     // Optionally convert DOMContentLoaded wrapper into a callable function
     if (options.stripDOMContentLoaded) {
-        const domReadyRegex = /document\.addEventListener\('DOMContentLoaded',\s*function\s*\(\)\s*\{/;
+        // Match both sync and async DOMContentLoaded handlers
+        const domReadyRegex = /document\.addEventListener\('DOMContentLoaded',\s*async\s+function\s*\(\)\s*\{|document\.addEventListener\('DOMContentLoaded',\s*function\s*\(\)\s*\{/;
         const match = code.match(domReadyRegex);
         if (match) {
             const startIdx = code.indexOf(match[0]);
+            const isAsync = match[0].includes('async');
             // Find the matching closing '});' by counting braces from the opening '{'
             let braceCount = 0;
             let closeIdx = -1;
@@ -92,8 +121,9 @@ global.loadScript = (filePath, exports = [], options = {}) => {
                 }
             }
             if (closeIdx !== -1) {
-                // Replace opening with function declaration
-                code = code.substring(0, startIdx) + 'function __initFn__() {' +
+                // Replace opening with function declaration (preserving async if present)
+                const fnDecl = isAsync ? 'async function __initFn__() {' : 'function __initFn__() {';
+                code = code.substring(0, startIdx) + fnDecl +
                     code.substring(startIdx + match[0].length, closeIdx + 1) +
                     code.substring(closeIdx + 1).replace(/^\s*\)\s*;?\s*/, '\n');
             }

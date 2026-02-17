@@ -8,18 +8,31 @@
 </head>
 <body class="manager-page">
     <div class="container manager-container">
-        <h1>Weekly Task Planner</h1>
+
+        <!-- Header with action buttons -->
+        <div class="manager-header">
+            <h1>Weekly Task Planner</h1>
+            <div class="manager-header-actions">
+                <button id="help-btn" class="neumorphic-btn icon-btn" aria-label="Open Help Guide" title="Help">?</button>
+                <button id="settings-btn" class="neumorphic-btn icon-btn" aria-label="Open Settings" title="Settings">⚙️</button>
+            </div>
+        </div>
+
         <div id="info-message-area" class="info-message" style="display: none;" role="status" aria-live="polite"></div>
 
+        <!-- Tab Navigation -->
         <div class="tabs" role="tablist">
             <button class="tab-link active" data-tab="weekly-schedule" role="tab" aria-selected="true" aria-controls="weekly-schedule"><span class="tab-icon">🗓️</span> SCHEDULE</button>
             <button class="tab-link" data-tab="task-lists" role="tab" aria-selected="false" aria-controls="task-lists"><span class="tab-icon">⭐</span> PRIORITY</button>
             <button class="tab-link" data-tab="all-tasks" role="tab" aria-selected="false" aria-controls="all-tasks"><span class="tab-icon">🌍</span> LOCATION</button>
+            <button class="tab-link" data-tab="archive-tab" role="tab" aria-selected="false" aria-controls="archive-tab"><span class="tab-icon">📦</span> ARCHIVE</button>
+            <button class="tab-link" data-tab="stats-tab" role="tab" aria-selected="false" aria-controls="stats-tab"><span class="tab-icon">📊</span> STATS</button>
         </div>
 
-        <!-- Main content area for the two tabs -->
+        <!-- Main content area -->
         <div class="main-content">
-            <!-- Weekly Schedule Tab Content -->
+
+            <!-- SCHEDULE Tab -->
             <div id="weekly-schedule" class="tab-content active" role="tabpanel" aria-labelledby="weekly-schedule">
                 <div class="planner-container">
                     <!-- Column 1: Unassigned Tasks -->
@@ -33,7 +46,7 @@
                     <!-- Column 2: Weekly Grid Planner -->
                     <div class="planner-grid-container">
                         <div id="planner-grid">
-                            <!-- Programmatically generate rows -->
+                            <!-- Programmatically generated -->
                         </div>
                     </div>
 
@@ -48,8 +61,14 @@
                 </div>
             </div>
 
-            <!-- Task Lists Tab Content -->
+            <!-- PRIORITY Tab -->
             <div id="task-lists" class="tab-content" role="tabpanel" aria-labelledby="task-lists">
+                <!-- Search Bar -->
+                <div class="search-bar-container">
+                    <input type="search" id="priority-search-input" class="neumorphic-input" placeholder="🔍 Search tasks by title..." aria-label="Search tasks">
+                    <button id="priority-search-clear" class="neumorphic-btn">Clear</button>
+                </div>
+
                 <div class="add-task-form">
                     <h3>Add New Task</h3>
                     <div class="form-group">
@@ -64,11 +83,11 @@
                         <label>Priority:</label>
                         <div class="radio-group-modern">
                             <input type="radio" id="manager-priority-someday" name="manager-priority" value="SOMEDAY" checked>
-                        <label for="manager-priority-someday">🗓️ Someday</label>
+                            <label for="manager-priority-someday">🗓️ Someday</label>
                             <input type="radio" id="manager-priority-important" name="manager-priority" value="IMPORTANT">
-                        <label for="manager-priority-important">⭐ Important</label>
+                            <label for="manager-priority-important">⭐ Important</label>
                             <input type="radio" id="manager-priority-critical" name="manager-priority" value="CRITICAL">
-                        <label for="manager-priority-critical">🔥 Critical</label>
+                            <label for="manager-priority-critical">🔥 Critical</label>
                         </div>
                     </div>
                     <div class="form-group" id="manager-task-deadline-group" style="display: none;">
@@ -79,26 +98,39 @@
                         <label>Type:</label>
                         <div class="radio-group-modern">
                             <input type="radio" id="manager-type-home" name="manager-type" value="home" checked>
-                        <label for="manager-type-home">🏠 Home</label>
+                            <label for="manager-type-home">🏠 Home</label>
                             <input type="radio" id="manager-type-work" name="manager-type" value="work">
-                        <label for="manager-type-work">💼 Work</label>
+                            <label for="manager-type-work">💼 Work</label>
                         </div>
                     </div>
                     <div class="form-group">
                         <label>Energy:</label>
                         <div class="radio-group-modern horizontal">
                             <input type="radio" id="manager-energy-low" name="manager-energy" value="low" checked>
-                        <label for="manager-energy-low">🍃 Low</label>
+                            <label for="manager-energy-low">🍃 Low</label>
                             <input type="radio" id="manager-energy-high" name="manager-energy" value="high">
-                        <label for="manager-energy-high">⚡ High</label>
+                            <label for="manager-energy-high">⚡ High</label>
                         </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="manager-task-recurrence">Recurrence:</label>
+                        <select id="manager-task-recurrence" class="neumorphic-select">
+                            <option value="">None</option>
+                            <option value="daily">🔄 Daily</option>
+                            <option value="weekly">🔄 Weekly</option>
+                            <option value="monthly">🔄 Monthly</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="manager-task-notes">Notes (Optional):</label>
+                        <textarea id="manager-task-notes" class="neumorphic-input" rows="3" placeholder="Add any details..."></textarea>
                     </div>
                     <button id="manager-add-task-btn" class="neumorphic-btn">Add Task</button>
                 </div>
                 <hr class="neumorphic-divider">
                 <h2>All Tasks</h2>
                 <div class="tasks-display-area">
-                     <div class="priority-column">
+                    <div class="priority-column">
                         <h3>Critical</h3>
                         <div id="critical-tasks-list" class="task-list neumorphic-inset-card"></div>
                     </div>
@@ -113,8 +145,13 @@
                 </div>
             </div>
 
-            <!-- All Tasks Tab Content -->
+            <!-- LOCATION Tab -->
             <div id="all-tasks" class="tab-content" role="tabpanel" aria-labelledby="all-tasks">
+                <!-- Search Bar -->
+                <div class="search-bar-container">
+                    <input type="search" id="location-search-input" class="neumorphic-input" placeholder="🔍 Search tasks by title..." aria-label="Search tasks">
+                    <button id="location-search-clear" class="neumorphic-btn">Clear</button>
+                </div>
                 <div class="tasks-display-area">
                     <div class="priority-column">
                         <h3>Home</h3>
@@ -126,17 +163,418 @@
                     </div>
                 </div>
             </div>
+
+            <!-- ARCHIVE Tab -->
+            <div id="archive-tab" class="tab-content" role="tabpanel" aria-labelledby="archive-tab">
+                <div class="archive-header">
+                    <h2>Completed Tasks Archive</h2>
+                    <button id="clear-all-completed-btn" class="neumorphic-btn">🗑️ Clear All Completed</button>
+                </div>
+                <div id="archive-list">
+                    <!-- Rendered by renderArchiveTab() -->
+                </div>
+            </div>
+
+            <!-- STATS Tab -->
+            <div id="stats-tab" class="tab-content" role="tabpanel" aria-labelledby="stats-tab">
+                <div id="stats-content">
+                    <!-- Rendered by renderStatsTab() -->
+                </div>
+            </div>
+
+        </div><!-- end .main-content -->
+
+        <!-- Undo Toast -->
+        <div id="undo-toast" class="hidden" role="alert" aria-live="assertive">
+            <span id="undo-toast-message"></span>
+            <button class="undo-link" id="undo-action-btn">Undo</button>
+            <button class="undo-link" id="undo-dismiss-btn" style="color: var(--text-muted); text-decoration: none;">✕</button>
         </div>
-        <div class="feature-container">
-            <h2>Import/Export Tasks</h2>
-            <div class="buttons-container">
-                <button id="export-tasks-btn" class="neumorphic-btn">Export Tasks</button>
-                <button id="import-tasks-btn" class="neumorphic-btn">Import Tasks</button>
-                <input type="file" id="import-file-input" style="display: none;" accept=".json">
+
+    </div><!-- end .manager-container -->
+
+    <!-- ============================
+         SETTINGS MODAL
+         ============================ -->
+    <div id="settings-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="settings-title">⚙️ Settings</h2>
+                <button id="settings-close-btn" class="neumorphic-btn icon-btn" aria-label="Close Settings">✕</button>
+            </div>
+
+            <!-- Appearance -->
+            <section class="settings-section">
+                <h3>Appearance</h3>
+                <div class="form-group">
+                    <label>Theme</label>
+                    <div class="toggle-switch-container">
+                        <span>☀️ Light</span>
+                        <label class="toggle-switch" for="dark-mode-toggle" aria-label="Toggle dark mode">
+                            <input type="checkbox" id="dark-mode-toggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>🌙 Dark</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="font-family-select">Font Family</label>
+                    <select id="font-family-select" class="neumorphic-select">
+                        <option value="system">System Default</option>
+                        <option value="inter">Inter</option>
+                        <option value="georgia">Georgia (Serif)</option>
+                        <option value="courier">Courier New (Mono)</option>
+                        <option value="roboto-mono">Roboto Mono</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="font-size-select">Font Size</label>
+                    <select id="font-size-select" class="neumorphic-select">
+                        <option value="small">Small (13px)</option>
+                        <option value="medium">Medium (15px)</option>
+                        <option value="large">Large (17px)</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- Import / Export -->
+            <section class="settings-section">
+                <h3>Import / Export Tasks</h3>
+                <div class="buttons-container">
+                    <button id="export-tasks-btn" class="neumorphic-btn">⬇️ Export Tasks</button>
+                    <button id="import-tasks-btn" class="neumorphic-btn">⬆️ Import Tasks</button>
+                    <input type="file" id="import-file-input" style="display: none;" accept=".json">
+                </div>
+            </section>
+
+            <!-- Notion Import -->
+            <section class="settings-section">
+                <h3>Import from Notion</h3>
+                <p style="font-size:0.82em; color:var(--text-muted); margin:0 0 10px;">Enter your Notion integration token and Database ID. <a href="https://developers.notion.com/docs/create-a-notion-integration" target="_blank" style="color:var(--accent-blue)">How to get these?</a></p>
+                <div class="form-group">
+                    <label for="notion-api-key">Notion Integration Token</label>
+                    <input type="password" id="notion-api-key" class="neumorphic-input" placeholder="secret_...">
+                </div>
+                <div class="form-group">
+                    <label for="notion-database-id">Database ID</label>
+                    <input type="text" id="notion-database-id" class="neumorphic-input" placeholder="32-character database ID">
+                </div>
+                <button id="notion-fetch-btn" class="neumorphic-btn">Fetch Notion Pages</button>
+                <div id="notion-pages-list" class="notion-pages-list hidden"></div>
+                <button id="notion-import-btn" class="neumorphic-btn hidden" style="margin-top:8px;">✅ Import Selected</button>
+            </section>
+
+            <!-- Google Sheets Import -->
+            <section class="settings-section">
+                <h3>Import from Google Sheets</h3>
+                <p style="font-size:0.82em; color:var(--text-muted); margin:0 0 10px;">Publish your sheet as CSV (File → Share → Publish to web → CSV). Required column: <strong>title</strong>. Optional: priority, type, energy, url, deadline, notes, recurrence.</p>
+                <div class="form-group">
+                    <label for="sheets-url">Published CSV URL</label>
+                    <input type="url" id="sheets-url" class="neumorphic-input" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv">
+                </div>
+                <button id="sheets-fetch-btn" class="neumorphic-btn">Preview Sheet</button>
+                <div id="sheets-preview" class="sheets-preview hidden"></div>
+                <button id="sheets-import-btn" class="neumorphic-btn hidden" style="margin-top:8px;">✅ Import Rows</button>
+            </section>
+
+            <!-- Time Blocks Configuration -->
+            <section class="settings-section">
+                <h3>Time Blocks</h3>
+                <p style="font-size:0.82em; color:var(--text-muted); margin:0 0 10px;">Configure the time blocks in your weekly planner grid.</p>
+                <div id="time-blocks-table-container"></div>
+                <div class="buttons-container" style="margin-top:10px; gap:8px;">
+                    <button id="reset-time-blocks-btn" class="neumorphic-btn">↩️ Reset to Defaults</button>
+                    <button id="add-time-block-btn" class="neumorphic-btn">➕ Add Block</button>
+                </div>
+                <div id="add-time-block-form" class="hidden" style="margin-top:14px; padding:14px; background:var(--inset-bg); border-radius:var(--border-radius-md);">
+                    <div class="form-group">
+                        <label for="new-block-label">Label</label>
+                        <input type="text" id="new-block-label" class="neumorphic-input" placeholder="e.g. Deep Focus">
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <div class="form-group" style="flex:1;">
+                            <label for="new-block-start">Start Time</label>
+                            <input type="time" id="new-block-start" class="neumorphic-input">
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label for="new-block-end">End Time</label>
+                            <input type="time" id="new-block-end" class="neumorphic-input">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-block-limit">Slot Limit</label>
+                        <select id="new-block-limit" class="neumorphic-select">
+                            <option value="0">Blocked (0 tasks)</option>
+                            <option value="1">Single task (1)</option>
+                            <option value="multiple" selected>Multiple tasks</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-block-color">Color</label>
+                        <select id="new-block-color" class="neumorphic-select">
+                            <option value="">None (default)</option>
+                            <option value="block-color-sakura">🌸 Sakura</option>
+                            <option value="block-color-yellow">🌟 Yellow</option>
+                            <option value="block-color-purple">💜 Purple</option>
+                            <option value="block-color-sage">🌿 Sage</option>
+                            <option value="block-color-skyblue">🩵 Sky Blue</option>
+                            <option value="block-color-orange">🔶 Orange</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:10px;">
+                        <button id="save-new-block-btn" class="neumorphic-btn">Save Block</button>
+                        <button id="cancel-new-block-btn" class="neumorphic-btn">Cancel</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Save Settings -->
+            <div style="text-align:center; margin-top:8px;">
+                <button id="save-settings-btn" class="neumorphic-btn" style="min-width:160px;">💾 Save Settings</button>
             </div>
         </div>
     </div>
+
+    <!-- ============================
+         HELP MODAL
+         ============================ -->
+    <div id="help-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="help-title">
+        <div class="modal-content modal-content-large">
+            <div class="modal-header">
+                <h2 id="help-title">📖 Help Guide</h2>
+                <button id="help-close-btn" class="neumorphic-btn icon-btn" aria-label="Close Help">✕</button>
+            </div>
+
+            <!-- Help Tabs -->
+            <div class="help-tabs" role="tablist">
+                <button class="tab-link active" data-help-tab="help-overview" role="tab" aria-selected="true">Overview</button>
+                <button class="tab-link" data-help-tab="help-quickstart" role="tab" aria-selected="false">Quick Start</button>
+                <button class="tab-link" data-help-tab="help-schedule" role="tab" aria-selected="false">Schedule</button>
+                <button class="tab-link" data-help-tab="help-priority" role="tab" aria-selected="false">Priority</button>
+                <button class="tab-link" data-help-tab="help-location" role="tab" aria-selected="false">Location</button>
+                <button class="tab-link" data-help-tab="help-settings-guide" role="tab" aria-selected="false">Settings</button>
+                <button class="tab-link" data-help-tab="help-import-export" role="tab" aria-selected="false">Import/Export</button>
+            </div>
+
+            <!-- Help Content Panels -->
+            <div class="help-content">
+
+                <!-- Overview -->
+                <div id="help-overview" class="help-panel active">
+                    <h3 class="help-section-title">📋 Weekly Task Manager Overview</h3>
+                    <p>The <strong>Weekly Task Manager</strong> is a Chrome extension that helps you organize your work using a <em>time-blocking</em> methodology. Capture tasks, prioritize them, and schedule them into specific time slots in your week.</p>
+
+                    <div class="help-diagram">┌─────────────────────────────────────────────────┐
+│           WEEKLY TASK PLANNER                   │
+├──────────┬──────────────────────────┬────────────┤
+│Unassigned│    Weekly Grid (7 days)  │  Assigned  │
+│ Tasks    │  Mon  Tue  Wed  Thu  Fri │  Tasks     │
+│          ├─────┬─────┬─────┬─────┬─┤            │
+│ [Task A] │  🔥 │     │ ⭐  │     │ │ [Task B]   │
+│ [Task C] │     │ 🗓️  │     │     │ │ [Task D]   │
+│          │     │     │     │     │ │            │
+└──────────┴─────┴─────┴─────┴─────┴─┴────────────┘</div>
+
+                    <p><strong>Key Concepts:</strong></p>
+                    <ul>
+                        <li>🔥 <strong>CRITICAL</strong> — Urgent tasks with a deadline. Always visible at top.</li>
+                        <li>⭐ <strong>IMPORTANT</strong> — High-value tasks you should do this week.</li>
+                        <li>🗓️ <strong>SOMEDAY</strong> — Backlog items with no fixed timeline.</li>
+                        <li>🏠 <strong>Home</strong> / 💼 <strong>Work</strong> — Category for filtering.</li>
+                        <li>🍃 <strong>Low</strong> / ⚡ <strong>High</strong> energy — Match tasks to your energy levels.</li>
+                        <li>🔄 <strong>Recurring</strong> — Tasks that auto-renew daily/weekly/monthly.</li>
+                    </ul>
+                </div>
+
+                <!-- Quick Start -->
+                <div id="help-quickstart" class="help-panel">
+                    <h3 class="help-section-title">🚀 Quick Start Workflow</h3>
+
+                    <div class="help-step">
+                        <div class="help-step-number">1</div>
+                        <div class="help-step-content">
+                            <h4>Add your tasks</h4>
+                            <p>Go to the <strong>PRIORITY tab</strong>, fill in the title, priority, type, and energy. Click <em>Add Task</em>. Or use the popup's ADD tab for quick capture.</p>
+                        </div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">2</div>
+                        <div class="help-step-content">
+                            <h4>Schedule tasks to time blocks</h4>
+                            <p>In the <strong>SCHEDULE tab</strong>, drag tasks from the left sidebar onto the grid cells. Each column is a day; each row is a time block.</p>
+                        </div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">3</div>
+                        <div class="help-step-content">
+                            <h4>Work through your day</h4>
+                            <p>Open the popup and go to <strong>TODAY tab</strong> to see tasks scheduled for today, grouped by time block. Check them off as you complete them.</p>
+                        </div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">4</div>
+                        <div class="help-step-content">
+                            <h4>Review completed tasks</h4>
+                            <p>Visit the <strong>ARCHIVE tab</strong> to see all completed tasks grouped by date. You can restore tasks or clear them.</p>
+                        </div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">5</div>
+                        <div class="help-step-content">
+                            <h4>Review your progress</h4>
+                            <p>Check the <strong>STATS tab</strong> for completion rates, priority distribution, and productivity charts.</p>
+                        </div>
+                    </div>
+
+                    <div class="help-tip">💡 <strong>Tip:</strong> Press <kbd>Ctrl+Z</kbd> to undo the last destructive action (delete, complete, unassign all).</div>
+                </div>
+
+                <!-- Schedule Tab -->
+                <div id="help-schedule" class="help-panel">
+                    <h3 class="help-section-title">🗓️ Schedule Tab</h3>
+                    <p>The Schedule tab is the heart of the planner — a weekly grid of days × time blocks.</p>
+
+                    <div class="help-diagram">  Time    | Mon  | Tue  | Wed  | Thu  | Fri
+──────────┼──────┼──────┼──────┼──────┼──────
+[1PM-3PM] │  🔥  │      │  ⭐  │      │
+Deep Work │Task A│      │Task C│      │
+──────────┼──────┼──────┼──────┼──────┼──────
+[3PM-6PM] │      │  🗓️  │      │      │
+Deep Wk 2 │      │Task B│      │      │     </div>
+
+                    <div class="help-step">
+                        <div class="help-step-number">1</div>
+                        <div class="help-step-content"><h4>Drag to schedule</h4><p>Drag a task from the <strong>Unassigned</strong> sidebar onto any grid cell to schedule it for that day and time block.</p></div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">2</div>
+                        <div class="help-step-content"><h4>Use the schedule form</h4><p>Click ⏱️ on a task to open a scheduling grid — select multiple day/block combinations at once.</p></div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">3</div>
+                        <div class="help-step-content"><h4>Slot limits</h4><p>Some blocks (marked grey) are <strong>blocked</strong> (Sleep, Morning Prep, Lunch) and cannot receive tasks. Deep Work blocks accept only 1 task.</p></div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">4</div>
+                        <div class="help-step-content"><h4>Unassign tasks</h4><p>Drag a task from the grid back to the <strong>Unassigned</strong> sidebar to remove its schedule. Use <em>Unassign All</em> to clear the entire week.</p></div>
+                    </div>
+
+                    <div class="help-tip">💡 Today's column is highlighted in blue. Tasks in the Assigned sidebar can be expanded to see their individual schedule items and check them off.</div>
+                </div>
+
+                <!-- Priority Tab -->
+                <div id="help-priority" class="help-panel">
+                    <h3 class="help-section-title">⭐ Priority Tab</h3>
+                    <p>The Priority tab shows all your tasks organized in three columns by priority level.</p>
+
+                    <div class="help-diagram">┌──────────────┬──────────────┬──────────────┐
+│   CRITICAL   │  IMPORTANT   │   SOMEDAY    │
+│  🔥 Deadline │  ⭐ High val │  🗓️ Backlog  │
+├──────────────┼──────────────┼──────────────┤
+│ [Task A] ↑↓  │ [Task C] ↑↓  │ [Task E] ↑↓  │
+│ Edit | Delete│ Edit | Delete│ Edit | Delete│
+│ [Task B]     │ [Task D]     │ [Task F]     │
+└──────────────┴──────────────┴──────────────┘</div>
+
+                    <div class="help-step">
+                        <div class="help-step-number">1</div>
+                        <div class="help-step-content"><h4>Add tasks</h4><p>Use the form at the top to add new tasks. CRITICAL tasks require a deadline date.</p></div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">2</div>
+                        <div class="help-step-content"><h4>Reorder tasks</h4><p>Use the ↑ ↓ buttons to change the display order within a priority group.</p></div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">3</div>
+                        <div class="help-step-content"><h4>Edit tasks inline</h4><p>Click <em>Edit</em> to open an inline editing form. Changes auto-save after 1.5 seconds, or click <em>Save</em> immediately.</p></div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">4</div>
+                        <div class="help-step-content"><h4>Search tasks</h4><p>Use the search bar at the top to filter tasks by title. The filter is case-insensitive and updates as you type.</p></div>
+                    </div>
+
+                    <div class="help-tip">💡 CRITICAL tasks show days remaining or overdue. A task with all schedule items completed will automatically be marked complete.</div>
+                </div>
+
+                <!-- Location Tab -->
+                <div id="help-location" class="help-panel">
+                    <h3 class="help-section-title">🌍 Location Tab</h3>
+                    <p>The Location tab separates tasks into <strong>Home</strong> and <strong>Work</strong> categories, letting you focus on the right context.</p>
+
+                    <div class="help-diagram">┌─────────────────┬─────────────────┐
+│   🏠 HOME       │   💼 WORK        │
+├─────────────────┼─────────────────┤
+│ 🔥 Grocery list │ 🔥 Q4 Report     │
+│ ⭐ Read book    │ ⭐ Team meeting   │
+│ 🗓️ Organize desk│ 🗓️ Update docs  │
+└─────────────────┴─────────────────┘</div>
+
+                    <p>Within each column, tasks are sorted by priority (Critical → Important → Someday) then by display order.</p>
+                    <p>Use the <strong>search bar</strong> at the top to quickly find tasks by title across both columns.</p>
+                    <p>Use the Edit button to change a task's type (Home ↔ Work) — it will move to the correct column after saving.</p>
+                </div>
+
+                <!-- Settings -->
+                <div id="help-settings-guide" class="help-panel">
+                    <h3 class="help-section-title">⚙️ Settings</h3>
+                    <p>Click the ⚙️ icon in the top-right corner to open Settings.</p>
+
+                    <div class="help-step">
+                        <div class="help-step-number">1</div>
+                        <div class="help-step-content"><h4>Dark / Light Mode</h4><p>Toggle the theme switch. Changes apply immediately as a preview. Click <em>Save Settings</em> to persist.</p></div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">2</div>
+                        <div class="help-step-content"><h4>Font Family &amp; Size</h4><p>Choose from 5 font families and 3 sizes. Preview updates live as you select.</p></div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">3</div>
+                        <div class="help-step-content"><h4>Notion Import</h4><p>Enter your Notion Integration Token and Database ID. Click <em>Fetch Pages</em>, select which pages to import, then click <em>Import Selected</em>. Pages become tasks with their title and priority.</p></div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">4</div>
+                        <div class="help-step-content"><h4>Google Sheets Import</h4><p>Publish your Google Sheet as CSV (File → Share → Publish to web). Paste the CSV URL, click <em>Preview Sheet</em>, then <em>Import Rows</em>. Required column: <strong>title</strong>.</p></div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">5</div>
+                        <div class="help-step-content"><h4>Time Blocks</h4><p>View, add, or delete time blocks in the weekly grid. Click <em>+ Add Block</em> and fill in the label, times, slot limit, and color. Use <em>Reset to Defaults</em> to restore the original configuration.</p></div>
+                    </div>
+                </div>
+
+                <!-- Import/Export -->
+                <div id="help-import-export" class="help-panel">
+                    <h3 class="help-section-title">📤 Import / Export</h3>
+                    <p>Back up your tasks to a JSON file and restore them later, or transfer between devices.</p>
+
+                    <div class="help-step">
+                        <div class="help-step-number">1</div>
+                        <div class="help-step-content">
+                            <h4>Export Tasks</h4>
+                            <p>Open Settings (⚙️) → click <em>Export Tasks</em>. A file named <code>tasks-YYYY-MM-DD.json</code> will be downloaded containing all your tasks.</p>
+                        </div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">2</div>
+                        <div class="help-step-content">
+                            <h4>Import Tasks</h4>
+                            <p>Open Settings (⚙️) → click <em>Import Tasks</em> → select a JSON file. The import <strong>merges</strong> with existing tasks: tasks with matching IDs are updated; new IDs are added.</p>
+                        </div>
+                    </div>
+
+                    <div class="help-diagram">Import Logic:
+  Existing task ID → UPDATE (merge)
+  New task ID     → APPEND (add)
+  No duplicates   → Safe to re-import</div>
+
+                    <div class="help-tip">💡 The JSON format is a plain array of task objects. You can also manually edit the JSON to bulk-create tasks.</div>
+                </div>
+
+            </div><!-- end .help-content -->
+        </div>
+    </div>
+
     <script src="task_utils.js"></script>
+    <script src="settings.js"></script>
     <script src="manager.js"></script>
 </body>
 </html>

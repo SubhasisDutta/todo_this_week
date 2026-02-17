@@ -77,12 +77,26 @@
                         <label for="energy-high">⚡ High</label>
                     </div>
                 </div>
+                <div class="form-group">
+                    <label for="task-recurrence">Recurrence:</label>
+                    <select id="task-recurrence" class="neumorphic-select">
+                        <option value="">None</option>
+                        <option value="daily">🔄 Daily</option>
+                        <option value="weekly">🔄 Weekly</option>
+                        <option value="monthly">🔄 Monthly</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="task-notes">Notes (Optional):</label>
+                    <textarea id="task-notes" class="neumorphic-input" rows="3" placeholder="Add any details or context..."></textarea>
+                </div>
                 <button id="add-task-btn" class="neumorphic-btn">Add Task</button>
             </div>
         </div>
 
     </div>
     <script src="task_utils.js"></script>
+    <script src="settings.js"></script>
     <script src="popup.js"></script>
 </body>
 </html>

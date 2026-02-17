@@ -4,10 +4,15 @@ const path = require('path');
 
 // Load task_utils.js into global scope
 loadScript(path.join(__dirname, '..', 'task_utils.js'), [
-    'TIME_BLOCKS', 'Task', 'getTasks', 'saveTasks', 'addNewTask', 'getTaskById',
+    'DEFAULT_TIME_BLOCKS', 'TIME_BLOCKS', 'DEFAULT_SETTINGS',
+    'Task', 'getTasks', 'saveTasks', 'addNewTask', 'getTaskById',
     'updateTaskCompletion', 'updateTask', 'deleteTask', 'showInfoMessage',
     'getTasksAsync', 'saveTasksAsync', 'withTaskLock', 'validateTask', 'isValidUrl',
-    'debounce', 'setupStorageSync', '_lastSaveTimestamp'
+    'debounce', 'setupStorageSync', '_lastSaveTimestamp',
+    'getSettings', 'saveSettings', 'seedSampleTasks',
+    'getTimeBlocks', 'saveTimeBlocks',
+    'pushUndoState', 'undo', 'redo',
+    'createRecurringInstance'
 ]);
 
 beforeEach(() => {
@@ -389,5 +394,177 @@ describe('withTaskLock', () => {
         });
         await op2;
         expect(order).toEqual(['start1', 'end1', 'start2', 'end2']);
+    });
+});
+
+describe('Task new fields', () => {
+    test('new Task has notes, completedAt, recurrence defaults', () => {
+        const task = new Task(null, 'Test');
+        expect(task.notes).toBe('');
+        expect(task.completedAt).toBeNull();
+        expect(task.recurrence).toBeNull();
+    });
+
+    test('Task accepts notes, completedAt, recurrence params', () => {
+        const task = new Task('id1', 'Title', '', 'SOMEDAY', false, null, 'home', 0, [], 'low', 'Some notes', '2025-01-01T00:00:00.000Z', 'weekly');
+        expect(task.notes).toBe('Some notes');
+        expect(task.completedAt).toBe('2025-01-01T00:00:00.000Z');
+        expect(task.recurrence).toBe('weekly');
+    });
+});
+
+describe('getTasks backfill for new fields', () => {
+    test('backfills missing notes', (done) => {
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' }]);
+        getTasks(tasks => {
+            expect(tasks[0].notes).toBe('');
+            done();
+        });
+    });
+
+    test('backfills missing completedAt', (done) => {
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' }]);
+        getTasks(tasks => {
+            expect(tasks[0].completedAt).toBeNull();
+            done();
+        });
+    });
+
+    test('backfills missing recurrence', (done) => {
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' }]);
+        getTasks(tasks => {
+            expect(tasks[0].recurrence).toBeNull();
+            done();
+        });
+    });
+});
+
+describe('getSettings / saveSettings', () => {
+    test('getSettings returns defaults when nothing stored', async () => {
+        const settings = await getSettings();
+        expect(settings.theme).toBe('light');
+        expect(settings.fontFamily).toBe('system');
+        expect(settings.fontSize).toBe('medium');
+        expect(settings.hasSeenSampleTasks).toBe(false);
+    });
+
+    test('saveSettings persists and getSettings retrieves', async () => {
+        await saveSettings({ theme: 'dark', fontFamily: 'inter', fontSize: 'large', hasSeenSampleTasks: true, notionApiKey: '', notionDatabaseId: '', googleSheetsUrl: '' });
+        const settings = await getSettings();
+        expect(settings.theme).toBe('dark');
+        expect(settings.fontFamily).toBe('inter');
+        expect(settings.fontSize).toBe('large');
+    });
+
+    test('getSettings merges stored values with defaults', async () => {
+        seedSettings({ theme: 'dark' });
+        const settings = await getSettings();
+        expect(settings.theme).toBe('dark');
+        expect(settings.fontFamily).toBe('system'); // default
+    });
+});
+
+describe('getTimeBlocks / saveTimeBlocks', () => {
+    test('getTimeBlocks returns DEFAULT_TIME_BLOCKS when nothing stored', async () => {
+        const blocks = await getTimeBlocks();
+        expect(blocks).toHaveLength(DEFAULT_TIME_BLOCKS.length);
+        expect(blocks[0].id).toBe(DEFAULT_TIME_BLOCKS[0].id);
+    });
+
+    test('saveTimeBlocks persists and getTimeBlocks retrieves', async () => {
+        const custom = [{ id: 'custom-block', label: 'Custom', time: '[9AM-10AM]', limit: '1', colorClass: '' }];
+        await saveTimeBlocks(custom);
+        const blocks = await getTimeBlocks();
+        expect(blocks).toHaveLength(1);
+        expect(blocks[0].id).toBe('custom-block');
+    });
+});
+
+describe('addNewTask with notes and recurrence', () => {
+    test('addNewTask stores notes field', async () => {
+        const task = await addNewTask('Test', '', 'SOMEDAY', null, 'home', 'low', 'My notes', null);
+        expect(task.notes).toBe('My notes');
+    });
+
+    test('addNewTask stores recurrence field', async () => {
+        const task = await addNewTask('Test', '', 'SOMEDAY', null, 'home', 'low', '', 'weekly');
+        expect(task.recurrence).toBe('weekly');
+    });
+});
+
+describe('createRecurringInstance', () => {
+    test('creates a new task with new id', () => {
+        const task = new Task('orig-id', 'Recurring', '', 'SOMEDAY', false, null, 'home', 0, [], 'low', '', null, 'daily');
+        const instance = createRecurringInstance(task);
+        expect(instance.id).not.toBe('orig-id');
+        expect(instance.title).toBe('Recurring');
+    });
+
+    test('new instance has empty schedule and completed=false', () => {
+        const task = new Task('id1', 'Test', '', 'SOMEDAY', true, null, 'home', 0, [{ day: 'monday', blockId: 'ai-study', completed: true }], 'low', '', null, 'weekly');
+        const instance = createRecurringInstance(task);
+        expect(instance.schedule).toEqual([]);
+        expect(instance.completed).toBe(false);
+    });
+
+    test('shifts deadline by 1 day for daily recurrence', () => {
+        const task = new Task('id1', 'Test', '', 'CRITICAL', false, '2025-06-01', 'home', 0, [], 'low', '', null, 'daily');
+        const instance = createRecurringInstance(task);
+        expect(instance.deadline).toBe('2025-06-02');
+    });
+
+    test('shifts deadline by 7 days for weekly recurrence', () => {
+        const task = new Task('id1', 'Test', '', 'CRITICAL', false, '2025-06-01', 'home', 0, [], 'low', '', null, 'weekly');
+        const instance = createRecurringInstance(task);
+        expect(instance.deadline).toBe('2025-06-08');
+    });
+});
+
+describe('pushUndoState / undo / redo', () => {
+    test('undo restores previous state', async () => {
+        const task1 = await addNewTask('Task A', '', 'SOMEDAY', null, 'home', 'low');
+        const tasksBefore = await getTasksAsync();
+        pushUndoState(tasksBefore);
+
+        await addNewTask('Task B', '', 'SOMEDAY', null, 'home', 'low');
+        const tasksAfterAdd = await getTasksAsync();
+        expect(tasksAfterAdd).toHaveLength(2);
+
+        await undo();
+        const tasksAfterUndo = await getTasksAsync();
+        expect(tasksAfterUndo).toHaveLength(1);
+        expect(tasksAfterUndo[0].title).toBe('Task A');
+    });
+
+    test('redo re-applies undone state', async () => {
+        await addNewTask('Task A', '', 'SOMEDAY', null, 'home', 'low');
+        const tasksBeforeDelete = await getTasksAsync();
+        pushUndoState(tasksBeforeDelete);
+
+        // Delete the task
+        await deleteTask(tasksBeforeDelete[0].id);
+        expect(await getTasksAsync()).toHaveLength(0);
+
+        // Undo the delete
+        await undo();
+        expect(await getTasksAsync()).toHaveLength(1);
+
+        // Redo the delete
+        await redo();
+        expect(await getTasksAsync()).toHaveLength(0);
+    });
+});
+
+describe('seedSampleTasks', () => {
+    test('creates sample tasks if none exist', async () => {
+        const result = await seedSampleTasks();
+        const tasks = await getTasksAsync();
+        expect(tasks.length).toBeGreaterThan(0);
+    });
+
+    test('marks hasSeenSampleTasks=true in settings', async () => {
+        await seedSampleTasks();
+        const settings = await getSettings();
+        expect(settings.hasSeenSampleTasks).toBe(true);
     });
 });

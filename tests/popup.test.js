@@ -4,10 +4,22 @@ const path = require('path');
 
 // Load task_utils first (dependency)
 loadScript(path.join(__dirname, '..', 'task_utils.js'), [
-    'TIME_BLOCKS', 'Task', 'getTasks', 'saveTasks', 'addNewTask', 'getTaskById',
+    'DEFAULT_TIME_BLOCKS', 'TIME_BLOCKS', 'DEFAULT_SETTINGS',
+    'Task', 'getTasks', 'saveTasks', 'addNewTask', 'getTaskById',
     'updateTaskCompletion', 'updateTask', 'deleteTask', 'showInfoMessage',
     'getTasksAsync', 'saveTasksAsync', 'withTaskLock', 'validateTask', 'isValidUrl',
-    'debounce', 'setupStorageSync', '_lastSaveTimestamp'
+    'debounce', 'setupStorageSync', '_lastSaveTimestamp',
+    'getSettings', 'saveSettings', 'seedSampleTasks',
+    'getTimeBlocks', 'saveTimeBlocks',
+    'pushUndoState', 'undo', 'redo',
+    'createRecurringInstance'
+]);
+
+// Load settings.js (dependency of popup.js — provides initSettings)
+loadScript(path.join(__dirname, '..', 'settings.js'), [
+    'applySettings', 'initSettings',
+    'openSettingsModal', 'closeSettingsModal',
+    'setupSettingsModalListeners'
 ]);
 
 // Setup popup HTML before loading popup.js
@@ -40,6 +52,13 @@ function setupPopupDOM() {
                     <input type="radio" id="type-work" name="type" value="work">
                     <input type="radio" id="energy-low" name="energy" value="low" checked>
                     <input type="radio" id="energy-high" name="energy" value="high">
+                    <select id="task-recurrence">
+                        <option value="">None</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                    <textarea id="task-notes" rows="3"></textarea>
                     <button id="add-task-btn" class="neumorphic-btn">Add Task</button>
                 </div>
             </div>

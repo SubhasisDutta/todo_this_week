@@ -1,6 +1,7 @@
 // task_utils.js
 
-const TIME_BLOCKS = [
+// --- TIME BLOCKS ---
+const DEFAULT_TIME_BLOCKS = [
     { id: 'late-night-read', label: 'Late Night Read', time: '[12AM-1AM]', limit: 'multiple', colorClass: 'block-color-sakura' },
     { id: 'sleep', label: 'Sleep', time: '[1AM-7AM]', limit: '0', colorClass: '' },
     { id: 'ai-study', label: 'AI study time', time: '[7AM-8AM]', limit: '1', colorClass: 'block-color-yellow' },
@@ -14,9 +15,36 @@ const TIME_BLOCKS = [
     { id: 'night-build', label: 'Night Build Block', time: '[10PM-11PM]', limit: '1', colorClass: 'block-color-orange' }
 ];
 
+// Alias for backward compatibility
+const TIME_BLOCKS = DEFAULT_TIME_BLOCKS;
+
+// --- Default Settings ---
+const DEFAULT_SETTINGS = {
+    theme: 'light',
+    fontFamily: 'system',
+    fontSize: 'medium',
+    hasSeenSampleTasks: false,
+    notionApiKey: '',
+    notionDatabaseId: '',
+    googleSheetsUrl: ''
+};
+
 // --- Task Data Structure and Storage ---
 class Task {
-    constructor(id, title, url = '', priority = 'SOMEDAY', completed = false, deadline = null, type = 'home', displayOrder = 0, schedule = [], energy = 'low') {
+    constructor(
+        id, title,
+        url = '',
+        priority = 'SOMEDAY',
+        completed = false,
+        deadline = null,
+        type = 'home',
+        displayOrder = 0,
+        schedule = [],
+        energy = 'low',
+        notes = '',
+        completedAt = null,
+        recurrence = null
+    ) {
         this.id = id || `task_${new Date().getTime()}_${Math.random().toString(36).substr(2, 9)}`;
         this.title = title;
         this.url = url;
@@ -27,6 +55,9 @@ class Task {
         this.displayOrder = displayOrder;
         this.schedule = schedule;
         this.energy = energy;
+        this.notes = notes;
+        this.completedAt = completedAt;
+        this.recurrence = recurrence;
     }
 }
 
@@ -50,7 +81,6 @@ function getTasks(callback) {
                     taskInstance.schedule = [];
                     needsSave = true;
                 } else {
-                    // This is the new migration logic for schedule items
                     taskInstance.schedule.forEach(scheduleItem => {
                         if (typeof scheduleItem.completed === 'undefined') {
                             scheduleItem.completed = false;
@@ -60,6 +90,19 @@ function getTasks(callback) {
                 }
                 if (typeof taskInstance.energy === 'undefined') {
                     taskInstance.energy = 'low';
+                    needsSave = true;
+                }
+                // New fields backfill
+                if (typeof taskInstance.notes === 'undefined') {
+                    taskInstance.notes = '';
+                    needsSave = true;
+                }
+                if (typeof taskInstance.completedAt === 'undefined') {
+                    taskInstance.completedAt = null;
+                    needsSave = true;
+                }
+                if (typeof taskInstance.recurrence === 'undefined') {
+                    taskInstance.recurrence = null;
                     needsSave = true;
                 }
                 return taskInstance;
@@ -93,27 +136,26 @@ function saveTasks(tasks, callback) {
 }
 
 // Function to add a new task
-async function addNewTask(title, url, priority, deadline, type, energy = 'low') {
+async function addNewTask(title, url, priority, deadline, type, energy = 'low', notes = '', recurrence = null) {
     return new Promise((resolve) => {
         getTasks(tasks => {
-            const tasksInSamePriorityGroup = tasks.filter(task => task.priority === priority && !task.completed); // Consider only active tasks for new displayOrder
+            const tasksInSamePriorityGroup = tasks.filter(task => task.priority === priority && !task.completed);
             let newDisplayOrder = 0;
             if (tasksInSamePriorityGroup.length > 0) {
                 newDisplayOrder = Math.max(...tasksInSamePriorityGroup.map(t => t.displayOrder || 0)) + 1;
             } else {
-                 // If no tasks in the group, or all are completed, check all tasks for max displayOrder
                 const allDisplayOrders = tasks.map(t => t.displayOrder || 0);
                 newDisplayOrder = allDisplayOrders.length > 0 ? Math.max(...allDisplayOrders) + 1 : 0;
             }
 
-            const newTask = new Task(null, title, url, priority, false, deadline, type, newDisplayOrder, [], energy);
+            const newTask = new Task(null, title, url, priority, false, deadline, type, newDisplayOrder, [], energy, notes, null, recurrence || null);
             tasks.push(newTask);
 
             saveTasks(tasks, (success) => {
                 if (success) {
                     resolve(newTask);
                 } else {
-                    resolve(null); // Indicate failure
+                    resolve(null);
                 }
             });
         });
@@ -138,6 +180,37 @@ function updateTaskCompletion(task) {
     // If there is no schedule, task.completed is managed directly by its own checkbox.
 }
 
+// Function to create the next recurring instance of a task
+function createRecurringInstance(task) {
+    let newDeadline = null;
+    if (task.deadline) {
+        const d = new Date(task.deadline);
+        if (task.recurrence === 'daily') {
+            d.setDate(d.getDate() + 1);
+        } else if (task.recurrence === 'weekly') {
+            d.setDate(d.getDate() + 7);
+        } else if (task.recurrence === 'monthly') {
+            d.setMonth(d.getMonth() + 1);
+        }
+        newDeadline = d.toISOString().split('T')[0]; // YYYY-MM-DD
+    }
+
+    return new Task(
+        null, // new id
+        task.title,
+        task.url || '',
+        task.priority,
+        false,       // not completed
+        newDeadline,
+        task.type,
+        task.displayOrder,
+        [],          // empty schedule
+        task.energy,
+        task.notes || '',
+        null,        // completedAt = null
+        task.recurrence
+    );
+}
 
 // Function to update a task
 async function updateTask(updatedTask) {
@@ -145,10 +218,28 @@ async function updateTask(updatedTask) {
         getTasks(tasks => {
             const taskIndex = tasks.findIndex(task => task.id === updatedTask.id);
             if (taskIndex > -1) {
+                const previousTask = tasks[taskIndex];
+                const wasCompleted = previousTask.completed;
+
                 // Before saving, ensure the parent task's completion status is up-to-date
                 updateTaskCompletion(updatedTask);
+
+                // Set/clear completedAt based on completion state transition
+                if (!wasCompleted && updatedTask.completed) {
+                    updatedTask.completedAt = new Date().toISOString();
+                } else if (wasCompleted && !updatedTask.completed) {
+                    updatedTask.completedAt = null;
+                }
+
                 tasks[taskIndex] = updatedTask;
-                saveTasks(tasks, (success) => resolve(success)); // Pass boolean success
+
+                // Auto-create next instance for recurring tasks on completion
+                if (!wasCompleted && updatedTask.completed && updatedTask.recurrence) {
+                    const nextInstance = createRecurringInstance(updatedTask);
+                    tasks.push(nextInstance);
+                }
+
+                saveTasks(tasks, (success) => resolve(success));
             } else {
                 resolve(false); // Task not found
             }
@@ -165,7 +256,7 @@ async function deleteTask(taskId) {
 
             if (filteredTasks.length === initialTaskCount) {
                 console.warn(`Task with ID ${taskId} not found for deletion.`);
-                resolve(false); // Indicate task not found or no change
+                resolve(false);
                 return;
             }
 
@@ -173,7 +264,7 @@ async function deleteTask(taskId) {
                 if (success) {
                     resolve(true);
                 } else {
-                    resolve(false); // Indicate failure
+                    resolve(false);
                 }
             });
         });
@@ -194,7 +285,6 @@ function showInfoMessage(message, type = 'info', duration = 3000, documentContex
         return;
     }
 
-    // Clear existing timeout attached to this specific message element
     if (messageArea._infoTimeout) {
         clearTimeout(messageArea._infoTimeout);
     }
@@ -212,15 +302,16 @@ function showInfoMessage(message, type = 'info', duration = 3000, documentContex
         messageArea.classList.remove('visible');
         setTimeout(() => {
             if (!messageArea.classList.contains('visible')) {
-                 messageArea.style.display = 'none';
-                 messageArea.textContent = '';
-                 messageArea.classList.remove(type);
+                messageArea.style.display = 'none';
+                messageArea.textContent = '';
+                messageArea.classList.remove(type);
             }
         }, 500);
         messageArea._infoTimeout = null;
     }, duration);
 }
 // --- End of Info Message Functionality ---
+
 
 // --- Promise Wrappers ---
 function getTasksAsync() {
@@ -267,6 +358,121 @@ function debounce(fn, delay) {
         clearTimeout(timeoutId);
         timeoutId = setTimeout(() => fn.apply(this, args), delay);
     };
+}
+
+// --- Settings Functions ---
+async function getSettings() {
+    return new Promise((resolve) => {
+        chrome.storage.local.get({ settings: {} }, (result) => {
+            if (chrome.runtime.lastError) {
+                console.error("Error getting settings:", chrome.runtime.lastError.message);
+                resolve({ ...DEFAULT_SETTINGS });
+                return;
+            }
+            resolve({ ...DEFAULT_SETTINGS, ...result.settings });
+        });
+    });
+}
+
+async function saveSettings(settings) {
+    return new Promise((resolve, reject) => {
+        chrome.storage.local.set({ settings }, () => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+            } else {
+                resolve(true);
+            }
+        });
+    });
+}
+
+// --- Sample Tasks Seeding ---
+async function seedSampleTasks() {
+    const today = new Date();
+    const inThreeDays = new Date(today);
+    inThreeDays.setDate(today.getDate() + 3);
+    const deadlineStr = inThreeDays.toISOString().split('T')[0];
+
+    const sampleTasks = [
+        new Task(null, 'Review project proposal', 'https://example.com/proposal', 'CRITICAL', false, deadlineStr, 'work', 0, [], 'high',
+            'Check budget estimates and timeline. Get sign-off from stakeholders.', null, null),
+        new Task(null, 'Set up weekly planning routine', '', 'IMPORTANT', false, null, 'work', 1, [], 'high',
+            'Use this planner every Monday morning. Assign tasks to time blocks for the week.', null, 'weekly'),
+        new Task(null, 'Read "Deep Work" by Cal Newport', 'https://www.goodreads.com/book/show/25744928', 'IMPORTANT', false, null, 'home', 2, [], 'low',
+            'Focus on chapters 1-3 this week. Take notes on the time-blocking strategy.', null, null),
+        new Task(null, 'Grocery shopping', '', 'SOMEDAY', false, null, 'home', 3, [], 'low', '', null, 'weekly'),
+        new Task(null, 'Learn keyboard shortcuts for VS Code', '', 'SOMEDAY', false, null, 'work', 4, [], 'low',
+            'Focus on multi-cursor editing and quick file navigation shortcuts.', null, null),
+        new Task(null, 'Morning workout routine', '', 'IMPORTANT', false, null, 'home', 5, [], 'high', '', null, 'daily'),
+    ];
+
+    return new Promise((resolve) => {
+        saveTasks(sampleTasks, async (success) => {
+            if (success) {
+                const settings = await getSettings();
+                settings.hasSeenSampleTasks = true;
+                await saveSettings(settings);
+            }
+            resolve(success);
+        });
+    });
+}
+
+// --- Configurable Time Blocks ---
+async function getTimeBlocks() {
+    return new Promise((resolve) => {
+        chrome.storage.local.get({ timeBlocks: null }, (result) => {
+            if (chrome.runtime.lastError || !result.timeBlocks) {
+                resolve([...DEFAULT_TIME_BLOCKS]);
+            } else {
+                resolve(result.timeBlocks);
+            }
+        });
+    });
+}
+
+async function saveTimeBlocks(blocks) {
+    return new Promise((resolve, reject) => {
+        chrome.storage.local.set({ timeBlocks: blocks }, () => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+            } else {
+                resolve(true);
+            }
+        });
+    });
+}
+
+// --- Undo / Redo ---
+let _undoStack = [];
+let _redoStack = [];
+
+function pushUndoState(taskSnapshot) {
+    _undoStack.push(JSON.parse(JSON.stringify(taskSnapshot)));
+    if (_undoStack.length > 5) {
+        _undoStack.shift(); // Remove oldest
+    }
+    _redoStack = []; // Clear redo stack on new action
+}
+
+async function undo() {
+    if (_undoStack.length === 0) return false;
+    const snapshot = _undoStack.pop();
+    // Save current state to redo stack
+    const currentTasks = await getTasksAsync();
+    _redoStack.push(JSON.parse(JSON.stringify(currentTasks)));
+    await saveTasksAsync(snapshot);
+    return true;
+}
+
+async function redo() {
+    if (_redoStack.length === 0) return false;
+    const snapshot = _redoStack.pop();
+    // Save current state to undo stack
+    const currentTasks = await getTasksAsync();
+    _undoStack.push(JSON.parse(JSON.stringify(currentTasks)));
+    await saveTasksAsync(snapshot);
+    return true;
 }
 
 // --- Cross-Tab Sync ---
