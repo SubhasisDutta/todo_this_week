@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Weekly Task Planner",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A weekly task planner with priority management, scheduling, and productivity features.",
   "permissions": [
     "storage",

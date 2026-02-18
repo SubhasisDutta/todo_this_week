@@ -12,7 +12,8 @@ loadScript(path.join(__dirname, '..', 'task_utils.js'), [
     'getSettings', 'saveSettings', 'seedSampleTasks',
     'getTimeBlocks', 'saveTimeBlocks',
     'pushUndoState', 'undo', 'redo',
-    'createRecurringInstance'
+    'createRecurringInstance',
+    'parseTimeRange', 'validateTimeBlockOverlap'
 ]);
 
 beforeEach(() => {
@@ -566,5 +567,128 @@ describe('seedSampleTasks', () => {
         await seedSampleTasks();
         const settings = await getSettings();
         expect(settings.hasSeenSampleTasks).toBe(true);
+    });
+});
+
+describe('parseTimeRange', () => {
+    test('parses [1PM-3PM] correctly', () => {
+        const range = parseTimeRange('[1PM-3PM]');
+        expect(range).toEqual({ start: 13, end: 15 });
+    });
+
+    test('parses [12AM-1AM] correctly (midnight)', () => {
+        const range = parseTimeRange('[12AM-1AM]');
+        expect(range).toEqual({ start: 0, end: 1 });
+    });
+
+    test('parses [12PM-1PM] correctly (noon)', () => {
+        const range = parseTimeRange('[12PM-1PM]');
+        expect(range).toEqual({ start: 12, end: 13 });
+    });
+
+    test('parses [7AM-8AM] correctly', () => {
+        const range = parseTimeRange('[7AM-8AM]');
+        expect(range).toEqual({ start: 7, end: 8 });
+    });
+
+    test('parses [10PM-11PM] correctly', () => {
+        const range = parseTimeRange('[10PM-11PM]');
+        expect(range).toEqual({ start: 22, end: 23 });
+    });
+
+    test('returns null for invalid format', () => {
+        expect(parseTimeRange('invalid')).toBeNull();
+        expect(parseTimeRange('9AM-10AM')).toBeNull(); // missing brackets
+        expect(parseTimeRange('[9-10]')).toBeNull(); // missing AM/PM
+    });
+});
+
+describe('validateTimeBlockOverlap', () => {
+    const existingBlocks = [
+        { id: 'block1', label: 'Morning', time: '[9AM-12PM]' },
+        { id: 'block2', label: 'Afternoon', time: '[1PM-3PM]' }
+    ];
+
+    test('detects overlapping time blocks', () => {
+        const newBlock = { time: '[10AM-2PM]' };
+        const result = validateTimeBlockOverlap(newBlock, existingBlocks);
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('overlaps');
+        expect(result.error).toContain('Morning');
+    });
+
+    test('allows non-overlapping time blocks', () => {
+        const newBlock = { time: '[3PM-5PM]' };
+        const result = validateTimeBlockOverlap(newBlock, existingBlocks);
+        expect(result.valid).toBe(true);
+        expect(result.error).toBeNull();
+    });
+
+    test('allows adjacent time blocks (no overlap)', () => {
+        const newBlock = { time: '[12PM-1PM]' };
+        const result = validateTimeBlockOverlap(newBlock, existingBlocks);
+        expect(result.valid).toBe(true);
+    });
+
+    test('detects overlap with second block', () => {
+        const newBlock = { time: '[2PM-4PM]' };
+        const result = validateTimeBlockOverlap(newBlock, existingBlocks);
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('Afternoon');
+    });
+
+    test('excludes block by ID when provided', () => {
+        const newBlock = { time: '[9AM-12PM]' };
+        // Without exclusion, should overlap with block1
+        const result1 = validateTimeBlockOverlap(newBlock, existingBlocks);
+        expect(result1.valid).toBe(false);
+
+        // With exclusion of block1, should be valid
+        const result2 = validateTimeBlockOverlap(newBlock, existingBlocks, 'block1');
+        expect(result2.valid).toBe(true);
+    });
+
+    test('returns error for invalid time format', () => {
+        const newBlock = { time: 'invalid' };
+        const result = validateTimeBlockOverlap(newBlock, existingBlocks);
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('Invalid time format');
+    });
+});
+
+describe('DEFAULT_TIME_BLOCKS renamed labels', () => {
+    test('late-night-read has label "Late Night Block"', () => {
+        const block = DEFAULT_TIME_BLOCKS.find(b => b.id === 'late-night-read');
+        expect(block.label).toBe('Late Night Block');
+    });
+
+    test('ai-study has label "Deep Work Block 1"', () => {
+        const block = DEFAULT_TIME_BLOCKS.find(b => b.id === 'ai-study');
+        expect(block.label).toBe('Deep Work Block 1');
+    });
+
+    test('deep-work-1 has label "Deep Work Block 2"', () => {
+        const block = DEFAULT_TIME_BLOCKS.find(b => b.id === 'deep-work-1');
+        expect(block.label).toBe('Deep Work Block 2');
+    });
+
+    test('deep-work-2 has label "Deep Work Block 3"', () => {
+        const block = DEFAULT_TIME_BLOCKS.find(b => b.id === 'deep-work-2');
+        expect(block.label).toBe('Deep Work Block 3');
+    });
+
+    test('family-time has label "Chill Time"', () => {
+        const block = DEFAULT_TIME_BLOCKS.find(b => b.id === 'family-time');
+        expect(block.label).toBe('Chill Time');
+    });
+
+    test('night-build has label "Night Block"', () => {
+        const block = DEFAULT_TIME_BLOCKS.find(b => b.id === 'night-build');
+        expect(block.label).toBe('Night Block');
+    });
+
+    test('morning-prep has label "Morning Prep"', () => {
+        const block = DEFAULT_TIME_BLOCKS.find(b => b.id === 'morning-prep');
+        expect(block.label).toBe('Morning Prep');
     });
 });

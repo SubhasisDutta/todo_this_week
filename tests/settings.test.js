@@ -12,7 +12,8 @@ loadScript(path.join(__dirname, '..', 'task_utils.js'), [
     'getSettings', 'saveSettings', 'seedSampleTasks',
     'getTimeBlocks', 'saveTimeBlocks',
     'pushUndoState', 'undo', 'redo',
-    'createRecurringInstance'
+    'createRecurringInstance',
+    'parseTimeRange', 'validateTimeBlockOverlap'
 ]);
 
 // Load settings.js
@@ -27,7 +28,8 @@ loadScript(path.join(__dirname, '..', 'settings.js'), [
     'renderTimeBlocksTable',
     'setupSettingsModalListeners',
     'setupImportExportModalListeners',
-    'setupTimeBlocksModalListeners'
+    'setupTimeBlocksModalListeners',
+    'formatTimeInput', 'addTimeBlock', 'updateTimeBlockLabel', 'deleteTimeBlock'
 ]);
 
 // Minimal DOM setup for settings tests
@@ -203,5 +205,126 @@ describe('FONT_FAMILY_MAP / FONT_SIZE_MAP constants', () => {
         expect(FONT_SIZE_MAP).toHaveProperty('medium');
         expect(FONT_SIZE_MAP).toHaveProperty('large');
         expect(FONT_SIZE_MAP['medium']).toBe('15px');
+    });
+});
+
+describe('formatTimeInput', () => {
+    test('converts 13:00 to 1PM', () => {
+        expect(formatTimeInput('13:00')).toBe('1PM');
+    });
+
+    test('converts 00:00 to 12AM', () => {
+        expect(formatTimeInput('00:00')).toBe('12AM');
+    });
+
+    test('converts 12:00 to 12PM', () => {
+        expect(formatTimeInput('12:00')).toBe('12PM');
+    });
+
+    test('converts 09:00 to 9AM', () => {
+        expect(formatTimeInput('09:00')).toBe('9AM');
+    });
+
+    test('converts 23:00 to 11PM', () => {
+        expect(formatTimeInput('23:00')).toBe('11PM');
+    });
+});
+
+describe('updateTimeBlockLabel', () => {
+    beforeEach(() => {
+        resetChromeStorage();
+    });
+
+    test('updates label and saves', async () => {
+        seedTimeBlocks([
+            { id: 'test-block', label: 'Original', time: '[9AM-10AM]', limit: 'multiple', colorClass: '' }
+        ]);
+
+        const result = await updateTimeBlockLabel('test-block', 'New Label');
+        expect(result).toBe(true);
+
+        const blocks = await getTimeBlocks();
+        expect(blocks[0].label).toBe('New Label');
+    });
+
+    test('returns false for non-existent block', async () => {
+        seedTimeBlocks([
+            { id: 'test-block', label: 'Original', time: '[9AM-10AM]', limit: 'multiple', colorClass: '' }
+        ]);
+
+        const result = await updateTimeBlockLabel('non-existent', 'New Label');
+        expect(result).toBe(false);
+    });
+});
+
+describe('addTimeBlock with overlap validation', () => {
+    beforeEach(() => {
+        resetChromeStorage();
+        document.body.innerHTML += '<div id="info-message-area" class="info-message" style="display: none;"></div>';
+    });
+
+    test('adds non-overlapping time block', async () => {
+        seedTimeBlocks([
+            { id: 'existing', label: 'Existing', time: '[9AM-12PM]', limit: 'multiple', colorClass: '' }
+        ]);
+        document.body.innerHTML += '<div id="time-blocks-table-container"></div>';
+
+        const result = await addTimeBlock('New Block', '13:00', '15:00', 'multiple', '');
+        expect(result).not.toBeNull();
+
+        const blocks = await getTimeBlocks();
+        expect(blocks).toHaveLength(2);
+        expect(blocks[1].label).toBe('New Block');
+        expect(blocks[1].time).toBe('[1PM-3PM]');
+    });
+
+    test('rejects overlapping time block', async () => {
+        seedTimeBlocks([
+            { id: 'existing', label: 'Existing', time: '[9AM-12PM]', limit: 'multiple', colorClass: '' }
+        ]);
+        document.body.innerHTML += '<div id="time-blocks-table-container"></div>';
+
+        const result = await addTimeBlock('Overlapping', '10:00', '14:00', 'multiple', '');
+        expect(result).toBeNull();
+
+        const blocks = await getTimeBlocks();
+        expect(blocks).toHaveLength(1); // Only the original block
+    });
+});
+
+describe('renderTimeBlocksTable', () => {
+    beforeEach(() => {
+        resetChromeStorage();
+        document.body.innerHTML = `
+            <div id="info-message-area" class="info-message" style="display: none;"></div>
+            <div id="time-blocks-table-container"></div>
+        `;
+    });
+
+    test('renders editable label inputs', () => {
+        renderTimeBlocksTable([
+            { id: 'test', label: 'Test Block', time: '[9AM-10AM]', limit: 'multiple', colorClass: '' }
+        ]);
+
+        const labelInput = document.querySelector('.edit-block-label');
+        expect(labelInput).not.toBeNull();
+        expect(labelInput.value).toBe('Test Block');
+        expect(labelInput.dataset.blockId).toBe('test');
+    });
+
+    test('renders delete button for each block', () => {
+        renderTimeBlocksTable([
+            { id: 'test1', label: 'Block 1', time: '[9AM-10AM]', limit: 'multiple', colorClass: '' },
+            { id: 'test2', label: 'Block 2', time: '[10AM-11AM]', limit: '1', colorClass: '' }
+        ]);
+
+        const deleteButtons = document.querySelectorAll('.delete-block-btn');
+        expect(deleteButtons).toHaveLength(2);
+    });
+
+    test('shows message when no blocks configured', () => {
+        renderTimeBlocksTable([]);
+        const container = document.getElementById('time-blocks-table-container');
+        expect(container.innerHTML).toContain('No time blocks configured');
     });
 });

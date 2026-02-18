@@ -1,6 +1,6 @@
 # Weekly Task Manager
 
-**Version 1.1.0**
+**Version 1.2.0**
 
 A Chrome/Chromium browser extension for managing weekly tasks with priority levels, categories, energy tracking, and a visual weekly planner grid. Schedule tasks into time blocks, track completion across the week, and keep everything in sync between the popup and full-page planner.
 
@@ -18,7 +18,7 @@ A Chrome/Chromium browser extension for managing weekly tasks with priority leve
 - **Cascade Completion:** When all scheduled assignments for a task are completed, the parent task is automatically marked complete
 - **Auto-Save:** Inline edits in the planner are auto-saved after 1.5 seconds of inactivity, with a visual status indicator (Saving/Saved/Unsaved)
 - **Cross-Tab Sync:** Changes in the popup are reflected in the planner page in real-time, and vice versa
-- **Import/Export:** Back up tasks to a timestamped JSON file, or import with smart merge logic (matching IDs update, new IDs create)
+- **Import/Export:** Back up tasks to JSON or CSV (timestamped files), or import from JSON with smart merge logic (matching IDs update, new IDs create)
 - **Notion Import:** Import tasks from a Notion database using an API key and database ID (via Settings)
 - **Google Sheets Import:** Import tasks from a published Google Sheets CSV (via Settings)
 - **Race Condition Protection:** An operation queue serializes rapid concurrent operations (e.g., fast checkbox clicks)
@@ -63,14 +63,30 @@ Access the planner by clicking the "PLANNER" button in the popup. It opens in a 
 Click the ⚙️ button (top-right in the planner) to open Settings:
 
 - **Appearance** — Toggle Dark/Light mode, choose font family and font size
-- **Import/Export** — Export tasks to JSON, import from JSON
 - **Notion Import** — Connect your Notion workspace and import tasks from a database
 - **Google Sheets Import** — Import tasks from a published Google Sheets CSV URL
-- **Time Blocks** — Add, delete, or reset the planner's time blocks to defaults
+
+### Import/Export Modal
+
+Access via the "Import/Export" button in the SCHEDULE tab header:
+
+- **Export JSON** — Download all tasks as a timestamped JSON file
+- **Export CSV** — Download all tasks as a timestamped CSV file for spreadsheet use
+- **Import JSON** — Upload a JSON file to merge with existing tasks
+
+### Time Blocks Modal
+
+Access via the "Time Blocks" button in the SCHEDULE tab header:
+
+- **View all time blocks** — See the full list with labels, times, limits, and colors
+- **Inline label editing** — Click any block label to rename it directly in the table
+- **Add new blocks** — Create custom time blocks with overlap validation
+- **Delete blocks** — Remove unwanted time blocks
+- **Reset to defaults** — Restore the original 11 time blocks
 
 ### Help Modal
 
-Click the ? button to open the interactive Help guide with 7 sections: Overview, Quick Start, Schedule, Priority, Location, Settings, and Import/Export.
+Click the ? button to open the interactive Help guide with 8 sections: Overview, Quick Start, Schedule, Priority, Location, Settings, Import/Export, and FAQ.
 
 ### Time Blocks
 
@@ -112,10 +128,11 @@ Load the extension as an unpacked package in any Chromium-based browser:
    - In the planner PRIORITY tab, expand a task's schedule to complete individual assignments.
 4. **Editing a Task:** In the planner PRIORITY tab, click "Edit" on any task. Changes auto-save after 1.5 seconds, or click "Save" to save immediately.
 5. **Reordering:** Drag-and-drop in the popup Display tab (within same priority) or use arrow buttons in the planner PRIORITY tab.
-6. **Settings:** Click ⚙️ in the planner to open Settings — toggle Dark Mode, change fonts, manage time blocks, or import from Notion/Google Sheets.
-7. **Export/Import:** Access via the ⚙️ Settings modal in the planner.
-8. **Undo:** Press Ctrl+Z (or Cmd+Z on Mac) in the planner to undo the last destructive action. A toast notification appears after deletions with a clickable "Undo" link.
-9. **Archive:** View completed tasks in the ARCHIVE tab, grouped by date. Click "Restore" to move a task back to active.
+6. **Settings:** Click ⚙️ in the planner to open Settings — toggle Dark Mode, change fonts, or configure Notion/Google Sheets import.
+7. **Export/Import:** Click "Import/Export" in the SCHEDULE tab header to export tasks (JSON or CSV) or import from JSON.
+8. **Time Blocks:** Click "Time Blocks" in the SCHEDULE tab header to view, edit labels inline, add, delete, or reset time blocks.
+9. **Undo:** Press Ctrl+Z (or Cmd+Z on Mac) in the planner to undo the last destructive action. A toast notification appears after deletions with a clickable "Undo" link.
+10. **Archive:** View completed tasks in the ARCHIVE tab, grouped by date. Click "Restore" to move a task back to active.
 
 ## Development
 
@@ -144,15 +161,15 @@ npm run test:watch
 npm run test:coverage
 ```
 
-The test suite includes **210 tests** across 7 test files:
+The test suite includes **245 tests** across 7 test files:
 
 | Test Suite | Tests | Coverage |
 |-----------|-------|----------|
-| `task_utils.test.js` | ~70 | Task class (new fields), CRUD, settings, time blocks, undo/redo, recurring tasks, validation, debounce, sync |
+| `task_utils.test.js` | ~90 | Task class (new fields), CRUD, settings, time blocks, undo/redo, recurring tasks, time validation, debounce, sync |
 | `popup.test.js` | ~17 | Task item rendering, tab switching, completion handlers, drag-and-drop |
-| `manager.test.js` | ~70 | Grid generation, day headers, sidebar lists, priority/location/archive/stats rendering, search filter, add task modal, header tooltips |
+| `manager.test.js` | ~75 | Grid generation, day headers, sidebar lists, priority/location/archive/stats rendering, search filter, add task modal, header tooltips, FAQ tab |
 | `integration.test.js` | ~25 | Task lifecycle, scheduling, cascade completion, ordering, import/merge, recurring tasks, undo/redo |
-| `settings.test.js` | ~20 | applySettings, initSettings, modal open/close, form population |
+| `settings.test.js` | ~35 | applySettings, initSettings, modal open/close, form population, time block editing, overlap validation |
 | `features.test.js` | ~30 | Notes field, completedAt stamping, undo/redo stacks, recurring task creation, archive grouping |
 | `search.test.js` | ~10 | applySearchFilter logic, setupPrioritySearch, setupLocationSearch |
 
@@ -166,7 +183,7 @@ The test suite includes **210 tests** across 7 test files:
 
 ```
 todo_this_week/
-  manifest.json          # Chrome Extension Manifest V3 config (v1.1.0)
+  manifest.json          # Chrome Extension Manifest V3 config (v1.2.0)
   popup.html             # Popup interface markup (TODAY, Display, ADD tabs)
   popup.js               # Popup logic (rendering, tabs, completion, drag-and-drop)
   popup.css              # Unified styles (popup + manager): neumorphic + dark mode
@@ -202,7 +219,8 @@ todo_this_week/
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.1.0 | 2026-02-17 | Settings modal (dark mode, fonts, time blocks), Notion + Google Sheets import, task notes, recurring tasks, undo/redo, archive tab, stats tab, search/filter, help modal, 210 tests |
+| 1.2.0 | 2026-02-18 | Dedicated import/export modal (JSON + CSV export), dedicated time blocks modal with inline label editing and overlap validation, schedule tab header styling, help modal FAQ section, 245 tests |
+| 1.1.0 | 2026-02-17 | Settings modal (dark mode, fonts), Notion + Google Sheets import, task notes, recurring tasks, undo/redo, archive tab, stats tab, search/filter, help modal, global add task button |
 | 1.0.0 | 2025-08-16 | Test suite with 114 tests (Jest + jsdom), comprehensive documentation |
 | 0.9.0 | 2025-08-16 | Complete tasks from Unassigned/Assigned sidebars, date headers in MONTH DAY format |
 | 0.8.0 | 2025-08-14 | Week starts on Sunday, scheduler drag-and-drop overhaul, checkbox UI fixes |

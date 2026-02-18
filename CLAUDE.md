@@ -10,13 +10,13 @@ This is a **Weekly Task Manager** — a Chrome/Chromium browser extension (Manif
 
 ### Core Components
 
-- `task_utils.js` (~490 lines) — Shared utilities: Task class, CRUD operations, settings, undo/redo, recurring tasks, time blocks, validation, debounce, operation queue, cross-tab sync
-- `settings.js` (~620 lines) — Settings management: theme/font application, settings modal UI, import/export modal (JSON, CSV, Notion, Google Sheets), time blocks modal
+- `task_utils.js` (~540 lines) — Shared utilities: Task class, CRUD operations, settings, undo/redo, recurring tasks, time blocks, validation (including time overlap), debounce, operation queue, cross-tab sync
+- `settings.js` (~950 lines) — Settings management: theme/font application, settings modal UI, import/export modal (JSON, CSV, Notion, Google Sheets), time blocks modal with inline label editing
 - `popup.js` (~390 lines) — Popup interface: task rendering (with notes/recurrence), tab switching, completion handlers, drag-and-drop reordering
 - `manager.js` (~900 lines) — Full-page planner: weekly grid, drag-and-drop scheduling, inline editing, archive tab, stats tab, search/filter, undo toast, keyboard undo, settings wiring, add task modal
 - `popup.html` (~102 lines) — Popup markup (3 tabs: TODAY, Display, ADD — with notes textarea and recurrence select)
-- `manager.html` (~780 lines) — Planner markup (5 tabs: SCHEDULE, PRIORITY, LOCATION, ARCHIVE, STATS + settings/help/add-task/import-export/time-blocks modals)
-- `popup.css` (~1580 lines) — Unified styles: neumorphic design, dark mode, modals, charts, archive, help, toast, search, notes, tooltips
+- `manager.html` (~800 lines) — Planner markup (5 tabs: SCHEDULE, PRIORITY, LOCATION, ARCHIVE, STATS + settings/help/add-task/import-export/time-blocks modals, help has 8 tabs including FAQ)
+- `popup.css` (~1800 lines) — Unified styles: neumorphic design, dark mode, modals, charts, archive, help, toast, search, notes, tooltips, FAQ styling
 
 ### Extension Configuration
 
@@ -28,11 +28,11 @@ This is a **Weekly Task Manager** — a Chrome/Chromium browser extension (Manif
 - `package.json` — Dev dependencies (Jest 29, jest-environment-jsdom)
 - `jest.config.js` — jsdom environment, collects coverage from source files
 - `tests/mocks/chrome.storage.mock.js` — Chrome API mocks, `loadScript` helper, `seedSettings`, `seedTimeBlocks`, `global.fetch` stub
-- `tests/task_utils.test.js` — ~70 tests for task_utils.js (includes new fields, settings, time blocks, undo/redo, recurring)
+- `tests/task_utils.test.js` — ~90 tests for task_utils.js (includes new fields, settings, time blocks, undo/redo, recurring, time validation)
 - `tests/popup.test.js` — ~17 tests for popup.js
-- `tests/manager.test.js` — ~70 tests for manager.js (includes async grid, new tabs, search filter, add task modal, tooltips)
+- `tests/manager.test.js` — ~75 tests for manager.js (includes async grid, new tabs, search filter, add task modal, tooltips, FAQ)
 - `tests/integration.test.js` — ~25 end-to-end tests (includes recurring tasks, undo lifecycle)
-- `tests/settings.test.js` — ~20 tests for settings.js
+- `tests/settings.test.js` — ~35 tests for settings.js (includes time block editing, overlap validation)
 - `tests/features.test.js` — ~30 tests for notes, completedAt, undo/redo, recurring tasks, archive grouping
 - `tests/search.test.js` — ~10 tests for search/filter functionality
 
@@ -97,17 +97,17 @@ Defined in `task_utils.js` as `DEFAULT_TIME_BLOCKS`. A `TIME_BLOCKS` alias is ke
 
 | id | label | time | limit |
 |----|-------|------|-------|
-| `late-night-read` | Late Night Read | [12AM-1AM] | multiple |
+| `late-night-read` | Late Night Block | [12AM-1AM] | multiple |
 | `sleep` | Sleep | [1AM-7AM] | 0 |
-| `ai-study` | AI study time | [7AM-8AM] | 1 |
+| `ai-study` | Deep Work Block 1 | [7AM-8AM] | 1 |
 | `morning-prep` | Morning Prep | [8AM-9AM] | 0 |
 | `engagement` | Engagement Block | [9AM-12PM] | multiple |
 | `lunch` | Lunch Break | [12PM-1PM] | 0 |
-| `deep-work-1` | Deep Work Block 1 | [1PM-3PM] | 1 |
-| `deep-work-2` | Deep Work Block 2 | [3PM-6PM] | 1 |
+| `deep-work-1` | Deep Work Block 2 | [1PM-3PM] | 1 |
+| `deep-work-2` | Deep Work Block 3 | [3PM-6PM] | 1 |
 | `commute-relax` | Commute and Relax | [6PM-8PM] | multiple |
-| `family-time` | Family Time Block | [8PM-10PM] | multiple |
-| `night-build` | Night Build Block | [10PM-11PM] | 1 |
+| `family-time` | Chill Time | [8PM-10PM] | multiple |
+| `night-build` | Night Block | [10PM-11PM] | 1 |
 
 ## Key Functions (task_utils.js)
 
@@ -133,6 +133,8 @@ Defined in `task_utils.js` as `DEFAULT_TIME_BLOCKS`. A `TIME_BLOCKS` alias is ke
 | `undo` | `undo()` → Promise | Restores from `_undoStack`, pushes current state to `_redoStack`. |
 | `redo` | `redo()` → Promise | Restores from `_redoStack`, pushes current state to `_undoStack`. |
 | `createRecurringInstance` | `createRecurringInstance(task)` → Task | Creates new Task with new ID, empty schedule, shifted deadline (daily +1d, weekly +7d, monthly +1mo). |
+| `parseTimeRange` | `parseTimeRange(timeStr)` → {start, end} \| null | Parses `[1PM-3PM]` format to 24-hour numbers. Returns null for invalid format. |
+| `validateTimeBlockOverlap` | `validateTimeBlockOverlap(newBlock, existingBlocks, excludeId?)` → {valid, error} | Checks if new block overlaps with existing blocks. Returns `{valid: false, error: string}` if overlap detected. |
 | `isValidUrl` | `isValidUrl(string)` → boolean | Uses `new URL()` constructor for validation. |
 | `showInfoMessage` | `showInfoMessage(message, type, duration, documentContext)` | Displays toast notification in `#info-message-area`. Falls back to `alert()`. Timeout stored on element (`messageArea._infoTimeout`). |
 | `withTaskLock` | `withTaskLock(asyncFn)` → Promise | Queues async operations sequentially to prevent race conditions. |
@@ -186,6 +188,18 @@ Defined in `task_utils.js` as `DEFAULT_TIME_BLOCKS`. A `TIME_BLOCKS` alias is ke
 ### Operation Queue
 - `withTaskLock(asyncFn)` in `task_utils.js` chains async operations on a shared promise
 - Used in popup.js completion handlers to prevent data corruption from rapid clicks
+
+### Time Block Configuration
+- Time blocks are configurable via the Time Blocks modal (accessible from SCHEDULE tab)
+- Inline label editing: click on any block label to rename it directly in the table
+- Overlap detection: `validateTimeBlockOverlap()` prevents creating blocks with overlapping time ranges
+- `parseTimeRange()` converts `[1PM-3PM]` format to 24-hour numbers for comparison
+- `formatTimeInput()` converts 24-hour time input (e.g., "13:00") to display format (e.g., "1PM")
+
+### Help Modal FAQ
+- Help modal has 8 tabs: Overview, Quick Start, Schedule, Priority, Location, Settings, Import/Export, FAQ
+- FAQ section addresses common user questions about task scheduling, completion, and recurring tasks
+- Uses `.faq-item`, `.faq-question`, `.faq-answer` CSS classes for consistent styling
 
 ## CSS Architecture
 
@@ -273,12 +287,12 @@ This makes all listed symbols available as globals in the test scope.
 
 The `loadScript` regex also handles `async function` DOMContentLoaded handlers (needed because manager.js and popup.js DOMContentLoaded handlers are now `async`).
 
-### Test Suites (200 total)
-- **task_utils.test.js (~70):** Task class (new fields), getTasks backfill, CRUD, settings CRUD, time blocks, undo/redo stacks, createRecurringInstance, seedSampleTasks, showInfoMessage, validateTask, debounce, withTaskLock
+### Test Suites (245 total)
+- **task_utils.test.js (~90):** Task class (new fields), getTasks backfill, CRUD, settings CRUD, time blocks, undo/redo stacks, createRecurringInstance, seedSampleTasks, showInfoMessage, validateTask, debounce, withTaskLock, parseTimeRange, validateTimeBlockOverlap, renamed labels
 - **popup.test.js (~17):** createTaskItem (notes, recurrence), renderTasks, renderAllTabs, tab switching, add-task validation, open-manager button
-- **manager.test.js (~70):** generateDayHeaders/generatePlannerGrid (now async), createTaskElement (notes/recurrence badges), renderSidebarLists, renderPriorityLists, renderHomeWorkLists, renderArchiveTab, renderStatsTab, applySearchFilter, setupTabSwitching, renderPage, highlightCurrentDay, setupAddTaskModalListeners, header tooltips
+- **manager.test.js (~75):** generateDayHeaders/generatePlannerGrid (now async), createTaskElement (notes/recurrence badges), renderSidebarLists, renderPriorityLists, renderHomeWorkLists, renderArchiveTab, renderStatsTab, applySearchFilter, setupTabSwitching, renderPage, highlightCurrentDay, setupAddTaskModalListeners, header tooltips, FAQ tab
 - **integration.test.js (~25):** Task lifecycle, schedule management, cascade completion, ordering, import/merge, validation, cross-tab sync, recurring tasks (auto-instance creation), undo/redo lifecycle
-- **settings.test.js (~20):** applySettings (theme, font-family, font-size CSS vars), initSettings (first-run seeding), populateSettingsForm, openSettingsModal/closeSettingsModal, FONT_FAMILY_MAP/FONT_SIZE_MAP constants
+- **settings.test.js (~35):** applySettings (theme, font-family, font-size CSS vars), initSettings (first-run seeding), populateSettingsForm, openSettingsModal/closeSettingsModal, FONT_FAMILY_MAP/FONT_SIZE_MAP constants, formatTimeInput, updateTimeBlockLabel, addTimeBlock overlap validation, renderTimeBlocksTable
 - **features.test.js (~30):** Notes field (CRUD, backfill), completedAt (set on complete, clear on uncomplete, backfill), undo/redo cycle, createRecurringInstance (daily/weekly/monthly deadline shift), recurring auto-instance via updateTask, archive date grouping
 - **search.test.js (~10):** applySearchFilter (hide non-matching, show all for empty query, case insensitive, multi-container, partial match), setupPrioritySearch, setupLocationSearch
 

@@ -2,17 +2,17 @@
 
 // --- TIME BLOCKS ---
 const DEFAULT_TIME_BLOCKS = [
-    { id: 'late-night-read', label: 'Late Night Read', time: '[12AM-1AM]', limit: 'multiple', colorClass: 'block-color-sakura' },
+    { id: 'late-night-read', label: 'Late Night Block', time: '[12AM-1AM]', limit: 'multiple', colorClass: 'block-color-sakura' },
     { id: 'sleep', label: 'Sleep', time: '[1AM-7AM]', limit: '0', colorClass: '' },
-    { id: 'ai-study', label: 'AI study time', time: '[7AM-8AM]', limit: '1', colorClass: 'block-color-yellow' },
-    { id: 'morning-prep', label: '🌞🚽🚿🥛💊', time: '[8AM-9AM]', limit: '0', colorClass: '' },
+    { id: 'ai-study', label: 'Deep Work Block 1', time: '[7AM-8AM]', limit: '1', colorClass: 'block-color-yellow' },
+    { id: 'morning-prep', label: 'Morning Prep', time: '[8AM-9AM]', limit: '0', colorClass: '' },
     { id: 'engagement', label: 'Engagement Block', time: '[9AM-12PM]', limit: 'multiple', colorClass: 'block-color-purple' },
     { id: 'lunch', label: 'Lunch Break', time: '[12PM-1PM]', limit: '0', colorClass: '' },
-    { id: 'deep-work-1', label: 'Deep Work Block 1', time: '[1PM-3PM]', limit: '1', colorClass: 'block-color-yellow' },
-    { id: 'deep-work-2', label: 'Deep Work Block 2', time: '[3PM-6PM]', limit: '1', colorClass: 'block-color-yellow' },
+    { id: 'deep-work-1', label: 'Deep Work Block 2', time: '[1PM-3PM]', limit: '1', colorClass: 'block-color-yellow' },
+    { id: 'deep-work-2', label: 'Deep Work Block 3', time: '[3PM-6PM]', limit: '1', colorClass: 'block-color-yellow' },
     { id: 'commute-relax', label: 'Commute and Relax', time: '[6PM-8PM]', limit: 'multiple', colorClass: 'block-color-sage' },
-    { id: 'family-time', label: 'Family time Block', time: '[8PM-10PM]', limit: 'multiple', colorClass: 'block-color-skyblue' },
-    { id: 'night-build', label: 'Night Build Block', time: '[10PM-11PM]', limit: '1', colorClass: 'block-color-orange' }
+    { id: 'family-time', label: 'Chill Time', time: '[8PM-10PM]', limit: 'multiple', colorClass: 'block-color-skyblue' },
+    { id: 'night-build', label: 'Night Block', time: '[10PM-11PM]', limit: '1', colorClass: 'block-color-orange' }
 ];
 
 // Alias for backward compatibility
@@ -349,6 +349,47 @@ function validateTask(task) {
 function isValidUrl(string) {
     try { new URL(string); return true; }
     catch { return false; }
+}
+
+// --- Time Block Validation ---
+function parseTimeRange(timeStr) {
+    // Parse "[1PM-3PM]" or "[12AM-1AM]" format to 24-hour numbers
+    const match = timeStr.match(/\[(\d{1,2})(AM|PM)-(\d{1,2})(AM|PM)\]/i);
+    if (!match) return null;
+
+    let startHour = parseInt(match[1], 10);
+    const startPeriod = match[2].toUpperCase();
+    let endHour = parseInt(match[3], 10);
+    const endPeriod = match[4].toUpperCase();
+
+    // Convert to 24-hour format
+    if (startPeriod === 'PM' && startHour !== 12) startHour += 12;
+    if (startPeriod === 'AM' && startHour === 12) startHour = 0;
+    if (endPeriod === 'PM' && endHour !== 12) endHour += 12;
+    if (endPeriod === 'AM' && endHour === 12) endHour = 0;
+
+    return { start: startHour, end: endHour };
+}
+
+function validateTimeBlockOverlap(newBlock, existingBlocks, excludeId = null) {
+    const newRange = parseTimeRange(newBlock.time);
+    if (!newRange) return { valid: false, error: 'Invalid time format.' };
+
+    for (const block of existingBlocks) {
+        if (excludeId && block.id === excludeId) continue;
+
+        const existingRange = parseTimeRange(block.time);
+        if (!existingRange) continue;
+
+        // Overlap: newStart < existingEnd AND newEnd > existingStart
+        if (newRange.start < existingRange.end && newRange.end > existingRange.start) {
+            return {
+                valid: false,
+                error: `Time block overlaps with "${block.label}" (${block.time}).`
+            };
+        }
+    }
+    return { valid: true, error: null };
 }
 
 // --- Debounce Utility ---

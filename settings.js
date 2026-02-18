@@ -233,7 +233,11 @@ function renderTimeBlocksTable(blocks) {
             <tbody>
                 ${blocks.map((block, idx) => `
                     <tr>
-                        <td>${block.label}</td>
+                        <td>
+                            <input type="text" class="neumorphic-input edit-block-label"
+                                   value="${block.label.replace(/"/g, '&quot;')}"
+                                   data-block-id="${block.id}">
+                        </td>
                         <td>${block.time}</td>
                         <td>${limitLabel[block.limit] || block.limit}</td>
                         <td><span class="color-swatch ${block.colorClass || ''}">${block.colorClass || 'none'}</span></td>
@@ -254,13 +258,52 @@ function renderTimeBlocksTable(blocks) {
             await deleteTimeBlock(blockId);
         });
     });
+
+    // Attach label edit listeners
+    container.querySelectorAll('.edit-block-label').forEach(input => {
+        input.addEventListener('change', async () => {
+            const blockId = input.dataset.blockId;
+            const newLabel = input.value.trim();
+            if (newLabel) {
+                await updateTimeBlockLabel(blockId, newLabel);
+                showInfoMessage('Time block label updated.', 'success');
+            } else {
+                showInfoMessage('Label cannot be empty.', 'error');
+                const blocks = await getTimeBlocks();
+                const block = blocks.find(b => b.id === blockId);
+                if (block) input.value = block.label;
+            }
+        });
+    });
+}
+
+// Convert 24-hour time input (e.g., "13:00") to display format (e.g., "1PM")
+function formatTimeInput(time24) {
+    const [hours] = time24.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    let hour12 = hours % 12;
+    if (hour12 === 0) hour12 = 12;
+    return `${hour12}${period}`;
 }
 
 async function addTimeBlock(label, startTime, endTime, limit, colorClass) {
     const blocks = await getTimeBlocks();
     const id = 'custom-' + label.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
-    const timeStr = `[${startTime}-${endTime}]`;
-    blocks.push({ id, label, time: timeStr, limit, colorClass: colorClass || '' });
+
+    // Convert time inputs to display format
+    const formattedStart = formatTimeInput(startTime);
+    const formattedEnd = formatTimeInput(endTime);
+    const timeStr = `[${formattedStart}-${formattedEnd}]`;
+
+    // Validate overlap
+    const newBlock = { id, label, time: timeStr, limit, colorClass: colorClass || '' };
+    const validation = validateTimeBlockOverlap(newBlock, blocks);
+    if (!validation.valid) {
+        showInfoMessage(validation.error, 'error');
+        return null;
+    }
+
+    blocks.push(newBlock);
     await saveTimeBlocks(blocks);
     renderTimeBlocksTable(blocks);
     return blocks;
@@ -272,6 +315,17 @@ async function deleteTimeBlock(blockId) {
     await saveTimeBlocks(filtered);
     renderTimeBlocksTable(filtered);
     return filtered;
+}
+
+async function updateTimeBlockLabel(blockId, newLabel) {
+    const blocks = await getTimeBlocks();
+    const blockIndex = blocks.findIndex(b => b.id === blockId);
+    if (blockIndex > -1) {
+        blocks[blockIndex].label = newLabel.trim();
+        await saveTimeBlocks(blocks);
+        return true;
+    }
+    return false;
 }
 
 async function resetTimeBlocksToDefaults() {
@@ -874,7 +928,12 @@ async function setupTimeBlocksModalListeners(renderPageCallback) {
                 return;
             }
 
-            await addTimeBlock(label, startTime, endTime, limit, colorClass);
+            const result = await addTimeBlock(label, startTime, endTime, limit, colorClass);
+            if (result === null) {
+                // Validation failed (overlap detected), error already shown
+                return;
+            }
+
             if (addBlockForm) addBlockForm.classList.add('hidden');
             // Clear form
             document.getElementById('new-block-label').value = '';

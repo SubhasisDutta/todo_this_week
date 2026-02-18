@@ -1732,6 +1732,49 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
     font-size: 0.8em;
 }
 
+/* Editable label input in time blocks table */
+.time-blocks-table .edit-block-label {
+    width: 130px;
+    padding: 4px 6px;
+    font-size: 0.9em;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    transition: border-color 0.2s, background-color 0.2s;
+}
+.time-blocks-table .edit-block-label:focus {
+    border-color: var(--accent-blue);
+    background: var(--bg-primary);
+    outline: none;
+}
+.time-blocks-table .edit-block-label:hover:not(:focus) {
+    border-color: var(--text-muted);
+}
+
+/* --- FAQ Section --- */
+.faq-item {
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--inset-bg);
+}
+.faq-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+.faq-question {
+    font-size: 0.95em;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 8px 0;
+}
+.faq-answer {
+    font-size: 0.88em;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.6;
+}
+
 /* --- Recurrence Badge in Task --- */
 .recurrence-badge {
     font-size: 0.68em;

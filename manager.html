@@ -243,6 +243,8 @@
                     aria-selected="false">Settings</button>
                 <button class="tab-link" data-help-tab="help-import-export" role="tab"
                     aria-selected="false">Import/Export</button>
+                <button class="tab-link" data-help-tab="help-faq" role="tab"
+                    aria-selected="false">FAQ</button>
             </div>
 
             <!-- Help Content Panels -->
@@ -528,6 +530,51 @@
                         No duplicates → Safe to re-import</div>
 
                     <div class="help-tip">💡 The JSON format is a plain array of task objects. CSV files should have a header row with column names.</div>
+                </div>
+
+                <!-- FAQ -->
+                <div id="help-faq" class="help-panel">
+                    <h3 class="help-section-title">❓ Frequently Asked Questions</h3>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">What happens to tasks scheduled for today that aren't completed?</h4>
+                        <p class="faq-answer">Tasks that are scheduled but not completed remain on your schedule. They will show as incomplete in the TODAY tab of the popup. The schedule does not automatically roll over to the next day — you need to manually reschedule uncompleted tasks by dragging them to a new day in the SCHEDULE tab, or simply check them off when done.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">How do I move a task to tomorrow?</h4>
+                        <p class="faq-answer">In the SCHEDULE tab, find the task either on the grid or in the Assigned sidebar. Drag it to the desired day column. Alternatively, click the task to open its inline edit form, scroll to the Schedule section, and select a different day/time block combination.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">What's the difference between completing a scheduled assignment vs. completing the task itself?</h4>
+                        <p class="faq-answer">A task can have multiple schedule assignments (e.g., "Work on report" scheduled for Monday 1PM-3PM and Tuesday 1PM-3PM). You can check off each assignment individually. When ALL assignments for a task are completed, the task itself is automatically marked complete. In the popup Display tab, clicking the main checkbox completes the task and ALL its assignments at once.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">How do recurring tasks work?</h4>
+                        <p class="faq-answer">When you complete a recurring task, a new instance is automatically created with the same title, priority, type, and notes. The deadline (if set) advances by the recurrence interval: +1 day for daily, +7 days for weekly, or +1 month for monthly. The new instance starts with an empty schedule — you need to schedule it for the next period.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">Can I undo a deleted task?</h4>
+                        <p class="faq-answer">Yes! After deleting a task, an "Undo" toast appears briefly. Click it to restore the task. You can also press Ctrl+Z (or Cmd+Z on Mac) to undo the last destructive action. The undo history stores up to 5 states.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">Why can't I drag a task to certain time blocks?</h4>
+                        <p class="faq-answer">Some time blocks have slot limits. "Blocked" slots (like Sleep, Morning Prep, Lunch) don't accept any tasks. "Single" slots accept only one task per day. Check the Time Blocks configuration in the SCHEDULE tab to see each block's limit.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">How do I back up my tasks?</h4>
+                        <p class="faq-answer">Click the Import/Export button (📦) in the header, then click "Export Tasks". This downloads a JSON file with all your tasks. To restore, use "Import Tasks" and select your backup file. The import merges with existing tasks — matching IDs are updated, new IDs are added.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">Why did my changes disappear after editing?</h4>
+                        <p class="faq-answer">Inline edits auto-save after 1.5 seconds of inactivity. If you close the edit form or navigate away immediately, changes may not be saved. Watch for the "Saved" indicator, or click the Save button to save immediately.</p>
+                    </div>
                 </div>
 
             </div><!-- end .help-content -->

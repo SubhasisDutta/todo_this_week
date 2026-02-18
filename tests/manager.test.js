@@ -192,9 +192,18 @@ function setupManagerDOM() {
                         <button id="help-close-btn" class="neumorphic-btn icon-btn" aria-label="Close help">✕</button>
                     </div>
                     <div class="help-tabs">
-                        <button class="help-tab-link active" data-help-tab="help-overview">Overview</button>
+                        <button class="tab-link active" data-help-tab="help-overview">Overview</button>
+                        <button class="tab-link" data-help-tab="help-quickstart">Quick Start</button>
+                        <button class="tab-link" data-help-tab="help-faq">FAQ</button>
                     </div>
-                    <div id="help-overview" class="help-panel active"><p>Welcome!</p></div>
+                    <div class="help-content">
+                        <div id="help-overview" class="help-panel active"><p>Welcome!</p></div>
+                        <div id="help-quickstart" class="help-panel"><p>Quick start guide</p></div>
+                        <div id="help-faq" class="help-panel">
+                            <div class="faq-item"><h4 class="faq-question">Q1?</h4><p class="faq-answer">A1</p></div>
+                            <div class="faq-item"><h4 class="faq-question">Q2?</h4><p class="faq-answer">A2</p></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -804,5 +813,33 @@ describe('Header tooltips', () => {
         const settingsBtn = document.getElementById('settings-btn');
         expect(helpBtn.classList.contains('has-tooltip')).toBe(true);
         expect(settingsBtn.classList.contains('has-tooltip')).toBe(true);
+    });
+});
+
+describe('Help Modal FAQ Tab', () => {
+    test('FAQ tab button exists', () => {
+        const faqTab = document.querySelector('[data-help-tab="help-faq"]');
+        expect(faqTab).not.toBeNull();
+        expect(faqTab.textContent).toBe('FAQ');
+    });
+
+    test('FAQ panel exists', () => {
+        const faqPanel = document.getElementById('help-faq');
+        expect(faqPanel).not.toBeNull();
+        expect(faqPanel.classList.contains('help-panel')).toBe(true);
+    });
+
+    test('FAQ panel contains faq-items', () => {
+        const faqPanel = document.getElementById('help-faq');
+        const faqItems = faqPanel.querySelectorAll('.faq-item');
+        expect(faqItems.length).toBeGreaterThan(0);
+    });
+
+    test('FAQ items have question and answer', () => {
+        const faqItem = document.querySelector('.faq-item');
+        const question = faqItem.querySelector('.faq-question');
+        const answer = faqItem.querySelector('.faq-answer');
+        expect(question).not.toBeNull();
+        expect(answer).not.toBeNull();
     });
 });
