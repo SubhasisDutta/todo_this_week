@@ -11,11 +11,11 @@ This is a **Weekly Task Manager** — a Chrome/Chromium browser extension (Manif
 ### Core Components
 
 - `task_utils.js` (~490 lines) — Shared utilities: Task class, CRUD operations, settings, undo/redo, recurring tasks, time blocks, validation, debounce, operation queue, cross-tab sync
-- `settings.js` (~500 lines) — Settings management: theme/font application, settings modal UI, Notion import, Google Sheets import, time block management
+- `settings.js` (~620 lines) — Settings management: theme/font application, settings modal UI, import/export modal (JSON, CSV, Notion, Google Sheets), time blocks modal
 - `popup.js` (~390 lines) — Popup interface: task rendering (with notes/recurrence), tab switching, completion handlers, drag-and-drop reordering
 - `manager.js` (~900 lines) — Full-page planner: weekly grid, drag-and-drop scheduling, inline editing, archive tab, stats tab, search/filter, undo toast, keyboard undo, settings wiring, add task modal
 - `popup.html` (~102 lines) — Popup markup (3 tabs: TODAY, Display, ADD — with notes textarea and recurrence select)
-- `manager.html` (~650 lines) — Planner markup (5 tabs: SCHEDULE, PRIORITY, LOCATION, ARCHIVE, STATS + settings/help/add-task modals)
+- `manager.html` (~780 lines) — Planner markup (5 tabs: SCHEDULE, PRIORITY, LOCATION, ARCHIVE, STATS + settings/help/add-task/import-export/time-blocks modals)
 - `popup.css` (~1580 lines) — Unified styles: neumorphic design, dark mode, modals, charts, archive, help, toast, search, notes, tooltips
 
 ### Extension Configuration
@@ -93,7 +93,7 @@ Each entry in the `schedule` array represents a task assignment to a specific da
 
 ### DEFAULT_TIME_BLOCKS Constant
 
-Defined in `task_utils.js` as `DEFAULT_TIME_BLOCKS`. A `TIME_BLOCKS` alias is kept for backward compatibility. Time blocks are now configurable via Settings modal and stored in `chrome.storage.local` under the `timeBlocks` key; `getTimeBlocks()` returns stored blocks or falls back to `DEFAULT_TIME_BLOCKS`. Each block has: `id`, `label`, `time`, `limit` ('0', '1', or 'multiple'), `colorClass`.
+Defined in `task_utils.js` as `DEFAULT_TIME_BLOCKS`. A `TIME_BLOCKS` alias is kept for backward compatibility. Time blocks are configurable via the Time Blocks modal (accessible from the SCHEDULE tab) and stored in `chrome.storage.local` under the `timeBlocks` key; `getTimeBlocks()` returns stored blocks or falls back to `DEFAULT_TIME_BLOCKS`. Each block has: `id`, `label`, `time`, `limit` ('0', '1', or 'multiple'), `colorClass`.
 
 | id | label | time | limit |
 |----|-------|------|-------|

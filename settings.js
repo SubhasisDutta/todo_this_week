@@ -65,17 +65,118 @@ function closeSettingsModal() {
     const modal = document.getElementById('settings-modal');
     if (!modal) return;
     modal.classList.add('hidden');
+}
+
+// --- Import/Export Modal Functions ---
+
+function openImportExportModal() {
+    const modal = document.getElementById('import-export-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.removeAttribute('hidden');
+    // Populate saved values
+    populateImportExportForm();
+}
+
+function closeImportExportModal() {
+    const modal = document.getElementById('import-export-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
     // Hide any sub-panels
     const notionList = document.getElementById('notion-pages-list');
     const notionImportBtn = document.getElementById('notion-import-btn');
     const sheetsPreview = document.getElementById('sheets-preview');
     const sheetsImportBtn = document.getElementById('sheets-import-btn');
-    const addBlockForm = document.getElementById('add-time-block-form');
+    const csvPreview = document.getElementById('csv-preview');
+    const csvImportBtn = document.getElementById('csv-import-btn');
     if (notionList) notionList.classList.add('hidden');
     if (notionImportBtn) notionImportBtn.classList.add('hidden');
     if (sheetsPreview) sheetsPreview.classList.add('hidden');
     if (sheetsImportBtn) sheetsImportBtn.classList.add('hidden');
+    if (csvPreview) csvPreview.classList.add('hidden');
+    if (csvImportBtn) csvImportBtn.classList.add('hidden');
+}
+
+async function populateImportExportForm() {
+    const settings = await getSettings();
+    const notionApiKey = document.getElementById('notion-api-key');
+    const notionDbId = document.getElementById('notion-database-id');
+    const sheetsUrl = document.getElementById('sheets-url');
+
+    if (notionApiKey) notionApiKey.value = settings.notionApiKey || '';
+    if (notionDbId) notionDbId.value = settings.notionDatabaseId || '';
+    if (sheetsUrl) sheetsUrl.value = settings.googleSheetsUrl || '';
+}
+
+// --- Time Blocks Modal Functions ---
+
+function openTimeBlocksModal() {
+    const modal = document.getElementById('time-blocks-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.removeAttribute('hidden');
+    // Render time blocks table
+    populateTimeBlocksModal();
+}
+
+function closeTimeBlocksModal() {
+    const modal = document.getElementById('time-blocks-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    const addBlockForm = document.getElementById('add-time-block-form');
     if (addBlockForm) addBlockForm.classList.add('hidden');
+}
+
+async function populateTimeBlocksModal() {
+    const blocks = await getTimeBlocks();
+    renderTimeBlocksTable(blocks);
+}
+
+// --- CSV File Import ---
+
+let _csvParsedRows = [];
+
+function showCsvPreview(rows) {
+    const container = document.getElementById('csv-preview');
+    const importBtn = document.getElementById('csv-import-btn');
+    if (!container) return;
+
+    if (rows.length === 0) {
+        container.innerHTML = '<p>No valid rows found. Ensure the CSV has a "title" column header.</p>';
+        container.classList.remove('hidden');
+        return;
+    }
+
+    const previewRows = rows.slice(0, 10);
+    container.innerHTML = `
+        <p style="margin:0 0 8px; font-size:0.85em; color:var(--text-muted)">Preview (first ${previewRows.length} of ${rows.length} rows):</p>
+        <table>
+            <thead><tr><th>Title</th><th>Priority</th><th>Type</th><th>Energy</th></tr></thead>
+            <tbody>
+                ${previewRows.map(r => `
+                    <tr>
+                        <td>${r.title}</td>
+                        <td>${r.priority}</td>
+                        <td>${r.type}</td>
+                        <td>${r.energy}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        ${rows.length > 10 ? `<p style="font-size:0.8em; color:var(--text-muted)">...and ${rows.length - 10} more rows</p>` : ''}
+    `;
+    container.classList.remove('hidden');
+    if (importBtn) importBtn.classList.remove('hidden');
+}
+
+async function importCsvTasks(rows) {
+    let count = 0;
+    for (const row of rows) {
+        if (!row.title) continue;
+        await addNewTask(row.title, row.url, row.priority, row.deadline || null, row.type, row.energy, row.notes, row.recurrence);
+        count++;
+    }
+    return count;
 }
 
 async function populateSettingsForm() {
@@ -84,20 +185,10 @@ async function populateSettingsForm() {
     const darkModeToggle = document.getElementById('dark-mode-toggle');
     const fontFamilySelect = document.getElementById('font-family-select');
     const fontSizeSelect = document.getElementById('font-size-select');
-    const notionApiKey = document.getElementById('notion-api-key');
-    const notionDbId = document.getElementById('notion-database-id');
-    const sheetsUrl = document.getElementById('sheets-url');
 
     if (darkModeToggle) darkModeToggle.checked = settings.theme === 'dark';
     if (fontFamilySelect) fontFamilySelect.value = settings.fontFamily || 'system';
     if (fontSizeSelect) fontSizeSelect.value = settings.fontSize || 'medium';
-    if (notionApiKey) notionApiKey.value = settings.notionApiKey || '';
-    if (notionDbId) notionDbId.value = settings.notionDatabaseId || '';
-    if (sheetsUrl) sheetsUrl.value = settings.googleSheetsUrl || '';
-
-    // Render time blocks table
-    const blocks = await getTimeBlocks();
-    renderTimeBlocksTable(blocks);
 }
 
 async function saveSettingsFromForm() {
@@ -106,16 +197,10 @@ async function saveSettingsFromForm() {
     const darkModeToggle = document.getElementById('dark-mode-toggle');
     const fontFamilySelect = document.getElementById('font-family-select');
     const fontSizeSelect = document.getElementById('font-size-select');
-    const notionApiKey = document.getElementById('notion-api-key');
-    const notionDbId = document.getElementById('notion-database-id');
-    const sheetsUrl = document.getElementById('sheets-url');
 
     if (darkModeToggle) settings.theme = darkModeToggle.checked ? 'dark' : 'light';
     if (fontFamilySelect) settings.fontFamily = fontFamilySelect.value;
     if (fontSizeSelect) settings.fontSize = fontSizeSelect.value;
-    if (notionApiKey) settings.notionApiKey = notionApiKey.value.trim();
-    if (notionDbId) settings.notionDatabaseId = notionDbId.value.trim();
-    if (sheetsUrl) settings.googleSheetsUrl = sheetsUrl.value.trim();
 
     await saveSettings(settings);
     applySettings(settings);
@@ -465,56 +550,153 @@ async function setupSettingsModalListeners(renderPageCallback) {
             showInfoMessage('Settings saved!', 'success');
         });
     }
+}
 
-    // Notion import
-    const notionFetchBtn = document.getElementById('notion-fetch-btn');
-    if (notionFetchBtn) {
-        notionFetchBtn.addEventListener('click', async () => {
-            const apiKey = document.getElementById('notion-api-key')?.value.trim();
-            const dbId = document.getElementById('notion-database-id')?.value.trim();
-            if (!apiKey || !dbId) {
-                showInfoMessage('Please enter your Notion API Key and Database ID.', 'error');
-                return;
-            }
-            notionFetchBtn.textContent = 'Fetching...';
-            notionFetchBtn.disabled = true;
-            try {
-                const pages = await fetchNotionPages(apiKey, dbId);
-                renderNotionPagesList(pages);
-            } catch (err) {
-                showInfoMessage(`Notion error: ${err.message}`, 'error');
-            } finally {
-                notionFetchBtn.textContent = 'Fetch Notion Pages';
-                notionFetchBtn.disabled = false;
-            }
+// --- Import/Export Modal Listeners Setup ---
+async function setupImportExportModalListeners(renderPageCallback) {
+    const importExportBtn = document.getElementById('import-export-btn');
+    const importExportCloseBtn = document.getElementById('import-export-close-btn');
+    const importExportModal = document.getElementById('import-export-modal');
+
+    if (importExportBtn) {
+        importExportBtn.addEventListener('click', () => {
+            openImportExportModal();
         });
     }
 
-    const notionImportBtn = document.getElementById('notion-import-btn');
-    if (notionImportBtn) {
-        notionImportBtn.addEventListener('click', async () => {
-            const checkboxes = document.querySelectorAll('.notion-page-checkbox:checked');
-            if (checkboxes.length === 0) {
-                showInfoMessage('Please select at least one page.', 'error');
+    if (importExportCloseBtn) {
+        importExportCloseBtn.addEventListener('click', closeImportExportModal);
+    }
+
+    if (importExportModal) {
+        importExportModal.addEventListener('click', (e) => {
+            if (e.target === importExportModal) closeImportExportModal();
+        });
+    }
+
+    // JSON Export
+    const exportBtn = document.getElementById('export-tasks-btn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', async () => {
+            const tasks = await getTasksAsync();
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tasks, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            downloadAnchorNode.setAttribute("download", `tasks-${timestamp}.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+            showInfoMessage("Tasks exported successfully!", "success");
+        });
+    }
+
+    // JSON Import
+    const importBtn = document.getElementById('import-tasks-btn');
+    const fileInput = document.getElementById('import-file-input');
+
+    if (importBtn && fileInput) {
+        importBtn.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) { showInfoMessage("No file selected.", "error"); return; }
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const importedTasks = JSON.parse(e.target.result);
+                    if (!Array.isArray(importedTasks)) {
+                        throw new Error("Invalid format: JSON file should contain an array of tasks.");
+                    }
+
+                    const existingTasks = await getTasksAsync();
+                    const existingTaskIds = new Set(existingTasks.map(t => t.id));
+                    const tasksToCreate = [];
+                    const tasksToUpdate = [];
+
+                    for (const importedTask of importedTasks) {
+                        if (!importedTask.id || !importedTask.title) {
+                            console.warn("Skipping invalid task object:", importedTask);
+                            continue;
+                        }
+                        if (existingTaskIds.has(importedTask.id)) {
+                            tasksToUpdate.push(importedTask);
+                        } else {
+                            tasksToCreate.push(importedTask);
+                        }
+                    }
+
+                    const updatedTasks = existingTasks.map(existingTask => {
+                        const taskToUpdate = tasksToUpdate.find(t => t.id === existingTask.id);
+                        return taskToUpdate ? taskToUpdate : existingTask;
+                    });
+
+                    const finalTasks = [...updatedTasks, ...tasksToCreate];
+                    await saveTasksAsync(finalTasks);
+                    closeImportExportModal();
+                    if (renderPageCallback) await renderPageCallback();
+                    showInfoMessage("Tasks imported successfully!", "success");
+                } catch (error) {
+                    showInfoMessage(`Error importing tasks: ${error.message}`, "error");
+                } finally {
+                    fileInput.value = '';
+                }
+            };
+            reader.onerror = () => { showInfoMessage("Error reading file.", "error"); fileInput.value = ''; };
+            reader.readAsText(file);
+        });
+    }
+
+    // CSV File Upload
+    const csvUploadBtn = document.getElementById('csv-upload-btn');
+    const csvFileInput = document.getElementById('csv-file-input');
+
+    if (csvUploadBtn && csvFileInput) {
+        csvUploadBtn.addEventListener('click', () => csvFileInput.click());
+
+        csvFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) { showInfoMessage("No file selected.", "error"); return; }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const text = e.target.result;
+                    const rows = parseCSV(text);
+                    const normalized = rows.map(normalizeSheetRow).filter(r => r.title);
+                    _csvParsedRows = normalized;
+                    showCsvPreview(normalized);
+                } catch (error) {
+                    showInfoMessage(`Error parsing CSV: ${error.message}`, "error");
+                } finally {
+                    csvFileInput.value = '';
+                }
+            };
+            reader.onerror = () => { showInfoMessage("Error reading file.", "error"); csvFileInput.value = ''; };
+            reader.readAsText(file);
+        });
+    }
+
+    const csvImportBtn = document.getElementById('csv-import-btn');
+    if (csvImportBtn) {
+        csvImportBtn.addEventListener('click', async () => {
+            if (_csvParsedRows.length === 0) {
+                showInfoMessage('No rows to import. Please upload a CSV file first.', 'error');
                 return;
             }
-            const selected = Array.from(checkboxes).map(cb => ({
-                id: cb.value,
-                title: cb.dataset.title,
-                priority: cb.dataset.priority
-            }));
-            notionImportBtn.textContent = 'Importing...';
-            notionImportBtn.disabled = true;
+            csvImportBtn.textContent = 'Importing...';
+            csvImportBtn.disabled = true;
             try {
-                const count = await importNotionTasks(selected);
-                showInfoMessage(`Imported ${count} task(s) from Notion!`, 'success');
-                closeSettingsModal();
+                const count = await importCsvTasks(_csvParsedRows);
+                showInfoMessage(`Imported ${count} task(s) from CSV!`, 'success');
+                closeImportExportModal();
                 if (renderPageCallback) await renderPageCallback();
             } catch (err) {
                 showInfoMessage(`Import failed: ${err.message}`, 'error');
             } finally {
-                notionImportBtn.textContent = 'Import Selected';
-                notionImportBtn.disabled = false;
+                csvImportBtn.textContent = '✅ Import Rows';
+                csvImportBtn.disabled = false;
             }
         });
     }
@@ -558,24 +740,106 @@ async function setupSettingsModalListeners(renderPageCallback) {
             try {
                 const count = await importSheetsTasks(_sheetsParsedRows);
                 showInfoMessage(`Imported ${count} task(s) from Google Sheets!`, 'success');
-                closeSettingsModal();
+                closeImportExportModal();
                 if (renderPageCallback) await renderPageCallback();
             } catch (err) {
                 showInfoMessage(`Import failed: ${err.message}`, 'error');
             } finally {
-                sheetsImportBtn.textContent = 'Import Rows';
+                sheetsImportBtn.textContent = '✅ Import Rows';
                 sheetsImportBtn.disabled = false;
             }
         });
     }
 
-    // Time blocks
+    // Notion import
+    const notionFetchBtn = document.getElementById('notion-fetch-btn');
+    if (notionFetchBtn) {
+        notionFetchBtn.addEventListener('click', async () => {
+            const apiKey = document.getElementById('notion-api-key')?.value.trim();
+            const dbId = document.getElementById('notion-database-id')?.value.trim();
+            if (!apiKey || !dbId) {
+                showInfoMessage('Please enter your Notion API Key and Database ID.', 'error');
+                return;
+            }
+            notionFetchBtn.textContent = 'Fetching...';
+            notionFetchBtn.disabled = true;
+            try {
+                const pages = await fetchNotionPages(apiKey, dbId);
+                renderNotionPagesList(pages);
+                // Save credentials to settings
+                const settings = await getSettings();
+                settings.notionApiKey = apiKey;
+                settings.notionDatabaseId = dbId;
+                await saveSettings(settings);
+            } catch (err) {
+                showInfoMessage(`Notion error: ${err.message}`, 'error');
+            } finally {
+                notionFetchBtn.textContent = 'Fetch Notion Pages';
+                notionFetchBtn.disabled = false;
+            }
+        });
+    }
+
+    const notionImportBtn = document.getElementById('notion-import-btn');
+    if (notionImportBtn) {
+        notionImportBtn.addEventListener('click', async () => {
+            const checkboxes = document.querySelectorAll('.notion-page-checkbox:checked');
+            if (checkboxes.length === 0) {
+                showInfoMessage('Please select at least one page.', 'error');
+                return;
+            }
+            const selected = Array.from(checkboxes).map(cb => ({
+                id: cb.value,
+                title: cb.dataset.title,
+                priority: cb.dataset.priority
+            }));
+            notionImportBtn.textContent = 'Importing...';
+            notionImportBtn.disabled = true;
+            try {
+                const count = await importNotionTasks(selected);
+                showInfoMessage(`Imported ${count} task(s) from Notion!`, 'success');
+                closeImportExportModal();
+                if (renderPageCallback) await renderPageCallback();
+            } catch (err) {
+                showInfoMessage(`Import failed: ${err.message}`, 'error');
+            } finally {
+                notionImportBtn.textContent = '✅ Import Selected';
+                notionImportBtn.disabled = false;
+            }
+        });
+    }
+}
+
+// --- Time Blocks Modal Listeners Setup ---
+async function setupTimeBlocksModalListeners(renderPageCallback) {
+    const timeBlocksBtn = document.getElementById('time-blocks-btn');
+    const timeBlocksCloseBtn = document.getElementById('time-blocks-close-btn');
+    const timeBlocksModal = document.getElementById('time-blocks-modal');
+
+    if (timeBlocksBtn) {
+        timeBlocksBtn.addEventListener('click', () => {
+            openTimeBlocksModal();
+        });
+    }
+
+    if (timeBlocksCloseBtn) {
+        timeBlocksCloseBtn.addEventListener('click', closeTimeBlocksModal);
+    }
+
+    if (timeBlocksModal) {
+        timeBlocksModal.addEventListener('click', (e) => {
+            if (e.target === timeBlocksModal) closeTimeBlocksModal();
+        });
+    }
+
+    // Time blocks management
     const resetBlocksBtn = document.getElementById('reset-time-blocks-btn');
     if (resetBlocksBtn) {
         resetBlocksBtn.addEventListener('click', async () => {
             if (confirm('Reset all time blocks to defaults? This cannot be undone.')) {
                 await resetTimeBlocksToDefaults();
                 showInfoMessage('Time blocks reset to defaults.', 'success');
+                closeTimeBlocksModal();
                 if (renderPageCallback) await renderPageCallback();
             }
         });
@@ -612,7 +876,14 @@ async function setupSettingsModalListeners(renderPageCallback) {
 
             await addTimeBlock(label, startTime, endTime, limit, colorClass);
             if (addBlockForm) addBlockForm.classList.add('hidden');
+            // Clear form
+            document.getElementById('new-block-label').value = '';
+            document.getElementById('new-block-start').value = '';
+            document.getElementById('new-block-end').value = '';
+            document.getElementById('new-block-limit').value = 'multiple';
+            document.getElementById('new-block-color').value = '';
             showInfoMessage('Time block added!', 'success');
+            closeTimeBlocksModal();
             if (renderPageCallback) await renderPageCallback();
         });
     }

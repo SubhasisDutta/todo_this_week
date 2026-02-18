@@ -19,6 +19,10 @@
                     <span class="btn-icon">➕</span>
                     <span class="btn-text">Add New Task</span>
                 </button>
+                <button id="import-export-btn" class="neumorphic-btn icon-btn has-tooltip" aria-label="Import/Export Tasks">
+                    <span class="btn-icon-text">📦</span>
+                    <span class="btn-tooltip">Import/Export</span>
+                </button>
                 <button id="help-btn" class="neumorphic-btn icon-btn has-tooltip" aria-label="Open Help Guide">
                     <span class="btn-icon-text">?</span>
                     <span class="btn-tooltip">Help</span>
@@ -41,7 +45,7 @@
             <button class="tab-link" data-tab="all-tasks" role="tab" aria-selected="false"
                 aria-controls="all-tasks"><span class="tab-icon">🌍</span> LOCATION</button>
             <button class="tab-link" data-tab="archive-tab" role="tab" aria-selected="false"
-                aria-controls="archive-tab"><span class="tab-icon">📦</span> ARCHIVE</button>
+                aria-controls="archive-tab"><span class="tab-icon">🗄️</span> ARCHIVE</button>
             <button class="tab-link" data-tab="stats-tab" role="tab" aria-selected="false"
                 aria-controls="stats-tab"><span class="tab-icon">📊</span> STATS</button>
         </div>
@@ -51,6 +55,12 @@
 
             <!-- SCHEDULE Tab -->
             <div id="weekly-schedule" class="tab-content active" role="tabpanel" aria-labelledby="weekly-schedule">
+                <div class="schedule-tab-header">
+                    <button id="time-blocks-btn" class="neumorphic-btn" aria-label="Configure Time Blocks">
+                        <span class="btn-icon">🕐</span>
+                        <span class="btn-text">Time Blocks</span>
+                    </button>
+                </div>
                 <div class="planner-container">
                     <!-- Column 1: Unassigned Tasks -->
                     <div class="tasks-column" id="unassigned-tasks-container">
@@ -197,107 +207,6 @@
                         <option value="medium">Medium (15px)</option>
                         <option value="large">Large (17px)</option>
                     </select>
-                </div>
-            </section>
-
-            <!-- Import / Export -->
-            <section class="settings-section">
-                <h3>Import / Export Tasks</h3>
-                <div class="buttons-container">
-                    <button id="export-tasks-btn" class="neumorphic-btn">⬇️ Export Tasks</button>
-                    <button id="import-tasks-btn" class="neumorphic-btn">⬆️ Import Tasks</button>
-                    <input type="file" id="import-file-input" style="display: none;" accept=".json">
-                </div>
-            </section>
-
-            <!-- Notion Import -->
-            <section class="settings-section">
-                <h3>Import from Notion</h3>
-                <p style="font-size:0.82em; color:var(--text-muted); margin:0 0 10px;">Enter your Notion integration
-                    token and Database ID. <a href="https://developers.notion.com/docs/create-a-notion-integration"
-                        target="_blank" style="color:var(--accent-blue)">How to get these?</a></p>
-                <div class="form-group">
-                    <label for="notion-api-key">Notion Integration Token</label>
-                    <input type="password" id="notion-api-key" class="neumorphic-input" placeholder="secret_...">
-                </div>
-                <div class="form-group">
-                    <label for="notion-database-id">Database ID</label>
-                    <input type="text" id="notion-database-id" class="neumorphic-input"
-                        placeholder="32-character database ID">
-                </div>
-                <button id="notion-fetch-btn" class="neumorphic-btn">Fetch Notion Pages</button>
-                <div id="notion-pages-list" class="notion-pages-list hidden"></div>
-                <button id="notion-import-btn" class="neumorphic-btn hidden" style="margin-top:8px;">✅ Import
-                    Selected</button>
-            </section>
-
-            <!-- Google Sheets Import -->
-            <section class="settings-section">
-                <h3>Import from Google Sheets</h3>
-                <p style="font-size:0.82em; color:var(--text-muted); margin:0 0 10px;">Publish your sheet as CSV (File →
-                    Share → Publish to web → CSV). Required column: <strong>title</strong>. Optional: priority, type,
-                    energy, url, deadline, notes, recurrence.</p>
-                <div class="form-group">
-                    <label for="sheets-url">Published CSV URL</label>
-                    <input type="url" id="sheets-url" class="neumorphic-input"
-                        placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv">
-                </div>
-                <button id="sheets-fetch-btn" class="neumorphic-btn">Preview Sheet</button>
-                <div id="sheets-preview" class="sheets-preview hidden"></div>
-                <button id="sheets-import-btn" class="neumorphic-btn hidden" style="margin-top:8px;">✅ Import
-                    Rows</button>
-            </section>
-
-            <!-- Time Blocks Configuration -->
-            <section class="settings-section">
-                <h3>Time Blocks</h3>
-                <p style="font-size:0.82em; color:var(--text-muted); margin:0 0 10px;">Configure the time blocks in your
-                    weekly planner grid.</p>
-                <div id="time-blocks-table-container"></div>
-                <div class="buttons-container" style="margin-top:10px; gap:8px;">
-                    <button id="reset-time-blocks-btn" class="neumorphic-btn">↩️ Reset to Defaults</button>
-                    <button id="add-time-block-btn" class="neumorphic-btn">➕ Add Block</button>
-                </div>
-                <div id="add-time-block-form" class="hidden"
-                    style="margin-top:14px; padding:14px; background:var(--inset-bg); border-radius:var(--border-radius-md);">
-                    <div class="form-group">
-                        <label for="new-block-label">Label</label>
-                        <input type="text" id="new-block-label" class="neumorphic-input" placeholder="e.g. Deep Focus">
-                    </div>
-                    <div style="display:flex; gap:10px;">
-                        <div class="form-group" style="flex:1;">
-                            <label for="new-block-start">Start Time</label>
-                            <input type="time" id="new-block-start" class="neumorphic-input">
-                        </div>
-                        <div class="form-group" style="flex:1;">
-                            <label for="new-block-end">End Time</label>
-                            <input type="time" id="new-block-end" class="neumorphic-input">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="new-block-limit">Slot Limit</label>
-                        <select id="new-block-limit" class="neumorphic-select">
-                            <option value="0">Blocked (0 tasks)</option>
-                            <option value="1">Single task (1)</option>
-                            <option value="multiple" selected>Multiple tasks</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="new-block-color">Color</label>
-                        <select id="new-block-color" class="neumorphic-select">
-                            <option value="">None (default)</option>
-                            <option value="block-color-sakura">🌸 Sakura</option>
-                            <option value="block-color-yellow">🌟 Yellow</option>
-                            <option value="block-color-purple">💜 Purple</option>
-                            <option value="block-color-sage">🌿 Sage</option>
-                            <option value="block-color-skyblue">🩵 Sky Blue</option>
-                            <option value="block-color-orange">🔶 Orange</option>
-                        </select>
-                    </div>
-                    <div style="display:flex; gap:8px; margin-top:10px;">
-                        <button id="save-new-block-btn" class="neumorphic-btn">Save Block</button>
-                        <button id="cancel-new-block-btn" class="neumorphic-btn">Cancel</button>
-                    </div>
                 </div>
             </section>
 
@@ -561,29 +470,13 @@
                             <p>Choose from 5 font families and 3 sizes. Preview updates live as you select.</p>
                         </div>
                     </div>
+
+                    <h3 class="help-section-title" style="margin-top: 20px;">🕐 Time Blocks</h3>
+                    <p>Click the <strong>Time Blocks</strong> button in the SCHEDULE tab to configure time blocks.</p>
                     <div class="help-step">
-                        <div class="help-step-number">3</div>
+                        <div class="help-step-number">1</div>
                         <div class="help-step-content">
-                            <h4>Notion Import</h4>
-                            <p>Enter your Notion Integration Token and Database ID. Click <em>Fetch Pages</em>, select
-                                which pages to import, then click <em>Import Selected</em>. Pages become tasks with
-                                their title and priority.</p>
-                        </div>
-                    </div>
-                    <div class="help-step">
-                        <div class="help-step-number">4</div>
-                        <div class="help-step-content">
-                            <h4>Google Sheets Import</h4>
-                            <p>Publish your Google Sheet as CSV (File → Share → Publish to web). Paste the CSV URL,
-                                click <em>Preview Sheet</em>, then <em>Import Rows</em>. Required column:
-                                <strong>title</strong>.
-                            </p>
-                        </div>
-                    </div>
-                    <div class="help-step">
-                        <div class="help-step-number">5</div>
-                        <div class="help-step-content">
-                            <h4>Time Blocks</h4>
+                            <h4>Manage Time Blocks</h4>
                             <p>View, add, or delete time blocks in the weekly grid. Click <em>+ Add Block</em> and fill
                                 in the label, times, slot limit, and color. Use <em>Reset to Defaults</em> to restore
                                 the original configuration.</p>
@@ -593,26 +486,39 @@
 
                 <!-- Import/Export -->
                 <div id="help-import-export" class="help-panel">
-                    <h3 class="help-section-title">📤 Import / Export</h3>
-                    <p>Back up your tasks to a JSON file and restore them later, or transfer between devices.</p>
+                    <h3 class="help-section-title">📦 Import / Export</h3>
+                    <p>Click the 📦 icon in the header to open the Import/Export modal. Back up your tasks, import from files, or connect to external services.</p>
 
                     <div class="help-step">
                         <div class="help-step-number">1</div>
                         <div class="help-step-content">
-                            <h4>Export Tasks</h4>
-                            <p>Open Settings (⚙️) → click <em>Export Tasks</em>. A file named
-                                <code>tasks-YYYY-MM-DD.json</code> will be downloaded containing all your tasks.
+                            <h4>JSON Export/Import</h4>
+                            <p>Click <em>Export Tasks</em> to download all tasks as a JSON file. Click <em>Import Tasks</em> to restore from a JSON file. The import
+                                <strong>merges</strong> with existing tasks: matching IDs are updated; new IDs are added.
                             </p>
                         </div>
                     </div>
                     <div class="help-step">
                         <div class="help-step-number">2</div>
                         <div class="help-step-content">
-                            <h4>Import Tasks</h4>
-                            <p>Open Settings (⚙️) → click <em>Import Tasks</em> → select a JSON file. The import
-                                <strong>merges</strong> with existing tasks: tasks with matching IDs are updated; new
-                                IDs are added.
-                            </p>
+                            <h4>CSV File Import</h4>
+                            <p>Click <em>Upload CSV File</em> to import tasks from a local CSV file. Required column: <strong>title</strong>. Optional: priority, type, energy, url, deadline, notes, recurrence.</p>
+                        </div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">3</div>
+                        <div class="help-step-content">
+                            <h4>Google Sheets Import</h4>
+                            <p>Publish your Google Sheet as CSV (File → Share → Publish to web). Paste the CSV URL,
+                                click <em>Preview Sheet</em>, then <em>Import Rows</em>.</p>
+                        </div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">4</div>
+                        <div class="help-step-content">
+                            <h4>Notion Import</h4>
+                            <p>Enter your Notion Integration Token and Database ID. Click <em>Fetch Pages</em>, select
+                                which pages to import, then click <em>Import Selected</em>.</p>
                         </div>
                     </div>
 
@@ -621,8 +527,7 @@
                         New task ID → APPEND (add)
                         No duplicates → Safe to re-import</div>
 
-                    <div class="help-tip">💡 The JSON format is a plain array of task objects. You can also manually
-                        edit the JSON to bulk-create tasks.</div>
+                    <div class="help-tip">💡 The JSON format is a plain array of task objects. CSV files should have a header row with column names.</div>
                 </div>
 
             </div><!-- end .help-content -->
@@ -701,6 +606,144 @@
                 <button id="manager-add-task-btn" class="neumorphic-btn" style="width: 100%; margin-top: 10px;">Add
                     Task</button>
             </div>
+        </div>
+    </div>
+
+    <!-- ============================
+         IMPORT/EXPORT MODAL
+         ============================ -->
+    <div id="import-export-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="import-export-title">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="import-export-title">📦 Import / Export Tasks</h2>
+                <button id="import-export-close-btn" class="neumorphic-btn icon-btn" aria-label="Close">✕</button>
+            </div>
+
+            <!-- JSON Import / Export -->
+            <section class="settings-section">
+                <h3>JSON Import / Export</h3>
+                <p style="font-size:0.82em; color:var(--text-muted); margin:0 0 10px;">Export your tasks to a JSON file for backup, or import tasks from a previously exported file.</p>
+                <div class="buttons-container">
+                    <button id="export-tasks-btn" class="neumorphic-btn">⬇️ Export Tasks</button>
+                    <button id="import-tasks-btn" class="neumorphic-btn">⬆️ Import Tasks</button>
+                    <input type="file" id="import-file-input" style="display: none;" accept=".json">
+                </div>
+            </section>
+
+            <!-- CSV Import -->
+            <section class="settings-section">
+                <h3>Import from CSV File</h3>
+                <p style="font-size:0.82em; color:var(--text-muted); margin:0 0 10px;">Upload a CSV file with your tasks. Required column: <strong>title</strong>. Optional: priority, type, energy, url, deadline, notes, recurrence.</p>
+                <div class="buttons-container">
+                    <button id="csv-upload-btn" class="neumorphic-btn">📄 Upload CSV File</button>
+                    <input type="file" id="csv-file-input" style="display: none;" accept=".csv">
+                </div>
+                <div id="csv-preview" class="sheets-preview hidden"></div>
+                <button id="csv-import-btn" class="neumorphic-btn hidden" style="margin-top:8px;">✅ Import Rows</button>
+            </section>
+
+            <!-- Google Sheets Import -->
+            <section class="settings-section">
+                <h3>Import from Google Sheets</h3>
+                <p style="font-size:0.82em; color:var(--text-muted); margin:0 0 10px;">Publish your sheet as CSV (File →
+                    Share → Publish to web → CSV). Required column: <strong>title</strong>. Optional: priority, type,
+                    energy, url, deadline, notes, recurrence.</p>
+                <div class="form-group">
+                    <label for="sheets-url">Published CSV URL</label>
+                    <input type="url" id="sheets-url" class="neumorphic-input"
+                        placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv">
+                </div>
+                <button id="sheets-fetch-btn" class="neumorphic-btn">Preview Sheet</button>
+                <div id="sheets-preview" class="sheets-preview hidden"></div>
+                <button id="sheets-import-btn" class="neumorphic-btn hidden" style="margin-top:8px;">✅ Import
+                    Rows</button>
+            </section>
+
+            <!-- Notion Import -->
+            <section class="settings-section">
+                <h3>Import from Notion</h3>
+                <p style="font-size:0.82em; color:var(--text-muted); margin:0 0 10px;">Enter your Notion integration
+                    token and Database ID. <a href="https://developers.notion.com/docs/create-a-notion-integration"
+                        target="_blank" style="color:var(--accent-blue)">How to get these?</a></p>
+                <div class="form-group">
+                    <label for="notion-api-key">Notion Integration Token</label>
+                    <input type="password" id="notion-api-key" class="neumorphic-input" placeholder="secret_...">
+                </div>
+                <div class="form-group">
+                    <label for="notion-database-id">Database ID</label>
+                    <input type="text" id="notion-database-id" class="neumorphic-input"
+                        placeholder="32-character database ID">
+                </div>
+                <button id="notion-fetch-btn" class="neumorphic-btn">Fetch Notion Pages</button>
+                <div id="notion-pages-list" class="notion-pages-list hidden"></div>
+                <button id="notion-import-btn" class="neumorphic-btn hidden" style="margin-top:8px;">✅ Import
+                    Selected</button>
+            </section>
+        </div>
+    </div>
+
+    <!-- ============================
+         TIME BLOCKS MODAL
+         ============================ -->
+    <div id="time-blocks-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="time-blocks-title">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="time-blocks-title">🕐 Time Blocks Configuration</h2>
+                <button id="time-blocks-close-btn" class="neumorphic-btn icon-btn" aria-label="Close">✕</button>
+            </div>
+
+            <section class="settings-section">
+                <p style="font-size:0.82em; color:var(--text-muted); margin:0 0 10px;">Configure the time blocks in your
+                    weekly planner grid. Changes will be reflected immediately in the Schedule tab.</p>
+                <div id="time-blocks-table-container"></div>
+                <div class="buttons-container" style="margin-top:10px; gap:8px;">
+                    <button id="reset-time-blocks-btn" class="neumorphic-btn">↩️ Reset to Defaults</button>
+                    <button id="add-time-block-btn" class="neumorphic-btn">➕ Add Block</button>
+                </div>
+                <div id="add-time-block-form" class="hidden"
+                    style="margin-top:14px; padding:14px; background:var(--inset-bg); border-radius:var(--border-radius-md);">
+                    <div class="form-group">
+                        <label for="new-block-label">Label</label>
+                        <input type="text" id="new-block-label" class="neumorphic-input" placeholder="e.g. Deep Focus">
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <div class="form-group" style="flex:1;">
+                            <label for="new-block-start">Start Time</label>
+                            <input type="time" id="new-block-start" class="neumorphic-input">
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label for="new-block-end">End Time</label>
+                            <input type="time" id="new-block-end" class="neumorphic-input">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-block-limit">Slot Limit</label>
+                        <select id="new-block-limit" class="neumorphic-select">
+                            <option value="0">Blocked (0 tasks)</option>
+                            <option value="1">Single task (1)</option>
+                            <option value="multiple" selected>Multiple tasks</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-block-color">Color</label>
+                        <select id="new-block-color" class="neumorphic-select">
+                            <option value="">None (default)</option>
+                            <option value="block-color-sakura">🌸 Sakura</option>
+                            <option value="block-color-yellow">🌟 Yellow</option>
+                            <option value="block-color-purple">💜 Purple</option>
+                            <option value="block-color-sage">🌿 Sage</option>
+                            <option value="block-color-skyblue">🩵 Sky Blue</option>
+                            <option value="block-color-orange">🔶 Orange</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:10px;">
+                        <button id="save-new-block-btn" class="neumorphic-btn">Save Block</button>
+                        <button id="cancel-new-block-btn" class="neumorphic-btn">Cancel</button>
+                    </div>
+                </div>
+            </section>
         </div>
     </div>
 

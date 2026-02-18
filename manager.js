@@ -21,6 +21,8 @@ function setupAllListeners() {
     setupTaskManagementListeners();
     setupSchedulingListeners();
     setupSettingsListeners();
+    setupImportExportListeners();
+    setupTimeBlocksListeners();
     setupHelpListeners();
     setupAddTaskModalListeners();
     setupUndoKeyboardListeners();
@@ -770,78 +772,22 @@ function setupUndoKeyboardListeners() {
 
 function setupSettingsListeners() {
     setupSettingsModalListeners(renderPage);
+}
 
-    // Import/Export wired within settings modal
-    const exportBtn = document.getElementById('export-tasks-btn');
-    if (exportBtn) {
-        exportBtn.addEventListener('click', async () => {
-            const tasks = await getTasksAsync();
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tasks, null, 2));
-            const downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href", dataStr);
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            downloadAnchorNode.setAttribute("download", `tasks-${timestamp}.json`);
-            document.body.appendChild(downloadAnchorNode);
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
-            showInfoMessage("Tasks exported successfully!", "success");
-        });
-    }
+// --- IMPORT/EXPORT LISTENERS (delegates to settings.js) ---
 
-    const importBtn = document.getElementById('import-tasks-btn');
-    const fileInput = document.getElementById('import-file-input');
+function setupImportExportListeners() {
+    setupImportExportModalListeners(renderPage);
+}
 
-    if (importBtn && fileInput) {
-        importBtn.addEventListener('click', () => fileInput.click());
+// --- TIME BLOCKS LISTENERS (delegates to settings.js) ---
 
-        fileInput.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (!file) { showInfoMessage("No file selected.", "error"); return; }
-
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const importedTasks = JSON.parse(e.target.result);
-                    if (!Array.isArray(importedTasks)) {
-                        throw new Error("Invalid format: JSON file should contain an array of tasks.");
-                    }
-
-                    const existingTasks = await getTasksAsync();
-                    const existingTaskIds = new Set(existingTasks.map(t => t.id));
-                    const tasksToCreate = [];
-                    const tasksToUpdate = [];
-
-                    for (const importedTask of importedTasks) {
-                        if (!importedTask.id || !importedTask.title) {
-                            console.warn("Skipping invalid task object:", importedTask);
-                            continue;
-                        }
-                        if (existingTaskIds.has(importedTask.id)) {
-                            tasksToUpdate.push(importedTask);
-                        } else {
-                            tasksToCreate.push(importedTask);
-                        }
-                    }
-
-                    const updatedTasks = existingTasks.map(existingTask => {
-                        const taskToUpdate = tasksToUpdate.find(t => t.id === existingTask.id);
-                        return taskToUpdate ? taskToUpdate : existingTask;
-                    });
-
-                    const finalTasks = [...updatedTasks, ...tasksToCreate];
-                    await saveTasksAsync(finalTasks);
-                    await renderPage();
-                    showInfoMessage("Tasks imported successfully!", "success");
-                } catch (error) {
-                    showInfoMessage(`Error importing tasks: ${error.message}`, "error");
-                } finally {
-                    fileInput.value = '';
-                }
-            };
-            reader.onerror = () => { showInfoMessage("Error reading file.", "error"); fileInput.value = ''; };
-            reader.readAsText(file);
-        });
-    }
+function setupTimeBlocksListeners() {
+    setupTimeBlocksModalListeners(async () => {
+        await generatePlannerGrid();
+        highlightCurrentDay();
+        await renderPage();
+    });
 }
 
 // --- HELP MODAL LISTENERS ---

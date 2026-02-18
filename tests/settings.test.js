@@ -20,9 +20,14 @@ loadScript(path.join(__dirname, '..', 'settings.js'), [
     'FONT_FAMILY_MAP', 'FONT_SIZE_MAP',
     'applySettings', 'initSettings',
     'openSettingsModal', 'closeSettingsModal',
+    'openImportExportModal', 'closeImportExportModal',
+    'openTimeBlocksModal', 'closeTimeBlocksModal',
     'populateSettingsForm', 'saveSettingsFromForm',
+    'populateImportExportForm', 'populateTimeBlocksModal',
     'renderTimeBlocksTable',
-    'setupSettingsModalListeners'
+    'setupSettingsModalListeners',
+    'setupImportExportModalListeners',
+    'setupTimeBlocksModalListeners'
 ]);
 
 // Minimal DOM setup for settings tests
@@ -45,6 +50,12 @@ function setupSettingsDOM() {
                     <option value="medium">Medium</option>
                     <option value="large">Large</option>
                 </select>
+                <button id="save-settings-btn">Save</button>
+                <button id="settings-close-btn">Close</button>
+            </div>
+        </div>
+        <div id="import-export-modal" class="modal-overlay hidden">
+            <div class="modal-content">
                 <input type="text" id="notion-api-key" value="">
                 <input type="text" id="notion-database-id" value="">
                 <input type="url" id="sheets-url" value="">
@@ -52,10 +63,17 @@ function setupSettingsDOM() {
                 <button id="notion-import-btn" class="hidden"></button>
                 <div id="sheets-preview"></div>
                 <button id="sheets-import-btn" class="hidden"></button>
+                <div id="csv-preview"></div>
+                <button id="csv-import-btn" class="hidden"></button>
+                <button id="import-export-close-btn">Close</button>
+            </div>
+        </div>
+        <div id="time-blocks-modal" class="modal-overlay hidden">
+            <div class="modal-content">
                 <div id="time-blocks-table-container"></div>
-                <button id="save-settings-btn">Save</button>
-                <button id="settings-close-btn">Close</button>
                 <button id="reset-time-blocks-btn">Reset</button>
+                <button id="add-time-block-btn">Add</button>
+                <button id="time-blocks-close-btn">Close</button>
             </div>
         </div>
     `;
@@ -144,12 +162,15 @@ describe('populateSettingsForm', () => {
         expect(document.getElementById('font-family-select').value).toBe('inter');
         expect(document.getElementById('font-size-select').value).toBe('large');
     });
+});
 
-    test('populates notion fields from settings', async () => {
-        seedSettings({ theme: 'light', fontFamily: 'system', fontSize: 'medium', hasSeenSampleTasks: true, notionApiKey: 'my-key', notionDatabaseId: 'my-db', googleSheetsUrl: '' });
-        await populateSettingsForm();
+describe('populateImportExportForm', () => {
+    test('populates notion and sheets fields from settings', async () => {
+        seedSettings({ theme: 'light', fontFamily: 'system', fontSize: 'medium', hasSeenSampleTasks: true, notionApiKey: 'my-key', notionDatabaseId: 'my-db', googleSheetsUrl: 'https://example.com/sheet.csv' });
+        await populateImportExportForm();
         expect(document.getElementById('notion-api-key').value).toBe('my-key');
         expect(document.getElementById('notion-database-id').value).toBe('my-db');
+        expect(document.getElementById('sheets-url').value).toBe('https://example.com/sheet.csv');
     });
 });
 

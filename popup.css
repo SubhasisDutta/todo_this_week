@@ -857,6 +857,27 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
 */
 
 
+/* --- Schedule Tab Header --- */
+.schedule-tab-header {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 0 5px;
+}
+
+.schedule-tab-header .neumorphic-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    font-size: 0.9em;
+}
+
+.schedule-tab-header .btn-icon {
+    font-size: 1.1em;
+}
+
 /* --- Planner Layout --- */
 .planner-container {
     display: flex;
