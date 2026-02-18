@@ -35,7 +35,9 @@ The popup (500px wide) provides quick access through three tabs:
 
 ### Planner Page (Full-Page Manager)
 
-Access the planner by clicking the "PLANNER" button in the popup. It opens in a new tab with five views and a header with Settings (⚙️) and Help (?) buttons:
+Access the planner by clicking the "PLANNER" button in the popup. It opens in a new tab with five views and a header containing:
+- **➕ Add New Task** button — Opens a modal to create new tasks (available from any tab)
+- **Help (?)** and **Settings (⚙️)** buttons with hover tooltips
 
 - **SCHEDULE Tab** — A three-column layout:
   - *Unassigned Tasks* sidebar listing tasks with no schedule
@@ -44,7 +46,6 @@ Access the planner by clicking the "PLANNER" button in the popup. It opens in a 
   - Today's column is visually highlighted. Time block slot limits are enforced during drag-and-drop.
 
 - **PRIORITY Tab** — Three columns (Critical, Important, Someday) displaying all tasks:
-  - Built-in form for adding new tasks (with notes and recurrence fields)
   - Search/filter bar to find tasks by title
   - Inline editing with auto-save for all task properties (title, URL, priority, deadline, type, energy, notes, recurrence, schedule)
   - Move tasks up/down within their priority group using arrow buttons
@@ -103,7 +104,7 @@ Load the extension as an unpacked package in any Chromium-based browser:
 
 ## Usage
 
-1. **Adding a Task:** Click the extension icon, go to the ADD tab, fill out the form, and click "Add Task".
+1. **Adding a Task:** Click the extension icon and use the ADD tab, OR click "PLANNER" and use the **➕ Add New Task** button in the header (accessible from any tab) to open the add task modal.
 2. **Scheduling a Task:** Click "PLANNER" to open the full manager. On the SCHEDULE tab, drag tasks from the Unassigned list onto time block cells in the weekly grid.
 3. **Completing Tasks:**
    - In the popup TODAY tab, check off individual scheduled assignments.
@@ -143,13 +144,13 @@ npm run test:watch
 npm run test:coverage
 ```
 
-The test suite includes **200 tests** across 7 test files:
+The test suite includes **210 tests** across 7 test files:
 
 | Test Suite | Tests | Coverage |
 |-----------|-------|----------|
 | `task_utils.test.js` | ~70 | Task class (new fields), CRUD, settings, time blocks, undo/redo, recurring tasks, validation, debounce, sync |
 | `popup.test.js` | ~17 | Task item rendering, tab switching, completion handlers, drag-and-drop |
-| `manager.test.js` | ~60 | Grid generation, day headers, sidebar lists, priority/location/archive/stats rendering, search filter |
+| `manager.test.js` | ~70 | Grid generation, day headers, sidebar lists, priority/location/archive/stats rendering, search filter, add task modal, header tooltips |
 | `integration.test.js` | ~25 | Task lifecycle, scheduling, cascade completion, ordering, import/merge, recurring tasks, undo/redo |
 | `settings.test.js` | ~20 | applySettings, initSettings, modal open/close, form population |
 | `features.test.js` | ~30 | Notes field, completedAt stamping, undo/redo stacks, recurring task creation, archive grouping |
@@ -201,7 +202,7 @@ todo_this_week/
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.1.0 | 2026-02-17 | Settings modal (dark mode, fonts, time blocks), Notion + Google Sheets import, task notes, recurring tasks, undo/redo, archive tab, stats tab, search/filter, help modal, 200 tests |
+| 1.1.0 | 2026-02-17 | Settings modal (dark mode, fonts, time blocks), Notion + Google Sheets import, task notes, recurring tasks, undo/redo, archive tab, stats tab, search/filter, help modal, 210 tests |
 | 1.0.0 | 2025-08-16 | Test suite with 114 tests (Jest + jsdom), comprehensive documentation |
 | 0.9.0 | 2025-08-16 | Complete tasks from Unassigned/Assigned sidebars, date headers in MONTH DAY format |
 | 0.8.0 | 2025-08-14 | Week starts on Sunday, scheduler drag-and-drop overhaul, checkbox UI fixes |

@@ -1137,9 +1137,40 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
 .manager-header h1 { margin: 0; }
 .manager-header-actions {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     align-items: center;
 }
+
+/* Add New Task Button */
+.add-task-header-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    font-size: 0.9em;
+    font-weight: 500;
+    border-radius: var(--border-radius-md);
+    background: var(--accent-blue);
+    color: white;
+    box-shadow: 3px 3px 6px var(--shadow-dark), -2px -2px 5px var(--shadow-light);
+    transition: all var(--transition-speed) ease;
+}
+.add-task-header-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 4px 4px 8px var(--shadow-dark), -3px -3px 6px var(--shadow-light);
+}
+.add-task-header-btn:active {
+    transform: translateY(0);
+    box-shadow: inset 2px 2px 4px rgba(0,0,0,0.2);
+}
+.add-task-header-btn .btn-icon {
+    font-size: 1em;
+}
+.add-task-header-btn .btn-text {
+    white-space: nowrap;
+}
+
+/* Icon Button with Tooltip */
 .icon-btn {
     width: 36px;
     height: 36px;
@@ -1150,6 +1181,47 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    position: relative;
+}
+.icon-btn.has-tooltip {
+    overflow: visible;
+}
+.icon-btn .btn-icon-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.icon-btn .btn-tooltip {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 6px;
+    padding: 4px 8px;
+    background: var(--text-primary);
+    color: var(--bg-primary);
+    font-size: 0.72em;
+    font-weight: 500;
+    border-radius: var(--border-radius-sm);
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    pointer-events: none;
+    z-index: 100;
+}
+.icon-btn .btn-tooltip::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-bottom-color: var(--text-primary);
+}
+.icon-btn:hover .btn-tooltip {
+    opacity: 1;
+    visibility: visible;
 }
 
 /* --- Modal Overlay --- */

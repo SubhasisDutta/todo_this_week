@@ -22,6 +22,7 @@ function setupAllListeners() {
     setupSchedulingListeners();
     setupSettingsListeners();
     setupHelpListeners();
+    setupAddTaskModalListeners();
     setupUndoKeyboardListeners();
     setupPrioritySearch();
     setupLocationSearch();
@@ -886,6 +887,40 @@ function setupHelpListeners() {
     });
 }
 
+// --- ADD TASK MODAL LISTENERS ---
+
+function setupAddTaskModalListeners() {
+    const addTaskBtn = document.getElementById('add-task-modal-btn');
+    const addTaskCloseBtn = document.getElementById('add-task-close-btn');
+    const addTaskModal = document.getElementById('add-task-modal');
+
+    if (addTaskBtn) {
+        addTaskBtn.addEventListener('click', () => {
+            if (addTaskModal) addTaskModal.classList.remove('hidden');
+        });
+    }
+
+    if (addTaskCloseBtn) {
+        addTaskCloseBtn.addEventListener('click', () => {
+            if (addTaskModal) addTaskModal.classList.add('hidden');
+        });
+    }
+
+    if (addTaskModal) {
+        addTaskModal.addEventListener('click', (e) => {
+            if (e.target === addTaskModal) addTaskModal.classList.add('hidden');
+        });
+    }
+
+    // Priority radio change for deadline visibility
+    const priorityRadios = document.querySelectorAll('input[name="manager-priority"]');
+    priorityRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            document.getElementById('manager-task-deadline-group').style.display = e.target.value === 'CRITICAL' ? 'block' : 'none';
+        });
+    });
+}
+
 // --- CREATE TASK ELEMENT ---
 
 function createTaskElement(task, options = {}) {
@@ -1203,6 +1238,8 @@ function setupDragAndDropListeners() {
 
 function setupTaskManagementListeners() {
     const addTaskBtn = document.getElementById('manager-add-task-btn');
+    const addTaskModal = document.getElementById('add-task-modal');
+
     if (addTaskBtn) {
         addTaskBtn.addEventListener('click', async () => {
             const titleInput = document.getElementById('manager-task-title');
@@ -1228,20 +1265,17 @@ function setupTaskManagementListeners() {
             if (recurrenceEl) recurrenceEl.value = '';
             document.getElementById('manager-priority-someday').checked = true;
             document.getElementById('manager-type-home').checked = true;
+            document.getElementById('manager-energy-low').checked = true;
             document.getElementById('manager-task-deadline').value = '';
             document.getElementById('manager-task-deadline-group').style.display = 'none';
+
+            // Close modal after adding task
+            if (addTaskModal) addTaskModal.classList.add('hidden');
 
             renderPage();
             showInfoMessage("Task added!", "success");
         });
     }
-
-    const priorityRadios = document.querySelectorAll('input[name="manager-priority"]');
-    priorityRadios.forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            document.getElementById('manager-task-deadline-group').style.display = e.target.value === 'CRITICAL' ? 'block' : 'none';
-        });
-    });
 
     const tasksDisplayAreas = document.querySelectorAll('.tasks-display-area');
     if (tasksDisplayAreas.length === 0) return;

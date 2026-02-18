@@ -29,8 +29,18 @@ function setupManagerDOM() {
             <div class="manager-header">
                 <h1>Weekly Task Planner</h1>
                 <div class="manager-header-actions">
-                    <button id="help-btn" class="neumorphic-btn icon-btn" aria-label="Help">?</button>
-                    <button id="settings-btn" class="neumorphic-btn icon-btn" aria-label="Settings">⚙️</button>
+                    <button id="add-task-modal-btn" class="neumorphic-btn add-task-header-btn" aria-label="Add New Task">
+                        <span class="btn-icon">➕</span>
+                        <span class="btn-text">Add New Task</span>
+                    </button>
+                    <button id="help-btn" class="neumorphic-btn icon-btn has-tooltip" aria-label="Help">
+                        <span class="btn-icon-text">?</span>
+                        <span class="btn-tooltip">Help</span>
+                    </button>
+                    <button id="settings-btn" class="neumorphic-btn icon-btn has-tooltip" aria-label="Settings">
+                        <span class="btn-icon-text">⚙️</span>
+                        <span class="btn-tooltip">Settings</span>
+                    </button>
                 </div>
             </div>
             <div id="info-message-area" class="info-message" style="display: none;" role="status" aria-live="polite"></div>
@@ -65,28 +75,6 @@ function setupManagerDOM() {
                     <div class="search-bar-container">
                         <input type="search" id="priority-search-input" class="neumorphic-input" placeholder="Search tasks...">
                         <button id="priority-search-clear" class="neumorphic-btn">Clear</button>
-                    </div>
-                    <div class="add-task-form">
-                        <input type="text" id="manager-task-title" class="neumorphic-input" placeholder="Enter task title" aria-required="true">
-                        <input type="url" id="manager-task-url" class="neumorphic-input" placeholder="Enter URL">
-                        <input type="radio" id="manager-priority-someday" name="manager-priority" value="SOMEDAY" checked>
-                        <input type="radio" id="manager-priority-important" name="manager-priority" value="IMPORTANT">
-                        <input type="radio" id="manager-priority-critical" name="manager-priority" value="CRITICAL">
-                        <div id="manager-task-deadline-group" style="display: none;">
-                            <input type="date" id="manager-task-deadline" class="neumorphic-input">
-                        </div>
-                        <input type="radio" id="manager-type-home" name="manager-type" value="home" checked>
-                        <input type="radio" id="manager-type-work" name="manager-type" value="work">
-                        <input type="radio" id="manager-energy-low" name="manager-energy" value="low" checked>
-                        <input type="radio" id="manager-energy-high" name="manager-energy" value="high">
-                        <select id="manager-task-recurrence" class="neumorphic-select">
-                            <option value="">None</option>
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="monthly">Monthly</option>
-                        </select>
-                        <textarea id="manager-task-notes" class="neumorphic-input" rows="2"></textarea>
-                        <button id="manager-add-task-btn" class="neumorphic-btn">Add Task</button>
                     </div>
                     <div class="tasks-display-area">
                         <div class="priority-column">
@@ -210,6 +198,38 @@ function setupManagerDOM() {
                 </div>
             </div>
 
+            <!-- Add Task Modal -->
+            <div id="add-task-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="add-task-title">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 id="add-task-title">Add New Task</h2>
+                        <button id="add-task-close-btn" class="neumorphic-btn icon-btn" aria-label="Close">✕</button>
+                    </div>
+                    <div class="add-task-form">
+                        <input type="text" id="manager-task-title" class="neumorphic-input" placeholder="Enter task title" aria-required="true">
+                        <input type="url" id="manager-task-url" class="neumorphic-input" placeholder="Enter URL">
+                        <input type="radio" id="manager-priority-someday" name="manager-priority" value="SOMEDAY" checked>
+                        <input type="radio" id="manager-priority-important" name="manager-priority" value="IMPORTANT">
+                        <input type="radio" id="manager-priority-critical" name="manager-priority" value="CRITICAL">
+                        <div id="manager-task-deadline-group" style="display: none;">
+                            <input type="date" id="manager-task-deadline" class="neumorphic-input">
+                        </div>
+                        <input type="radio" id="manager-type-home" name="manager-type" value="home" checked>
+                        <input type="radio" id="manager-type-work" name="manager-type" value="work">
+                        <input type="radio" id="manager-energy-low" name="manager-energy" value="low" checked>
+                        <input type="radio" id="manager-energy-high" name="manager-energy" value="high">
+                        <select id="manager-task-recurrence" class="neumorphic-select">
+                            <option value="">None</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                        <textarea id="manager-task-notes" class="neumorphic-input" rows="2"></textarea>
+                        <button id="manager-add-task-btn" class="neumorphic-btn">Add Task</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Undo Toast -->
             <div id="undo-toast" style="display: none;">
                 <span id="undo-toast-message"></span>
@@ -225,7 +245,7 @@ global.confirm = jest.fn(() => true);
 // Manager exports list
 const MANAGER_EXPORTS = [
     'DAYS', 'currentDays', 'renderPage', 'generateDayHeaders', 'generatePlannerGrid',
-    'setupSettingsListeners', 'setupHelpListeners', 'highlightCurrentDay',
+    'setupSettingsListeners', 'setupHelpListeners', 'setupAddTaskModalListeners', 'highlightCurrentDay',
     'setupSchedulingListeners', 'setupArchiveListeners',
     'clearPlannerTasks', 'clearPriorityLists', 'clearHomeWorkLists',
     'renderSidebarLists', 'renderTasksOnGrid', 'renderPriorityLists', 'renderHomeWorkLists',
@@ -692,5 +712,97 @@ describe('applySearchFilter', () => {
         applySearchFilter('groceries', [container]);
         const items = container.querySelectorAll('.task-item');
         expect(items[0].style.display).not.toBe('none');
+    });
+});
+
+describe('Add Task Modal', () => {
+    test('header has add task button', () => {
+        const addTaskBtn = document.getElementById('add-task-modal-btn');
+        expect(addTaskBtn).not.toBeNull();
+        expect(addTaskBtn.textContent).toContain('Add New Task');
+    });
+
+    test('add task modal exists and is hidden by default', () => {
+        const modal = document.getElementById('add-task-modal');
+        expect(modal).not.toBeNull();
+        expect(modal.classList.contains('hidden')).toBe(true);
+    });
+
+    test('clicking add task button opens modal', () => {
+        setupAddTaskModalListeners();
+        const addTaskBtn = document.getElementById('add-task-modal-btn');
+        const modal = document.getElementById('add-task-modal');
+
+        addTaskBtn.click();
+        expect(modal.classList.contains('hidden')).toBe(false);
+    });
+
+    test('clicking close button closes modal', () => {
+        setupAddTaskModalListeners();
+        const modal = document.getElementById('add-task-modal');
+        const closeBtn = document.getElementById('add-task-close-btn');
+
+        modal.classList.remove('hidden');
+        closeBtn.click();
+        expect(modal.classList.contains('hidden')).toBe(true);
+    });
+
+    test('clicking modal overlay closes modal', () => {
+        setupAddTaskModalListeners();
+        const modal = document.getElementById('add-task-modal');
+
+        modal.classList.remove('hidden');
+        modal.click();
+        expect(modal.classList.contains('hidden')).toBe(true);
+    });
+
+    test('form elements exist in modal', () => {
+        expect(document.getElementById('manager-task-title')).not.toBeNull();
+        expect(document.getElementById('manager-task-url')).not.toBeNull();
+        expect(document.getElementById('manager-priority-someday')).not.toBeNull();
+        expect(document.getElementById('manager-task-deadline')).not.toBeNull();
+        expect(document.getElementById('manager-type-home')).not.toBeNull();
+        expect(document.getElementById('manager-energy-low')).not.toBeNull();
+        expect(document.getElementById('manager-task-recurrence')).not.toBeNull();
+        expect(document.getElementById('manager-task-notes')).not.toBeNull();
+        expect(document.getElementById('manager-add-task-btn')).not.toBeNull();
+    });
+
+    test('priority change shows/hides deadline field', () => {
+        setupAddTaskModalListeners();
+        const criticalRadio = document.getElementById('manager-priority-critical');
+        const somedayRadio = document.getElementById('manager-priority-someday');
+        const deadlineGroup = document.getElementById('manager-task-deadline-group');
+
+        criticalRadio.checked = true;
+        criticalRadio.dispatchEvent(new Event('change', { bubbles: true }));
+        expect(deadlineGroup.style.display).toBe('block');
+
+        somedayRadio.checked = true;
+        somedayRadio.dispatchEvent(new Event('change', { bubbles: true }));
+        expect(deadlineGroup.style.display).toBe('none');
+    });
+});
+
+describe('Header tooltips', () => {
+    test('help button has tooltip', () => {
+        const helpBtn = document.getElementById('help-btn');
+        const tooltip = helpBtn.querySelector('.btn-tooltip');
+        expect(tooltip).not.toBeNull();
+        expect(tooltip.textContent).toBe('Help');
+    });
+
+    test('settings button has tooltip', () => {
+        const settingsBtn = document.getElementById('settings-btn');
+        const tooltip = settingsBtn.querySelector('.btn-tooltip');
+        expect(tooltip).not.toBeNull();
+        expect(tooltip.textContent).toBe('Settings');
+    });
+
+    test('buttons have has-tooltip class', () => {
+        const helpBtn = document.getElementById('help-btn');
+        const settingsBtn = document.getElementById('settings-btn');
+        expect(helpBtn.classList.contains('has-tooltip')).toBe(true);
+        expect(settingsBtn.classList.contains('has-tooltip')).toBe(true);
     });
 });

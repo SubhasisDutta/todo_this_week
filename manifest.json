@@ -1,9 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "Weekly Task Manager",
+  "name": "Weekly Task Planner",
   "version": "1.1.0",
   "description": "A weekly task planner with priority management, scheduling, and productivity features.",
-  "permissions": ["storage", "tabs"],
+  "permissions": [
+    "storage",
+    "tabs",
+    "unlimitedStorage"
+  ],
   "host_permissions": [
     "https://api.notion.com/*"
   ],

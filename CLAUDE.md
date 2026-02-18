@@ -13,10 +13,10 @@ This is a **Weekly Task Manager** — a Chrome/Chromium browser extension (Manif
 - `task_utils.js` (~490 lines) — Shared utilities: Task class, CRUD operations, settings, undo/redo, recurring tasks, time blocks, validation, debounce, operation queue, cross-tab sync
 - `settings.js` (~500 lines) — Settings management: theme/font application, settings modal UI, Notion import, Google Sheets import, time block management
 - `popup.js` (~390 lines) — Popup interface: task rendering (with notes/recurrence), tab switching, completion handlers, drag-and-drop reordering
-- `manager.js` (~850 lines) — Full-page planner: weekly grid, drag-and-drop scheduling, inline editing, archive tab, stats tab, search/filter, undo toast, keyboard undo, settings wiring
+- `manager.js` (~900 lines) — Full-page planner: weekly grid, drag-and-drop scheduling, inline editing, archive tab, stats tab, search/filter, undo toast, keyboard undo, settings wiring, add task modal
 - `popup.html` (~102 lines) — Popup markup (3 tabs: TODAY, Display, ADD — with notes textarea and recurrence select)
-- `manager.html` (~280 lines) — Planner markup (5 tabs: SCHEDULE, PRIORITY, LOCATION, ARCHIVE, STATS + settings/help modals)
-- `popup.css` (~1500 lines) — Unified styles: neumorphic design, dark mode, modals, charts, archive, help, toast, search, notes
+- `manager.html` (~650 lines) — Planner markup (5 tabs: SCHEDULE, PRIORITY, LOCATION, ARCHIVE, STATS + settings/help/add-task modals)
+- `popup.css` (~1580 lines) — Unified styles: neumorphic design, dark mode, modals, charts, archive, help, toast, search, notes, tooltips
 
 ### Extension Configuration
 
@@ -30,7 +30,7 @@ This is a **Weekly Task Manager** — a Chrome/Chromium browser extension (Manif
 - `tests/mocks/chrome.storage.mock.js` — Chrome API mocks, `loadScript` helper, `seedSettings`, `seedTimeBlocks`, `global.fetch` stub
 - `tests/task_utils.test.js` — ~70 tests for task_utils.js (includes new fields, settings, time blocks, undo/redo, recurring)
 - `tests/popup.test.js` — ~17 tests for popup.js
-- `tests/manager.test.js` — ~60 tests for manager.js (includes async grid, new tabs, search filter)
+- `tests/manager.test.js` — ~70 tests for manager.js (includes async grid, new tabs, search filter, add task modal, tooltips)
 - `tests/integration.test.js` — ~25 end-to-end tests (includes recurring tasks, undo lifecycle)
 - `tests/settings.test.js` — ~20 tests for settings.js
 - `tests/features.test.js` — ~30 tests for notes, completedAt, undo/redo, recurring tasks, archive grouping
@@ -234,7 +234,7 @@ The codebase uses the following ARIA patterns:
 ```bash
 cd tests             # All test infrastructure is in tests/
 npm install          # Install Jest + jsdom
-npm test             # Run all 200 tests
+npm test             # Run all 210 tests
 npm run test:watch   # Watch mode
 npm run test:coverage # Coverage report
 ```
@@ -276,7 +276,7 @@ The `loadScript` regex also handles `async function` DOMContentLoaded handlers (
 ### Test Suites (200 total)
 - **task_utils.test.js (~70):** Task class (new fields), getTasks backfill, CRUD, settings CRUD, time blocks, undo/redo stacks, createRecurringInstance, seedSampleTasks, showInfoMessage, validateTask, debounce, withTaskLock
 - **popup.test.js (~17):** createTaskItem (notes, recurrence), renderTasks, renderAllTabs, tab switching, add-task validation, open-manager button
-- **manager.test.js (~60):** generateDayHeaders/generatePlannerGrid (now async), createTaskElement (notes/recurrence badges), renderSidebarLists, renderPriorityLists, renderHomeWorkLists, renderArchiveTab, renderStatsTab, applySearchFilter, setupTabSwitching, renderPage, highlightCurrentDay
+- **manager.test.js (~70):** generateDayHeaders/generatePlannerGrid (now async), createTaskElement (notes/recurrence badges), renderSidebarLists, renderPriorityLists, renderHomeWorkLists, renderArchiveTab, renderStatsTab, applySearchFilter, setupTabSwitching, renderPage, highlightCurrentDay, setupAddTaskModalListeners, header tooltips
 - **integration.test.js (~25):** Task lifecycle, schedule management, cascade completion, ordering, import/merge, validation, cross-tab sync, recurring tasks (auto-instance creation), undo/redo lifecycle
 - **settings.test.js (~20):** applySettings (theme, font-family, font-size CSS vars), initSettings (first-run seeding), populateSettingsForm, openSettingsModal/closeSettingsModal, FONT_FAMILY_MAP/FONT_SIZE_MAP constants
 - **features.test.js (~30):** Notes field (CRUD, backfill), completedAt (set on complete, clear on uncomplete, backfill), undo/redo cycle, createRecurringInstance (daily/weekly/monthly deadline shift), recurring auto-instance via updateTask, archive date grouping
