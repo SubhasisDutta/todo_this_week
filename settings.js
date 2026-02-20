@@ -76,6 +76,8 @@ function openImportExportModal() {
     modal.removeAttribute('hidden');
     // Populate saved values
     populateImportExportForm();
+    // Setup tab switching
+    setupImportExportTabs();
 }
 
 function closeImportExportModal() {
@@ -83,28 +85,61 @@ function closeImportExportModal() {
     if (!modal) return;
     modal.classList.add('hidden');
     // Hide any sub-panels
-    const notionList = document.getElementById('notion-pages-list');
-    const notionImportBtn = document.getElementById('notion-import-btn');
     const sheetsPreview = document.getElementById('sheets-preview');
     const sheetsImportBtn = document.getElementById('sheets-import-btn');
     const csvPreview = document.getElementById('csv-preview');
     const csvImportBtn = document.getElementById('csv-import-btn');
-    if (notionList) notionList.classList.add('hidden');
-    if (notionImportBtn) notionImportBtn.classList.add('hidden');
     if (sheetsPreview) sheetsPreview.classList.add('hidden');
     if (sheetsImportBtn) sheetsImportBtn.classList.add('hidden');
     if (csvPreview) csvPreview.classList.add('hidden');
     if (csvImportBtn) csvImportBtn.classList.add('hidden');
 }
 
+function setupImportExportTabs() {
+    const tabContainer = document.querySelector('.import-export-tabs');
+    if (!tabContainer) return;
+
+    const tabs = tabContainer.querySelectorAll('.tab-link[data-ie-tab]');
+    const panels = document.querySelectorAll('.ie-panel');
+
+    tabs.forEach(tab => {
+        // Remove existing listeners by cloning
+        const newTab = tab.cloneNode(true);
+        tab.parentNode.replaceChild(newTab, tab);
+
+        newTab.addEventListener('click', () => {
+            const targetId = newTab.dataset.ieTab;
+
+            // Update tab states
+            tabContainer.querySelectorAll('.tab-link').forEach(t => {
+                t.classList.remove('active');
+                t.setAttribute('aria-selected', 'false');
+            });
+            newTab.classList.add('active');
+            newTab.setAttribute('aria-selected', 'true');
+
+            // Update panel visibility
+            panels.forEach(panel => {
+                panel.classList.remove('active');
+            });
+            const targetPanel = document.getElementById(targetId);
+            if (targetPanel) {
+                targetPanel.classList.add('active');
+            }
+        });
+    });
+}
+
 async function populateImportExportForm() {
     const settings = await getSettings();
     const notionApiKey = document.getElementById('notion-api-key');
     const notionDbId = document.getElementById('notion-database-id');
+    const notionViewId = document.getElementById('notion-view-id');
     const sheetsUrl = document.getElementById('sheets-url');
 
     if (notionApiKey) notionApiKey.value = settings.notionApiKey || '';
     if (notionDbId) notionDbId.value = settings.notionDatabaseId || '';
+    if (notionViewId) notionViewId.value = settings.notionViewId || settings.notionDatabaseId || '';
     if (sheetsUrl) sheetsUrl.value = settings.googleSheetsUrl || '';
 }
 
@@ -333,11 +368,830 @@ async function resetTimeBlocksToDefaults() {
     renderTimeBlocksTable([...DEFAULT_TIME_BLOCKS]);
 }
 
-// --- Notion Import ---
+// --- Notion Sync Module ---
 
-// Stored pages for later import
+// Cache for fetched schema and pages
+let _notionDatabaseSchema = null;
 let _notionFetchedPages = [];
 
+/**
+ * Fetch Notion database schema to get property names and types
+ */
+async function fetchNotionDatabaseSchema(apiKey, viewId) {
+    const url = `https://api.notion.com/v1/databases/${viewId}`;
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Notion-Version': '2022-06-28'
+        }
+    });
+
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(`Notion API error: ${err.message || response.status}`);
+    }
+
+    const data = await response.json();
+    _notionDatabaseSchema = data;
+    return data;
+}
+
+/**
+ * Extract property definitions from schema for mapping UI
+ */
+function extractPropertiesFromSchema(schema) {
+    const properties = {};
+    let titleProperty = null;
+
+    Object.entries(schema.properties || {}).forEach(([name, prop]) => {
+        properties[name] = {
+            name,
+            type: prop.type,
+            options: null
+        };
+
+        // Auto-detect title property
+        if (prop.type === 'title') {
+            titleProperty = name;
+        }
+
+        // Extract options for select/multi_select/status types
+        if (prop.type === 'select' && prop.select?.options) {
+            properties[name].options = prop.select.options.map(o => o.name);
+        } else if (prop.type === 'multi_select' && prop.multi_select?.options) {
+            properties[name].options = prop.multi_select.options.map(o => o.name);
+        } else if (prop.type === 'status' && prop.status?.options) {
+            properties[name].options = prop.status.options.map(o => o.name);
+        }
+    });
+
+    return { properties, titleProperty };
+}
+
+/**
+ * Render column mapping dropdowns based on fetched schema
+ */
+function renderColumnMappingUI(schema, savedMapping = null) {
+    const { properties, titleProperty } = extractPropertiesFromSchema(schema);
+
+    // Show title property
+    const titleEl = document.getElementById('notion-title-property');
+    if (titleEl) {
+        titleEl.textContent = titleProperty || 'Not found';
+    }
+
+    // Property type compatibility map
+    const typeFilters = {
+        priority: ['select', 'status'],
+        status: ['select', 'status', 'checkbox'],
+        type: ['select'],
+        energy: ['select'],
+        deadline: ['date'],
+        notes: ['rich_text', 'text'],
+        url: ['url', 'rich_text']
+    };
+
+    // Populate each mapping dropdown
+    Object.keys(typeFilters).forEach(field => {
+        const select = document.getElementById(`notion-map-${field}`);
+        if (!select) return;
+
+        // Clear existing options (keep first "Not mapped" option)
+        while (select.options.length > 1) {
+            select.remove(1);
+        }
+
+        // Add compatible properties
+        Object.entries(properties).forEach(([propName, propDef]) => {
+            if (typeFilters[field].includes(propDef.type)) {
+                const option = document.createElement('option');
+                option.value = propName;
+                option.textContent = `${propName} (${propDef.type})`;
+                select.appendChild(option);
+            }
+        });
+
+        // Restore saved mapping if available
+        if (savedMapping?.notionColumnMapping?.[field]) {
+            select.value = savedMapping.notionColumnMapping[field];
+            // Trigger value mapping UI if applicable
+            if (properties[select.value]?.options) {
+                renderValueMappingUI(field, properties[select.value].options,
+                    savedMapping.notionValueMappings?.[field]);
+            }
+        }
+    });
+
+    // Show the column mapping section
+    document.getElementById('notion-column-mapping-section')?.classList.remove('hidden');
+}
+
+/**
+ * Render value mapping UI for select/status properties
+ */
+function renderValueMappingUI(field, notionOptions, savedMappings = null) {
+    const container = document.getElementById(`notion-${field}-values`);
+    if (!container) return;
+
+    const localValues = {
+        priority: ['CRITICAL', 'IMPORTANT', 'SOMEDAY'],
+        type: ['home', 'work'],
+        energy: ['low', 'high'],
+        status: ['completed', 'incomplete']
+    };
+
+    const values = localValues[field];
+    if (!values) return;
+
+    container.innerHTML = values.map(val => `
+        <div class="value-mapping-row">
+            <label>${val}</label>
+            <select class="neumorphic-input" id="notion-value-${field}-${val}">
+                <option value="">-- Select --</option>
+                ${notionOptions.map(opt => `
+                    <option value="${opt}" ${savedMappings?.[val] === opt ? 'selected' : ''}>
+                        ${opt}
+                    </option>
+                `).join('')}
+            </select>
+        </div>
+    `).join('');
+
+    container.classList.remove('hidden');
+}
+
+/**
+ * Collect column mapping configuration from UI
+ */
+function collectColumnMappingConfig() {
+    const fields = ['priority', 'status', 'type', 'energy', 'deadline', 'notes', 'url'];
+    const columnMapping = {};
+    const valueMappings = {};
+
+    fields.forEach(field => {
+        const select = document.getElementById(`notion-map-${field}`);
+        columnMapping[field] = select?.value || '';
+
+        // Collect value mappings for select fields
+        if (['priority', 'type', 'energy', 'status'].includes(field)) {
+            const localValues = {
+                priority: ['CRITICAL', 'IMPORTANT', 'SOMEDAY'],
+                type: ['home', 'work'],
+                energy: ['low', 'high'],
+                status: ['completed', 'incomplete']
+            };
+
+            valueMappings[field] = {};
+            localValues[field]?.forEach(val => {
+                const valueSelect = document.getElementById(`notion-value-${field}-${val}`);
+                valueMappings[field][val] = valueSelect?.value || '';
+            });
+        }
+    });
+
+    // Add title property (auto-detected)
+    const titleEl = document.getElementById('notion-title-property');
+    columnMapping.title = titleEl?.textContent || '';
+
+    return { columnMapping, valueMappings };
+}
+
+/**
+ * Save Notion configuration to settings
+ */
+async function saveNotionConfiguration() {
+    const apiKey = document.getElementById('notion-api-key')?.value.trim();
+    const viewId = document.getElementById('notion-view-id')?.value.trim();
+    const { columnMapping, valueMappings } = collectColumnMappingConfig();
+
+    const settings = await getSettings();
+    settings.notionApiKey = apiKey;
+    settings.notionViewId = viewId;
+    settings.notionDatabaseId = viewId; // backward compat
+    settings.notionColumnMapping = columnMapping;
+    settings.notionValueMappings = valueMappings;
+    settings.notionSyncEnabled = !!(apiKey && viewId && columnMapping.title && columnMapping.title !== 'Not found');
+
+    await saveSettings(settings);
+    showInfoMessage('Notion configuration saved!', 'success');
+
+    // Show sync actions section
+    document.getElementById('notion-sync-actions')?.classList.remove('hidden');
+}
+
+/**
+ * Extract value from Notion property (handles select, status, checkbox, etc.)
+ */
+function extractPropertyValue(prop) {
+    if (prop.type === 'select') return prop.select?.name || '';
+    if (prop.type === 'status') return prop.status?.name || '';
+    if (prop.type === 'multi_select') return prop.multi_select?.[0]?.name || '';
+    if (prop.type === 'checkbox') return prop.checkbox ? 'true' : 'false';
+    return '';
+}
+
+/**
+ * Reverse map Notion value to local value
+ */
+function reverseMapValue(notionValue, mappingObj) {
+    if (!mappingObj || !notionValue) return null;
+    for (const [localVal, notionVal] of Object.entries(mappingObj)) {
+        if (notionVal === notionValue) return localVal;
+    }
+    return null;
+}
+
+/**
+ * Convert Notion page to local task using column mapping
+ */
+function notionPageToTask(page, mapping, valueMappings) {
+    const props = page.properties || {};
+
+    // Extract title
+    const titleProp = props[mapping.title];
+    const title = titleProp?.title?.map(t => t.plain_text).join('') || '(Untitled)';
+
+    // Extract priority
+    let priority = 'SOMEDAY';
+    if (mapping.priority && props[mapping.priority]) {
+        const propVal = extractPropertyValue(props[mapping.priority]);
+        priority = reverseMapValue(propVal, valueMappings.priority) || 'SOMEDAY';
+    }
+
+    // Extract type
+    let type = 'home';
+    if (mapping.type && props[mapping.type]) {
+        const propVal = extractPropertyValue(props[mapping.type]);
+        type = reverseMapValue(propVal, valueMappings.type) || 'home';
+    }
+
+    // Extract energy
+    let energy = 'low';
+    if (mapping.energy && props[mapping.energy]) {
+        const propVal = extractPropertyValue(props[mapping.energy]);
+        energy = reverseMapValue(propVal, valueMappings.energy) || 'low';
+    }
+
+    // Extract completed status
+    let completed = false;
+    if (mapping.status && props[mapping.status]) {
+        const prop = props[mapping.status];
+        if (prop.type === 'checkbox') {
+            completed = prop.checkbox === true;
+        } else {
+            const propVal = extractPropertyValue(prop);
+            completed = reverseMapValue(propVal, valueMappings.status) === 'completed';
+        }
+    }
+
+    // Extract deadline
+    let deadline = null;
+    if (mapping.deadline && props[mapping.deadline]) {
+        const dateProp = props[mapping.deadline];
+        deadline = dateProp.date?.start || null;
+    }
+
+    // Extract notes
+    let notes = '';
+    if (mapping.notes && props[mapping.notes]) {
+        const notesProp = props[mapping.notes];
+        if (notesProp.type === 'rich_text') {
+            notes = notesProp.rich_text?.map(t => t.plain_text).join('') || '';
+        }
+    }
+
+    // Extract URL
+    let url = '';
+    if (mapping.url && props[mapping.url]) {
+        const urlProp = props[mapping.url];
+        if (urlProp.type === 'url') {
+            url = urlProp.url || '';
+        } else if (urlProp.type === 'rich_text') {
+            url = urlProp.rich_text?.map(t => t.plain_text).join('') || '';
+        }
+    }
+
+    return {
+        notionPageId: page.id,
+        title,
+        url,
+        priority,
+        completed,
+        deadline,
+        type,
+        energy,
+        notes,
+        completedAt: completed ? new Date().toISOString() : null
+    };
+}
+
+/**
+ * Convert local task to Notion properties for update
+ */
+function taskToNotionProperties(task, mapping, valueMappings) {
+    const properties = {};
+
+    // Title
+    if (mapping.title) {
+        properties[mapping.title] = {
+            title: [{ text: { content: task.title } }]
+        };
+    }
+
+    // Status/Completed
+    if (mapping.status) {
+        const statusName = task.completed
+            ? valueMappings.status?.completed
+            : valueMappings.status?.incomplete;
+        if (statusName) {
+            // Determine property type from schema
+            const propDef = _notionDatabaseSchema?.properties?.[mapping.status];
+            if (propDef?.type === 'checkbox') {
+                properties[mapping.status] = { checkbox: task.completed };
+            } else if (propDef?.type === 'status') {
+                properties[mapping.status] = { status: { name: statusName } };
+            } else {
+                properties[mapping.status] = { select: { name: statusName } };
+            }
+        }
+    }
+
+    // Priority
+    if (mapping.priority && valueMappings.priority?.[task.priority]) {
+        const propDef = _notionDatabaseSchema?.properties?.[mapping.priority];
+        if (propDef?.type === 'status') {
+            properties[mapping.priority] = { status: { name: valueMappings.priority[task.priority] } };
+        } else {
+            properties[mapping.priority] = { select: { name: valueMappings.priority[task.priority] } };
+        }
+    }
+
+    // Type
+    if (mapping.type && valueMappings.type?.[task.type]) {
+        properties[mapping.type] = {
+            select: { name: valueMappings.type[task.type] }
+        };
+    }
+
+    // Energy
+    if (mapping.energy && valueMappings.energy?.[task.energy]) {
+        properties[mapping.energy] = {
+            select: { name: valueMappings.energy[task.energy] }
+        };
+    }
+
+    // Deadline
+    if (mapping.deadline && task.deadline) {
+        properties[mapping.deadline] = {
+            date: { start: task.deadline }
+        };
+    }
+
+    // Notes
+    if (mapping.notes && task.notes) {
+        properties[mapping.notes] = {
+            rich_text: [{ text: { content: task.notes } }]
+        };
+    }
+
+    // URL
+    if (mapping.url && task.url) {
+        const propDef = _notionDatabaseSchema?.properties?.[mapping.url];
+        if (propDef?.type === 'url') {
+            properties[mapping.url] = { url: task.url };
+        } else {
+            properties[mapping.url] = {
+                rich_text: [{ text: { content: task.url } }]
+            };
+        }
+    }
+
+    return properties;
+}
+
+/**
+ * Update a Notion page with local task data
+ */
+async function updateNotionPage(apiKey, pageId, properties) {
+    const response = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Notion-Version': '2022-06-28',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ properties })
+    });
+
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(`Notion update error: ${err.message || response.status}`);
+    }
+
+    return await response.json();
+}
+
+/**
+ * Fetch all pages from Notion database/view with pagination
+ */
+async function fetchAllNotionPages(apiKey, viewId) {
+    const allPages = [];
+    let cursor = undefined;
+
+    do {
+        const body = { page_size: 100 };
+        if (cursor) body.start_cursor = cursor;
+
+        const response = await fetch(
+            `https://api.notion.com/v1/databases/${viewId}/query`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Notion-Version': '2022-06-28',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body)
+            }
+        );
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(`Notion API error: ${err.message || response.status}`);
+        }
+
+        const data = await response.json();
+        allPages.push(...data.results);
+        cursor = data.has_more ? data.next_cursor : undefined;
+    } while (cursor);
+
+    return allPages;
+}
+
+/**
+ * Main bidirectional sync function
+ */
+async function performNotionSync(renderPageCallback) {
+    const settings = await getSettings();
+    if (!settings.notionSyncEnabled) {
+        showInfoMessage('Notion sync is not configured.', 'error');
+        return { success: false, error: 'Not configured' };
+    }
+
+    const { notionApiKey, notionViewId, notionColumnMapping, notionValueMappings } = settings;
+
+    // Update UI to show syncing
+    const statusEl = document.getElementById('notion-sync-status');
+    if (statusEl) {
+        statusEl.textContent = 'Syncing...';
+        statusEl.className = 'syncing';
+    }
+
+    try {
+        // Fetch schema if not cached
+        if (!_notionDatabaseSchema) {
+            await fetchNotionDatabaseSchema(notionApiKey, notionViewId);
+        }
+
+        // Fetch all Notion pages
+        const notionPages = await fetchAllNotionPages(notionApiKey, notionViewId);
+
+        // Get local tasks
+        const localTasks = await getTasksAsync();
+
+        // Build maps for quick lookup
+        const notionPageMap = new Map(); // notionPageId -> page
+        const localTaskByNotionId = new Map(); // notionPageId -> task
+
+        notionPages.forEach(page => {
+            notionPageMap.set(page.id, page);
+        });
+
+        localTasks.forEach(task => {
+            if (task.notionPageId) {
+                localTaskByNotionId.set(task.notionPageId, task);
+            }
+        });
+
+        const syncActions = [];
+        let tasksModified = false;
+
+        // --- Step 1: Process Notion pages (Remote -> Local) ---
+        for (const page of notionPages) {
+            const localTask = localTaskByNotionId.get(page.id);
+            const notionData = notionPageToTask(page, notionColumnMapping, notionValueMappings);
+
+            if (localTask) {
+                // Task exists locally - check for changes
+                const notionCompleted = notionData.completed;
+                const localCompleted = localTask.completed;
+
+                if (notionCompleted !== localCompleted) {
+                    // Conflict: Notion wins for completion status
+                    syncActions.push({
+                        type: 'update-local',
+                        taskId: localTask.id,
+                        field: 'completed',
+                        from: localCompleted,
+                        to: notionCompleted,
+                        title: localTask.title
+                    });
+                    localTask.completed = notionCompleted;
+                    localTask.completedAt = notionCompleted ? new Date().toISOString() : null;
+                    tasksModified = true;
+                }
+            } else {
+                // New page from Notion - create local task
+                syncActions.push({
+                    type: 'create-local',
+                    notionPageId: page.id,
+                    title: notionData.title
+                });
+
+                const newTask = new Task(
+                    null, // auto-generate ID
+                    notionData.title,
+                    notionData.url,
+                    notionData.priority,
+                    notionData.completed,
+                    notionData.deadline,
+                    notionData.type,
+                    localTasks.length, // displayOrder
+                    [], // empty schedule
+                    notionData.energy,
+                    notionData.notes,
+                    notionData.completedAt,
+                    null, // no recurrence
+                    page.id // notionPageId
+                );
+                localTasks.push(newTask);
+                tasksModified = true;
+            }
+        }
+
+        // --- Step 2: Push local completed status to Notion ---
+        for (const task of localTasks) {
+            if (!task.notionPageId) continue;
+
+            const page = notionPageMap.get(task.notionPageId);
+            if (!page) {
+                // Page no longer exists in Notion - clear the link
+                task.notionPageId = null;
+                tasksModified = true;
+                continue;
+            }
+
+            const notionData = notionPageToTask(page, notionColumnMapping, notionValueMappings);
+
+            // If local was marked complete but Notion isn't
+            if (task.completed && !notionData.completed) {
+                syncActions.push({
+                    type: 'update-notion',
+                    taskId: task.id,
+                    notionPageId: task.notionPageId,
+                    field: 'completed',
+                    from: false,
+                    to: true,
+                    title: task.title
+                });
+
+                const properties = taskToNotionProperties(
+                    task,
+                    notionColumnMapping,
+                    notionValueMappings
+                );
+                await updateNotionPage(notionApiKey, task.notionPageId, properties);
+            }
+        }
+
+        // --- Step 3: Save local changes ---
+        if (tasksModified) {
+            await saveTasksAsync(localTasks);
+        }
+
+        // Update last synced timestamp
+        settings.notionLastSyncedAt = new Date().toISOString();
+        await saveSettings(settings);
+
+        // Update UI
+        if (statusEl) {
+            statusEl.textContent = 'Synced successfully';
+            statusEl.className = 'synced';
+        }
+        const lastSyncedEl = document.getElementById('notion-last-synced');
+        if (lastSyncedEl) {
+            lastSyncedEl.textContent = `Last synced: ${new Date().toLocaleTimeString()}`;
+        }
+
+        showInfoMessage(`Sync complete: ${syncActions.length} action(s) performed.`, 'success');
+
+        if (renderPageCallback) await renderPageCallback();
+
+        return { success: true, actions: syncActions };
+
+    } catch (err) {
+        if (statusEl) {
+            statusEl.textContent = 'Sync failed';
+            statusEl.className = 'error';
+        }
+        showInfoMessage(`Sync error: ${err.message}`, 'error');
+        return { success: false, error: err.message };
+    }
+}
+
+/**
+ * Import only new tasks from Notion (no bidirectional sync)
+ */
+async function importNewNotionTasks(renderPageCallback) {
+    const settings = await getSettings();
+    const { notionApiKey, notionViewId, notionColumnMapping, notionValueMappings } = settings;
+
+    if (!notionApiKey || !notionViewId) {
+        showInfoMessage('Notion is not configured.', 'error');
+        return;
+    }
+
+    try {
+        if (!_notionDatabaseSchema) {
+            await fetchNotionDatabaseSchema(notionApiKey, notionViewId);
+        }
+
+        const notionPages = await fetchAllNotionPages(notionApiKey, notionViewId);
+        const localTasks = await getTasksAsync();
+
+        // Find existing Notion page IDs
+        const existingNotionIds = new Set(
+            localTasks.filter(t => t.notionPageId).map(t => t.notionPageId)
+        );
+
+        let importCount = 0;
+        for (const page of notionPages) {
+            if (existingNotionIds.has(page.id)) continue;
+
+            const notionData = notionPageToTask(page, notionColumnMapping, notionValueMappings);
+
+            const newTask = new Task(
+                null,
+                notionData.title,
+                notionData.url,
+                notionData.priority,
+                notionData.completed,
+                notionData.deadline,
+                notionData.type,
+                localTasks.length + importCount,
+                [],
+                notionData.energy,
+                notionData.notes,
+                notionData.completedAt,
+                null,
+                page.id
+            );
+            localTasks.push(newTask);
+            importCount++;
+        }
+
+        if (importCount > 0) {
+            await saveTasksAsync(localTasks);
+            showInfoMessage(`Imported ${importCount} new task(s) from Notion.`, 'success');
+            if (renderPageCallback) await renderPageCallback();
+        } else {
+            showInfoMessage('No new tasks to import.', 'info');
+        }
+
+    } catch (err) {
+        showInfoMessage(`Import error: ${err.message}`, 'error');
+    }
+}
+
+/**
+ * Setup Notion sync event listeners
+ */
+async function setupNotionSyncListeners(renderPageCallback) {
+    // Fetch Schema button
+    const fetchSchemaBtn = document.getElementById('notion-fetch-schema-btn');
+    if (fetchSchemaBtn) {
+        fetchSchemaBtn.addEventListener('click', async () => {
+            const apiKey = document.getElementById('notion-api-key')?.value.trim();
+            const viewId = document.getElementById('notion-view-id')?.value.trim();
+
+            if (!apiKey || !viewId) {
+                showInfoMessage('Please enter API key and View ID.', 'error');
+                return;
+            }
+
+            fetchSchemaBtn.textContent = 'Fetching...';
+            fetchSchemaBtn.disabled = true;
+
+            try {
+                const schema = await fetchNotionDatabaseSchema(apiKey, viewId);
+                const settings = await getSettings();
+                renderColumnMappingUI(schema, settings);
+                showInfoMessage('Schema fetched! Configure column mapping below.', 'success');
+            } catch (err) {
+                showInfoMessage(`Error: ${err.message}`, 'error');
+            } finally {
+                fetchSchemaBtn.textContent = 'Fetch Database Schema';
+                fetchSchemaBtn.disabled = false;
+            }
+        });
+    }
+
+    // Property select change handlers (show value mapping when select property chosen)
+    ['priority', 'status', 'type', 'energy'].forEach(field => {
+        const select = document.getElementById(`notion-map-${field}`);
+        if (select) {
+            select.addEventListener('change', () => {
+                const propName = select.value;
+                const container = document.getElementById(`notion-${field}-values`);
+
+                if (!propName || !_notionDatabaseSchema) {
+                    container?.classList.add('hidden');
+                    return;
+                }
+
+                const propDef = _notionDatabaseSchema.properties?.[propName];
+                const options = propDef?.select?.options?.map(o => o.name) ||
+                               propDef?.status?.options?.map(o => o.name) ||
+                               [];
+
+                if (options.length > 0) {
+                    renderValueMappingUI(field, options);
+                } else {
+                    container?.classList.add('hidden');
+                }
+            });
+        }
+    });
+
+    // Save mapping button
+    const saveMappingBtn = document.getElementById('notion-save-mapping-btn');
+    if (saveMappingBtn) {
+        saveMappingBtn.addEventListener('click', saveNotionConfiguration);
+    }
+
+    // Sync Now button
+    const syncNowBtn = document.getElementById('notion-sync-now-btn');
+    if (syncNowBtn) {
+        syncNowBtn.addEventListener('click', async () => {
+            syncNowBtn.textContent = 'Syncing...';
+            syncNowBtn.disabled = true;
+            try {
+                await performNotionSync(renderPageCallback);
+            } finally {
+                syncNowBtn.textContent = 'Sync Now';
+                syncNowBtn.disabled = false;
+            }
+        });
+    }
+
+    // Import New Only button
+    const importNewBtn = document.getElementById('notion-import-new-btn');
+    if (importNewBtn) {
+        importNewBtn.addEventListener('click', async () => {
+            importNewBtn.textContent = 'Importing...';
+            importNewBtn.disabled = true;
+            try {
+                await importNewNotionTasks(renderPageCallback);
+            } finally {
+                importNewBtn.textContent = 'Import New Only';
+                importNewBtn.disabled = false;
+            }
+        });
+    }
+
+    // Reconfigure button
+    const reconfigureBtn = document.getElementById('notion-reconfigure-btn');
+    if (reconfigureBtn) {
+        reconfigureBtn.addEventListener('click', () => {
+            document.getElementById('notion-sync-actions')?.classList.add('hidden');
+            document.getElementById('notion-column-mapping-section')?.classList.remove('hidden');
+        });
+    }
+
+    // Initialize: check if already configured
+    const settings = await getSettings();
+    if (settings.notionSyncEnabled) {
+        // Pre-populate form
+        const apiKeyEl = document.getElementById('notion-api-key');
+        const viewIdEl = document.getElementById('notion-view-id');
+        if (apiKeyEl) apiKeyEl.value = settings.notionApiKey || '';
+        if (viewIdEl) viewIdEl.value = settings.notionViewId || settings.notionDatabaseId || '';
+
+        // Show sync actions directly
+        document.getElementById('notion-sync-actions')?.classList.remove('hidden');
+
+        // Show last synced time
+        if (settings.notionLastSyncedAt) {
+            const lastSyncedEl = document.getElementById('notion-last-synced');
+            if (lastSyncedEl) {
+                lastSyncedEl.textContent = `Last synced: ${new Date(settings.notionLastSyncedAt).toLocaleString()}`;
+            }
+        }
+    }
+}
+
+// Legacy function for backward compatibility with existing import flow
 async function fetchNotionPages(apiKey, databaseId) {
     const url = `https://api.notion.com/v1/databases/${databaseId}/query`;
     const response = await fetch(url, {
@@ -357,11 +1211,9 @@ async function fetchNotionPages(apiKey, databaseId) {
 
     const data = await response.json();
     const pages = (data.results || []).map(page => {
-        // Extract title from Name or Title property
         const titleProp = Object.values(page.properties || {}).find(p => p.type === 'title');
         const title = titleProp?.title?.map(t => t.plain_text).join('') || '(Untitled)';
 
-        // Extract priority if present
         let priority = 'SOMEDAY';
         const priorityProp = Object.entries(page.properties || {}).find(([k]) => k.toLowerCase() === 'priority');
         if (priorityProp) {
@@ -407,7 +1259,6 @@ function renderNotionPagesList(pages) {
     container.classList.remove('hidden');
     if (importBtn) importBtn.classList.remove('hidden');
 
-    // Select all toggle
     const selectAll = container.querySelector('#notion-select-all');
     if (selectAll) {
         selectAll.addEventListener('change', () => {
@@ -857,11 +1708,14 @@ async function setupImportExportModalListeners(renderPageCallback) {
             } catch (err) {
                 showInfoMessage(`Import failed: ${err.message}`, 'error');
             } finally {
-                notionImportBtn.textContent = '✅ Import Selected';
+                notionImportBtn.textContent = 'Import Selected';
                 notionImportBtn.disabled = false;
             }
         });
     }
+
+    // Setup Notion sync listeners (new bidirectional sync feature)
+    await setupNotionSyncListeners(renderPageCallback);
 }
 
 // --- Time Blocks Modal Listeners Setup ---

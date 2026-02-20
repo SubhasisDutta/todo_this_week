@@ -29,6 +29,7 @@ loadScript(path.join(__dirname, '..', 'settings.js'), [
     'setupSettingsModalListeners',
     'setupImportExportModalListeners',
     'setupTimeBlocksModalListeners',
+    'setupImportExportTabs',
     'formatTimeInput', 'addTimeBlock', 'updateTimeBlockLabel', 'deleteTimeBlock'
 ]);
 
@@ -58,15 +59,39 @@ function setupSettingsDOM() {
         </div>
         <div id="import-export-modal" class="modal-overlay hidden">
             <div class="modal-content">
-                <input type="text" id="notion-api-key" value="">
-                <input type="text" id="notion-database-id" value="">
-                <input type="url" id="sheets-url" value="">
-                <div id="notion-pages-list"></div>
-                <button id="notion-import-btn" class="hidden"></button>
-                <div id="sheets-preview"></div>
-                <button id="sheets-import-btn" class="hidden"></button>
-                <div id="csv-preview"></div>
-                <button id="csv-import-btn" class="hidden"></button>
+                <div class="import-export-tabs" role="tablist">
+                    <button class="tab-link active" data-ie-tab="ie-json" role="tab" aria-selected="true">JSON</button>
+                    <button class="tab-link" data-ie-tab="ie-csv" role="tab" aria-selected="false">CSV</button>
+                    <button class="tab-link" data-ie-tab="ie-sheets" role="tab" aria-selected="false">Google Sheets</button>
+                    <button class="tab-link" data-ie-tab="ie-notion" role="tab" aria-selected="false">Notion</button>
+                </div>
+                <div class="import-export-content">
+                    <div id="ie-json" class="ie-panel active">
+                        <button id="export-tasks-btn">Export</button>
+                        <button id="import-tasks-btn">Import</button>
+                        <input type="file" id="import-file-input" style="display: none;">
+                    </div>
+                    <div id="ie-csv" class="ie-panel">
+                        <button id="csv-upload-btn">Upload CSV</button>
+                        <input type="file" id="csv-file-input" style="display: none;">
+                        <div id="csv-preview"></div>
+                        <button id="csv-import-btn" class="hidden">Import Rows</button>
+                    </div>
+                    <div id="ie-sheets" class="ie-panel">
+                        <input type="url" id="sheets-url" value="">
+                        <button id="sheets-fetch-btn">Preview Sheet</button>
+                        <div id="sheets-preview"></div>
+                        <button id="sheets-import-btn" class="hidden">Import Rows</button>
+                    </div>
+                    <div id="ie-notion" class="ie-panel">
+                        <input type="text" id="notion-api-key" value="">
+                        <input type="text" id="notion-view-id" value="">
+                        <input type="text" id="notion-database-id" value="">
+                        <button id="notion-fetch-schema-btn">Fetch Schema</button>
+                        <div id="notion-column-mapping-section" class="hidden"></div>
+                        <div id="notion-sync-actions" class="hidden"></div>
+                    </div>
+                </div>
                 <button id="import-export-close-btn">Close</button>
             </div>
         </div>
@@ -326,5 +351,131 @@ describe('renderTimeBlocksTable', () => {
         renderTimeBlocksTable([]);
         const container = document.getElementById('time-blocks-table-container');
         expect(container.innerHTML).toContain('No time blocks configured');
+    });
+});
+
+describe('Import/Export Modal Tabs', () => {
+    beforeEach(() => {
+        resetChromeStorage();
+        setupSettingsDOM();
+    });
+
+    test('openImportExportModal removes hidden class', () => {
+        expect(document.getElementById('import-export-modal').classList.contains('hidden')).toBe(true);
+        openImportExportModal();
+        expect(document.getElementById('import-export-modal').classList.contains('hidden')).toBe(false);
+    });
+
+    test('closeImportExportModal adds hidden class', () => {
+        openImportExportModal();
+        expect(document.getElementById('import-export-modal').classList.contains('hidden')).toBe(false);
+        closeImportExportModal();
+        expect(document.getElementById('import-export-modal').classList.contains('hidden')).toBe(true);
+    });
+
+    test('setupImportExportTabs initializes tab switching', () => {
+        openImportExportModal();
+
+        const tabs = document.querySelectorAll('.import-export-tabs .tab-link');
+        expect(tabs.length).toBe(4);
+
+        // JSON tab should be active by default
+        expect(tabs[0].classList.contains('active')).toBe(true);
+        expect(document.getElementById('ie-json').classList.contains('active')).toBe(true);
+    });
+
+    test('clicking CSV tab switches to CSV panel', () => {
+        openImportExportModal();
+
+        const csvTab = document.querySelector('[data-ie-tab="ie-csv"]');
+        csvTab.click();
+
+        // CSV tab should now be active
+        expect(csvTab.classList.contains('active')).toBe(true);
+        expect(csvTab.getAttribute('aria-selected')).toBe('true');
+
+        // CSV panel should be visible
+        expect(document.getElementById('ie-csv').classList.contains('active')).toBe(true);
+
+        // JSON panel should be hidden
+        expect(document.getElementById('ie-json').classList.contains('active')).toBe(false);
+    });
+
+    test('clicking Google Sheets tab switches to Sheets panel', () => {
+        openImportExportModal();
+
+        const sheetsTab = document.querySelector('[data-ie-tab="ie-sheets"]');
+        sheetsTab.click();
+
+        expect(sheetsTab.classList.contains('active')).toBe(true);
+        expect(document.getElementById('ie-sheets').classList.contains('active')).toBe(true);
+        expect(document.getElementById('ie-json').classList.contains('active')).toBe(false);
+    });
+
+    test('clicking Notion tab switches to Notion panel', () => {
+        openImportExportModal();
+
+        const notionTab = document.querySelector('[data-ie-tab="ie-notion"]');
+        notionTab.click();
+
+        expect(notionTab.classList.contains('active')).toBe(true);
+        expect(document.getElementById('ie-notion').classList.contains('active')).toBe(true);
+        expect(document.getElementById('ie-json').classList.contains('active')).toBe(false);
+    });
+
+    test('switching tabs updates aria-selected on all tabs', () => {
+        openImportExportModal();
+
+        const jsonTab = document.querySelector('[data-ie-tab="ie-json"]');
+        const csvTab = document.querySelector('[data-ie-tab="ie-csv"]');
+        const sheetsTab = document.querySelector('[data-ie-tab="ie-sheets"]');
+        const notionTab = document.querySelector('[data-ie-tab="ie-notion"]');
+
+        // Click CSV tab
+        csvTab.click();
+
+        expect(jsonTab.getAttribute('aria-selected')).toBe('false');
+        expect(csvTab.getAttribute('aria-selected')).toBe('true');
+        expect(sheetsTab.getAttribute('aria-selected')).toBe('false');
+        expect(notionTab.getAttribute('aria-selected')).toBe('false');
+    });
+
+    test('only one panel is active at a time', () => {
+        openImportExportModal();
+
+        const tabs = document.querySelectorAll('.import-export-tabs .tab-link');
+
+        // Click through all tabs
+        tabs.forEach((tab, idx) => {
+            tab.click();
+
+            const activePanels = document.querySelectorAll('.ie-panel.active');
+            expect(activePanels.length).toBe(1);
+
+            const expectedPanelId = tab.dataset.ieTab;
+            expect(activePanels[0].id).toBe(expectedPanelId);
+        });
+    });
+
+    test('closeImportExportModal hides preview elements', () => {
+        openImportExportModal();
+
+        // Show some preview elements
+        const csvPreview = document.getElementById('csv-preview');
+        const sheetsPreview = document.getElementById('sheets-preview');
+        const csvImportBtn = document.getElementById('csv-import-btn');
+        const sheetsImportBtn = document.getElementById('sheets-import-btn');
+
+        csvPreview.classList.remove('hidden');
+        sheetsPreview.classList.remove('hidden');
+        csvImportBtn.classList.remove('hidden');
+        sheetsImportBtn.classList.remove('hidden');
+
+        closeImportExportModal();
+
+        expect(csvPreview.classList.contains('hidden')).toBe(true);
+        expect(sheetsPreview.classList.contains('hidden')).toBe(true);
+        expect(csvImportBtn.classList.contains('hidden')).toBe(true);
+        expect(sheetsImportBtn.classList.contains('hidden')).toBe(true);
     });
 });

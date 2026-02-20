@@ -1424,8 +1424,150 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
     gap: 8px;
     margin-bottom: 16px;
     align-items: center;
+    flex-wrap: wrap;
 }
 .search-bar-container .neumorphic-input { flex-grow: 1; margin-bottom: 0; }
+
+/* Completed Tasks Toggle */
+.completed-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    padding: 6px 10px;
+    border-radius: var(--border-radius-sm);
+    background: var(--bg-primary);
+    box-shadow: var(--shadow-neumorphic);
+    transition: all var(--transition-speed);
+    white-space: nowrap;
+}
+.completed-toggle:hover {
+    color: var(--text-primary);
+}
+.completed-toggle input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent-blue);
+    cursor: pointer;
+}
+.completed-toggle .toggle-label {
+    user-select: none;
+}
+
+/* --- Completed Tasks Disclosure Accordion --- */
+.completed-disclosure {
+    margin-top: 12px;
+    border-radius: var(--border-radius-md);
+    background: var(--bg-primary);
+    box-shadow:
+        3px 3px 6px var(--shadow-dark),
+        -3px -3px 6px var(--shadow-light);
+    overflow: hidden;
+}
+
+.completed-disclosure[open] {
+    box-shadow:
+        inset 2px 2px 4px var(--shadow-inset-dark),
+        inset -2px -2px 4px var(--shadow-inset-light);
+}
+
+.completed-disclosure-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.9em;
+    font-weight: 600;
+    color: var(--text-secondary);
+    list-style: none;
+    transition: all var(--transition-speed);
+}
+
+.completed-disclosure-summary::-webkit-details-marker {
+    display: none;
+}
+
+.completed-disclosure-summary::before {
+    content: '▶';
+    font-size: 0.7em;
+    margin-right: 8px;
+    transition: transform var(--transition-speed);
+    color: var(--text-muted);
+}
+
+.completed-disclosure[open] .completed-disclosure-summary::before {
+    transform: rotate(90deg);
+}
+
+.completed-disclosure-summary:hover {
+    color: var(--text-primary);
+}
+
+.completed-disclosure-summary:hover::before {
+    color: var(--accent-blue);
+}
+
+.completed-disclosure-summary:focus {
+    outline: none;
+    box-shadow: var(--focus-ring);
+    border-radius: var(--border-radius-sm);
+}
+
+.disclosure-label {
+    flex-grow: 1;
+}
+
+.completed-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 11px;
+    background: var(--accent-blue);
+    color: white;
+    font-size: 0.75em;
+    font-weight: 700;
+}
+
+.completed-disclosure:not([open]) .completed-count {
+    background: var(--text-muted);
+}
+
+.completed-tasks-list {
+    padding: 8px 12px 12px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.completed-tasks-list:empty::after {
+    content: 'No completed tasks';
+    display: block;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85em;
+    font-style: italic;
+    padding: 12px;
+}
+
+.completed-tasks-list .task-item {
+    margin-bottom: 8px;
+    opacity: 0.85;
+}
+
+.completed-tasks-list .task-item:last-child {
+    margin-bottom: 0;
+}
+
+/* Hide disclosure when no completed tasks (controlled via JS) */
+.completed-disclosure.hidden {
+    display: none;
+}
 
 /* --- Stats Tab --- */
 #stats-tab h2 { margin-bottom: 20px; }
@@ -1787,9 +1929,235 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
     vertical-align: middle;
 }
 
+/* --- Notion Column Mapping --- */
+.column-mapping-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.mapping-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.mapping-row label {
+    flex: 0 0 130px;
+    font-size: 0.85em;
+    color: var(--text-secondary);
+}
+.mapping-row select,
+.mapping-row .neumorphic-input {
+    flex: 1;
+}
+.mapping-value {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Value Mapping Sub-panels */
+.value-mapping-group {
+    margin-left: 142px;
+    padding: 10px;
+    background: var(--inset-bg);
+    border-radius: var(--border-radius-sm);
+    margin-bottom: 8px;
+}
+.value-mapping-group.hidden {
+    display: none;
+}
+.value-mapping-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 0.82em;
+}
+.value-mapping-row:last-child {
+    margin-bottom: 0;
+}
+.value-mapping-row label {
+    flex: 0 0 80px;
+    color: var(--text-muted);
+}
+.value-mapping-row select,
+.value-mapping-row .neumorphic-input {
+    flex: 1;
+    font-size: 0.9em;
+    padding: 5px 8px;
+}
+
+/* Sync Status Bar */
+.sync-status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--inset-bg);
+    border-radius: var(--border-radius-sm);
+    font-size: 0.85em;
+}
+.sync-status-bar .syncing {
+    color: var(--accent-blue);
+}
+.sync-status-bar .synced {
+    color: var(--success-text);
+}
+.sync-status-bar .error {
+    color: var(--error-text);
+}
+
+/* Sync Preview Table */
+#notion-sync-preview table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8em;
+    margin-top: 8px;
+}
+#notion-sync-preview th,
+#notion-sync-preview td {
+    padding: 4px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--bg-primary);
+}
+#notion-sync-preview th {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+.sync-action-create { color: var(--success-text); }
+.sync-action-update { color: var(--accent-blue); }
+.sync-action-conflict { color: var(--error-text); }
+
+/* --- Import/Export Modal Tabs --- */
+.import-export-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 0;
+    padding: 6px;
+    border-radius: var(--border-radius-md) var(--border-radius-md) 0 0;
+    background: var(--inset-bg);
+    box-shadow: inset 2px 2px 4px var(--shadow-dark), inset -2px -2px 4px var(--shadow-light);
+}
+.import-export-tabs .tab-link {
+    font-size: 0.85em;
+    padding: 8px 16px;
+    flex: 1;
+    min-width: 80px;
+}
+.import-export-content {
+    padding: 0;
+}
+.ie-panel {
+    display: none;
+    padding: 20px 4px;
+    line-height: 1.7;
+}
+.ie-panel.active {
+    display: block;
+}
+.ie-section-title {
+    color: var(--accent-blue);
+    font-weight: 700;
+    font-size: 1.1em;
+    margin-bottom: 10px;
+    margin-top: 0;
+}
+.ie-description {
+    font-size: 0.88em;
+    color: var(--text-secondary);
+    margin: 0 0 16px;
+    line-height: 1.6;
+}
+.ie-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.ie-action-card {
+    padding: 16px;
+    background: var(--bg-primary);
+    border-radius: var(--border-radius-md);
+    box-shadow: 4px 4px 10px var(--shadow-dark), -4px -4px 10px var(--shadow-light);
+}
+.ie-action-card h4 {
+    margin: 0 0 8px;
+    font-size: 1em;
+    color: var(--text-primary);
+}
+.ie-action-card p {
+    font-size: 0.82em;
+    color: var(--text-muted);
+    margin: 0 0 12px;
+    line-height: 1.5;
+}
+.ie-action-card .neumorphic-btn {
+    width: 100%;
+}
+.ie-tip {
+    background: var(--info-bg);
+    color: var(--info-text);
+    border-left: 3px solid var(--accent-blue);
+    padding: 10px 14px;
+    border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0;
+    font-size: 0.85em;
+    margin: 12px 0;
+}
+.ie-requirements {
+    background: var(--inset-bg);
+    border-radius: var(--border-radius-md);
+    padding: 14px 18px;
+    margin-bottom: 16px;
+    box-shadow: inset 2px 2px 5px var(--shadow-dark), inset -2px -2px 5px var(--shadow-light);
+}
+.ie-requirements h4 {
+    margin: 0 0 10px;
+    font-size: 0.9em;
+    color: var(--text-secondary);
+}
+.ie-requirements ul,
+.ie-requirements ol {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    line-height: 1.8;
+}
+.ie-requirements code {
+    background: var(--bg-primary);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.9em;
+    color: var(--accent-blue);
+}
+.ie-upload-section {
+    margin-bottom: 12px;
+}
+.ie-help-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.ie-help-links a {
+    color: var(--accent-blue);
+    font-size: 0.85em;
+    text-decoration: none;
+}
+.ie-help-links a:hover {
+    text-decoration: underline;
+}
+
 /* --- Responsive Adjustments for New Tabs --- */
 @media (max-width: 768px) {
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
     .modal-content { padding: 16px; }
     .help-tabs .tab-link { font-size: 0.72em; padding: 4px 7px; }
+    .mapping-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+    .mapping-row label { flex: none; }
+    .value-mapping-group { margin-left: 0; }
+    .import-export-tabs .tab-link { font-size: 0.78em; padding: 6px 10px; }
+    .ie-actions { grid-template-columns: 1fr; }
+    .ie-help-links { flex-direction: column; gap: 8px; }
 }

@@ -103,14 +103,35 @@
                     <div class="priority-column">
                         <h3>Critical</h3>
                         <div id="critical-tasks-list" class="task-list neumorphic-inset-card"></div>
+                        <details class="completed-disclosure" id="critical-completed-disclosure">
+                            <summary class="completed-disclosure-summary">
+                                <span class="disclosure-label">Completed</span>
+                                <span class="completed-count" id="critical-completed-count">0</span>
+                            </summary>
+                            <div id="critical-completed-list" class="completed-tasks-list"></div>
+                        </details>
                     </div>
                     <div class="priority-column">
                         <h3>Important</h3>
                         <div id="important-tasks-list" class="task-list neumorphic-inset-card"></div>
+                        <details class="completed-disclosure" id="important-completed-disclosure">
+                            <summary class="completed-disclosure-summary">
+                                <span class="disclosure-label">Completed</span>
+                                <span class="completed-count" id="important-completed-count">0</span>
+                            </summary>
+                            <div id="important-completed-list" class="completed-tasks-list"></div>
+                        </details>
                     </div>
                     <div class="priority-column">
                         <h3>Someday</h3>
                         <div id="someday-tasks-list" class="task-list neumorphic-inset-card"></div>
+                        <details class="completed-disclosure" id="someday-completed-disclosure">
+                            <summary class="completed-disclosure-summary">
+                                <span class="disclosure-label">Completed</span>
+                                <span class="completed-count" id="someday-completed-count">0</span>
+                            </summary>
+                            <div id="someday-completed-list" class="completed-tasks-list"></div>
+                        </details>
                     </div>
                 </div>
             </div>
@@ -127,10 +148,24 @@
                     <div class="priority-column">
                         <h3>Home</h3>
                         <div id="home-tasks-list" class="task-list neumorphic-inset-card"></div>
+                        <details class="completed-disclosure" id="home-completed-disclosure">
+                            <summary class="completed-disclosure-summary">
+                                <span class="disclosure-label">Completed</span>
+                                <span class="completed-count" id="home-completed-count">0</span>
+                            </summary>
+                            <div id="home-completed-list" class="completed-tasks-list"></div>
+                        </details>
                     </div>
                     <div class="priority-column">
                         <h3>Work</h3>
                         <div id="work-tasks-list" class="task-list neumorphic-inset-card"></div>
+                        <details class="completed-disclosure" id="work-completed-disclosure">
+                            <summary class="completed-disclosure-summary">
+                                <span class="disclosure-label">Completed</span>
+                                <span class="completed-count" id="work-completed-count">0</span>
+                            </summary>
+                            <div id="work-completed-list" class="completed-tasks-list"></div>
+                        </details>
                     </div>
                 </div>
             </div>
@@ -489,47 +524,45 @@
                 <!-- Import/Export -->
                 <div id="help-import-export" class="help-panel">
                     <h3 class="help-section-title">📦 Import / Export</h3>
-                    <p>Click the 📦 icon in the header to open the Import/Export modal. Back up your tasks, import from files, or connect to external services.</p>
+                    <p>Click the 📦 icon in the header to open the Import/Export modal. The modal is organized into four tabs for different import/export methods.</p>
 
                     <div class="help-step">
                         <div class="help-step-number">1</div>
                         <div class="help-step-content">
-                            <h4>JSON Export/Import</h4>
-                            <p>Click <em>Export Tasks</em> to download all tasks as a JSON file. Click <em>Import Tasks</em> to restore from a JSON file. The import
-                                <strong>merges</strong> with existing tasks: matching IDs are updated; new IDs are added.
-                            </p>
+                            <h4>JSON Tab</h4>
+                            <p>Export all tasks to a JSON file for backup, or import tasks from a previously exported JSON file. The import <strong>merges</strong> with existing tasks: matching IDs are updated; new IDs are added. This is the recommended backup method.</p>
                         </div>
                     </div>
                     <div class="help-step">
                         <div class="help-step-number">2</div>
                         <div class="help-step-content">
-                            <h4>CSV File Import</h4>
-                            <p>Click <em>Upload CSV File</em> to import tasks from a local CSV file. Required column: <strong>title</strong>. Optional: priority, type, energy, url, deadline, notes, recurrence.</p>
+                            <h4>CSV Tab</h4>
+                            <p>Import tasks from a CSV file. Required column: <strong>title</strong>. Optional columns: priority, type, energy, url, deadline, notes, recurrence. The tab shows format requirements and valid values for each column.</p>
                         </div>
                     </div>
                     <div class="help-step">
                         <div class="help-step-number">3</div>
                         <div class="help-step-content">
-                            <h4>Google Sheets Import</h4>
-                            <p>Publish your Google Sheet as CSV (File → Share → Publish to web). Paste the CSV URL,
-                                click <em>Preview Sheet</em>, then <em>Import Rows</em>.</p>
+                            <h4>Google Sheets Tab</h4>
+                            <p>Import from a published Google Sheet. First publish your sheet as CSV (File → Share → Publish to web → CSV format). Then paste the URL, click <em>Preview Sheet</em> to verify the data, and click <em>Import Rows</em>.</p>
                         </div>
                     </div>
                     <div class="help-step">
                         <div class="help-step-number">4</div>
                         <div class="help-step-content">
-                            <h4>Notion Import</h4>
-                            <p>Enter your Notion Integration Token and Database ID. Click <em>Fetch Pages</em>, select
-                                which pages to import, then click <em>Import Selected</em>.</p>
+                            <h4>Notion Tab</h4>
+                            <p>Connect to a Notion database for bidirectional sync. Enter your Integration Token and Database ID, fetch the schema, map your Notion properties to task fields, then use <em>Sync Now</em> for two-way sync or <em>Import New Only</em> to pull new items.</p>
                         </div>
                     </div>
 
-                    <div class="help-diagram">Import Logic:
-                        Existing task ID → UPDATE (merge)
-                        New task ID → APPEND (add)
-                        No duplicates → Safe to re-import</div>
+                    <div class="help-diagram">Import Logic (all methods):
+┌─────────────────────────────────────────┐
+│ Existing task ID → UPDATE (merge)       │
+│ New task ID      → APPEND (add)         │
+│ No duplicates    → Safe to re-import    │
+└─────────────────────────────────────────┘</div>
 
-                    <div class="help-tip">💡 The JSON format is a plain array of task objects. CSV files should have a header row with column names.</div>
+                    <div class="help-tip">💡 Use the JSON tab for regular backups. CSV and Google Sheets are best for bulk imports from spreadsheets. Notion sync keeps your tasks in sync with your Notion workspace.</div>
                 </div>
 
                 <!-- FAQ -->
@@ -661,72 +694,219 @@
          ============================ -->
     <div id="import-export-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
         aria-labelledby="import-export-title">
-        <div class="modal-content">
+        <div class="modal-content modal-content-large">
             <div class="modal-header">
                 <h2 id="import-export-title">📦 Import / Export Tasks</h2>
                 <button id="import-export-close-btn" class="neumorphic-btn icon-btn" aria-label="Close">✕</button>
             </div>
 
-            <!-- JSON Import / Export -->
-            <section class="settings-section">
-                <h3>JSON Import / Export</h3>
-                <p style="font-size:0.82em; color:var(--text-muted); margin:0 0 10px;">Export your tasks to a JSON file for backup, or import tasks from a previously exported file.</p>
-                <div class="buttons-container">
-                    <button id="export-tasks-btn" class="neumorphic-btn">⬇️ Export Tasks</button>
-                    <button id="import-tasks-btn" class="neumorphic-btn">⬆️ Import Tasks</button>
-                    <input type="file" id="import-file-input" style="display: none;" accept=".json">
-                </div>
-            </section>
+            <!-- Import/Export Tabs -->
+            <div class="import-export-tabs" role="tablist">
+                <button class="tab-link active" data-ie-tab="ie-json" role="tab" aria-selected="true">JSON</button>
+                <button class="tab-link" data-ie-tab="ie-csv" role="tab" aria-selected="false">CSV</button>
+                <button class="tab-link" data-ie-tab="ie-sheets" role="tab" aria-selected="false">Google Sheets</button>
+                <button class="tab-link" data-ie-tab="ie-notion" role="tab" aria-selected="false">Notion</button>
+            </div>
 
-            <!-- CSV Import -->
-            <section class="settings-section">
-                <h3>Import from CSV File</h3>
-                <p style="font-size:0.82em; color:var(--text-muted); margin:0 0 10px;">Upload a CSV file with your tasks. Required column: <strong>title</strong>. Optional: priority, type, energy, url, deadline, notes, recurrence.</p>
-                <div class="buttons-container">
-                    <button id="csv-upload-btn" class="neumorphic-btn">📄 Upload CSV File</button>
-                    <input type="file" id="csv-file-input" style="display: none;" accept=".csv">
-                </div>
-                <div id="csv-preview" class="sheets-preview hidden"></div>
-                <button id="csv-import-btn" class="neumorphic-btn hidden" style="margin-top:8px;">✅ Import Rows</button>
-            </section>
+            <!-- Import/Export Content Panels -->
+            <div class="import-export-content">
 
-            <!-- Google Sheets Import -->
-            <section class="settings-section">
-                <h3>Import from Google Sheets</h3>
-                <p style="font-size:0.82em; color:var(--text-muted); margin:0 0 10px;">Publish your sheet as CSV (File →
-                    Share → Publish to web → CSV). Required column: <strong>title</strong>. Optional: priority, type,
-                    energy, url, deadline, notes, recurrence.</p>
-                <div class="form-group">
-                    <label for="sheets-url">Published CSV URL</label>
-                    <input type="url" id="sheets-url" class="neumorphic-input"
-                        placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv">
-                </div>
-                <button id="sheets-fetch-btn" class="neumorphic-btn">Preview Sheet</button>
-                <div id="sheets-preview" class="sheets-preview hidden"></div>
-                <button id="sheets-import-btn" class="neumorphic-btn hidden" style="margin-top:8px;">✅ Import
-                    Rows</button>
-            </section>
+                <!-- JSON Import / Export -->
+                <div id="ie-json" class="ie-panel active">
+                    <h3 class="ie-section-title">📄 JSON Import / Export</h3>
+                    <p class="ie-description">Export your tasks to a JSON file for backup, or import tasks from a previously exported file. The JSON format preserves all task data including schedules, notes, and settings.</p>
 
-            <!-- Notion Import -->
-            <section class="settings-section">
-                <h3>Import from Notion</h3>
-                <p style="font-size:0.82em; color:var(--text-muted); margin:0 0 10px;">Enter your Notion integration
-                    token and Database ID. <a href="https://developers.notion.com/docs/create-a-notion-integration"
-                        target="_blank" style="color:var(--accent-blue)">How to get these?</a></p>
-                <div class="form-group">
-                    <label for="notion-api-key">Notion Integration Token</label>
-                    <input type="password" id="notion-api-key" class="neumorphic-input" placeholder="secret_...">
+                    <div class="ie-actions">
+                        <div class="ie-action-card">
+                            <h4>⬇️ Export Tasks</h4>
+                            <p>Download all your tasks as a JSON file. This creates a complete backup that can be imported later.</p>
+                            <button id="export-tasks-btn" class="neumorphic-btn">Export to JSON</button>
+                        </div>
+                        <div class="ie-action-card">
+                            <h4>⬆️ Import Tasks</h4>
+                            <p>Import tasks from a JSON file. Existing tasks with matching IDs will be updated; new tasks will be added.</p>
+                            <button id="import-tasks-btn" class="neumorphic-btn">Import from JSON</button>
+                            <input type="file" id="import-file-input" style="display: none;" accept=".json">
+                        </div>
+                    </div>
+
+                    <div class="ie-tip">
+                        💡 <strong>Tip:</strong> JSON import uses a merge strategy — tasks with the same ID are updated, new tasks are appended. This makes it safe to re-import backups.
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="notion-database-id">Database ID</label>
-                    <input type="text" id="notion-database-id" class="neumorphic-input"
-                        placeholder="32-character database ID">
+
+                <!-- CSV Import -->
+                <div id="ie-csv" class="ie-panel">
+                    <h3 class="ie-section-title">📊 CSV File Import</h3>
+                    <p class="ie-description">Upload a CSV file with your tasks. This is useful for importing tasks from spreadsheets or other task managers.</p>
+
+                    <div class="ie-requirements">
+                        <h4>CSV Format Requirements</h4>
+                        <ul>
+                            <li><strong>Required column:</strong> <code>title</code></li>
+                            <li><strong>Optional columns:</strong> priority, type, energy, url, deadline, notes, recurrence</li>
+                            <li><strong>Priority values:</strong> CRITICAL, IMPORTANT, SOMEDAY</li>
+                            <li><strong>Type values:</strong> home, work</li>
+                            <li><strong>Energy values:</strong> low, high</li>
+                            <li><strong>Recurrence values:</strong> daily, weekly, monthly</li>
+                        </ul>
+                    </div>
+
+                    <div class="ie-upload-section">
+                        <button id="csv-upload-btn" class="neumorphic-btn">📄 Select CSV File</button>
+                        <input type="file" id="csv-file-input" style="display: none;" accept=".csv">
+                    </div>
+                    <div id="csv-preview" class="sheets-preview hidden"></div>
+                    <button id="csv-import-btn" class="neumorphic-btn hidden" style="margin-top:12px;">✅ Import Rows</button>
                 </div>
-                <button id="notion-fetch-btn" class="neumorphic-btn">Fetch Notion Pages</button>
-                <div id="notion-pages-list" class="notion-pages-list hidden"></div>
-                <button id="notion-import-btn" class="neumorphic-btn hidden" style="margin-top:8px;">✅ Import
-                    Selected</button>
-            </section>
+
+                <!-- Google Sheets Import -->
+                <div id="ie-sheets" class="ie-panel">
+                    <h3 class="ie-section-title">📋 Google Sheets Import</h3>
+                    <p class="ie-description">Import tasks directly from a published Google Sheet. The sheet must be published as CSV format.</p>
+
+                    <div class="ie-requirements">
+                        <h4>How to Publish Your Sheet</h4>
+                        <ol>
+                            <li>Open your Google Sheet</li>
+                            <li>Go to <strong>File → Share → Publish to web</strong></li>
+                            <li>Select the sheet tab and choose <strong>CSV</strong> format</li>
+                            <li>Click <strong>Publish</strong> and copy the URL</li>
+                        </ol>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="sheets-url">Published CSV URL</label>
+                        <input type="url" id="sheets-url" class="neumorphic-input"
+                            placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv">
+                    </div>
+                    <button id="sheets-fetch-btn" class="neumorphic-btn">Preview Sheet</button>
+                    <div id="sheets-preview" class="sheets-preview hidden"></div>
+                    <button id="sheets-import-btn" class="neumorphic-btn hidden" style="margin-top:12px;">✅ Import Rows</button>
+                </div>
+
+                <!-- Notion Sync -->
+                <div id="ie-notion" class="ie-panel">
+                    <h3 class="ie-section-title">📝 Notion Sync</h3>
+                    <p class="ie-description">
+                        Connect to your Notion database for bidirectional sync. Changes in Notion will sync to your tasks and vice versa.
+                    </p>
+
+                    <div class="ie-help-links">
+                        <a href="https://developers.notion.com/docs/create-a-notion-integration" target="_blank">📖 How to get an integration token</a>
+                        <a href="https://developers.notion.com/reference/database-retrieve" target="_blank">📖 How to get a Database ID</a>
+                    </div>
+
+                    <!-- Step 1: Credentials -->
+                    <div class="form-group">
+                        <label for="notion-api-key">Notion Integration Token</label>
+                        <input type="password" id="notion-api-key" class="neumorphic-input" placeholder="secret_...">
+                    </div>
+                    <div class="form-group">
+                        <label for="notion-view-id">Database ID</label>
+                        <input type="text" id="notion-view-id" class="neumorphic-input" placeholder="32-character database or view ID">
+                        <small style="color:var(--text-muted); font-size:0.75em; display:block; margin-top:4px;">
+                            Copy the 32-character ID from your Notion database/view URL (after the workspace name and before the ?v=).
+                        </small>
+                    </div>
+                    <button id="notion-fetch-schema-btn" class="neumorphic-btn">Fetch Database Schema</button>
+
+                    <!-- Step 2: Column Mapping (hidden until schema fetched) -->
+                    <div id="notion-column-mapping-section" class="hidden" style="margin-top:16px;">
+                        <h4 style="margin:0 0 12px; color:var(--text-secondary); font-size:0.9em;">Column Mapping</h4>
+                        <p style="font-size:0.8em; color:var(--text-muted); margin:0 0 12px;">
+                            Map your Notion database properties to task fields. Title is auto-detected.
+                        </p>
+
+                        <div class="column-mapping-grid">
+                            <!-- Title (auto-detected) -->
+                            <div class="mapping-row">
+                                <label>Title (required)</label>
+                                <span id="notion-title-property" class="mapping-value">Auto-detected</span>
+                            </div>
+
+                            <!-- Priority -->
+                            <div class="mapping-row">
+                                <label for="notion-map-priority">Priority</label>
+                                <select id="notion-map-priority" class="neumorphic-input notion-property-select">
+                                    <option value="">-- Not mapped --</option>
+                                </select>
+                            </div>
+                            <div id="notion-priority-values" class="value-mapping-group hidden"></div>
+
+                            <!-- Status/Completed -->
+                            <div class="mapping-row">
+                                <label for="notion-map-status">Status (Completed)</label>
+                                <select id="notion-map-status" class="neumorphic-input notion-property-select">
+                                    <option value="">-- Not mapped --</option>
+                                </select>
+                            </div>
+                            <div id="notion-status-values" class="value-mapping-group hidden"></div>
+
+                            <!-- Type (Home/Work) -->
+                            <div class="mapping-row">
+                                <label for="notion-map-type">Type (Home/Work)</label>
+                                <select id="notion-map-type" class="neumorphic-input notion-property-select">
+                                    <option value="">-- Not mapped --</option>
+                                </select>
+                            </div>
+                            <div id="notion-type-values" class="value-mapping-group hidden"></div>
+
+                            <!-- Energy -->
+                            <div class="mapping-row">
+                                <label for="notion-map-energy">Energy Level</label>
+                                <select id="notion-map-energy" class="neumorphic-input notion-property-select">
+                                    <option value="">-- Not mapped --</option>
+                                </select>
+                            </div>
+                            <div id="notion-energy-values" class="value-mapping-group hidden"></div>
+
+                            <!-- Deadline -->
+                            <div class="mapping-row">
+                                <label for="notion-map-deadline">Deadline</label>
+                                <select id="notion-map-deadline" class="neumorphic-input notion-property-select">
+                                    <option value="">-- Not mapped --</option>
+                                </select>
+                            </div>
+
+                            <!-- Notes -->
+                            <div class="mapping-row">
+                                <label for="notion-map-notes">Notes</label>
+                                <select id="notion-map-notes" class="neumorphic-input notion-property-select">
+                                    <option value="">-- Not mapped --</option>
+                                </select>
+                            </div>
+
+                            <!-- URL -->
+                            <div class="mapping-row">
+                                <label for="notion-map-url">URL</label>
+                                <select id="notion-map-url" class="neumorphic-input notion-property-select">
+                                    <option value="">-- Not mapped --</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button id="notion-save-mapping-btn" class="neumorphic-btn" style="margin-top:12px;">
+                            Save Mapping Configuration
+                        </button>
+                    </div>
+
+                    <!-- Step 3: Sync Actions (hidden until mapping saved) -->
+                    <div id="notion-sync-actions" class="hidden" style="margin-top:16px;">
+                        <div class="sync-status-bar">
+                            <span id="notion-sync-status">Not synced yet</span>
+                            <span id="notion-last-synced" style="font-size:0.8em; color:var(--text-muted);"></span>
+                        </div>
+                        <div class="buttons-container" style="margin-top:10px; gap:8px;">
+                            <button id="notion-sync-now-btn" class="neumorphic-btn">Sync Now</button>
+                            <button id="notion-import-new-btn" class="neumorphic-btn">Import New Only</button>
+                            <button id="notion-reconfigure-btn" class="neumorphic-btn" style="background:transparent;">Reconfigure</button>
+                        </div>
+                        <div id="notion-sync-preview" class="hidden" style="margin-top:12px;"></div>
+                    </div>
+                </div>
+
+            </div><!-- end .import-export-content -->
         </div>
     </div>
 

@@ -11,12 +11,12 @@ This is a **Weekly Task Manager** — a Chrome/Chromium browser extension (Manif
 ### Core Components
 
 - `task_utils.js` (~540 lines) — Shared utilities: Task class, CRUD operations, settings, undo/redo, recurring tasks, time blocks, validation (including time overlap), debounce, operation queue, cross-tab sync
-- `settings.js` (~950 lines) — Settings management: theme/font application, settings modal UI, import/export modal (JSON, CSV, Notion, Google Sheets), time blocks modal with inline label editing
+- `settings.js` (~1000 lines) — Settings management: theme/font application, settings modal UI, tabbed import/export modal (JSON, CSV, Google Sheets, Notion with bidirectional sync), time blocks modal with inline label editing
 - `popup.js` (~390 lines) — Popup interface: task rendering (with notes/recurrence), tab switching, completion handlers, drag-and-drop reordering
 - `manager.js` (~900 lines) — Full-page planner: weekly grid, drag-and-drop scheduling, inline editing, archive tab, stats tab, search/filter, undo toast, keyboard undo, settings wiring, add task modal
 - `popup.html` (~102 lines) — Popup markup (3 tabs: TODAY, Display, ADD — with notes textarea and recurrence select)
 - `manager.html` (~800 lines) — Planner markup (5 tabs: SCHEDULE, PRIORITY, LOCATION, ARCHIVE, STATS + settings/help/add-task/import-export/time-blocks modals, help has 8 tabs including FAQ)
-- `popup.css` (~1800 lines) — Unified styles: neumorphic design, dark mode, modals, charts, archive, help, toast, search, notes, tooltips, FAQ styling
+- `popup.css` (~2000 lines) — Unified styles: neumorphic design, dark mode, modals, charts, archive, help, toast, search, notes, tooltips, FAQ styling, import/export tabs
 
 ### Extension Configuration
 
@@ -32,7 +32,7 @@ This is a **Weekly Task Manager** — a Chrome/Chromium browser extension (Manif
 - `tests/popup.test.js` — ~17 tests for popup.js
 - `tests/manager.test.js` — ~75 tests for manager.js (includes async grid, new tabs, search filter, add task modal, tooltips, FAQ)
 - `tests/integration.test.js` — ~25 end-to-end tests (includes recurring tasks, undo lifecycle)
-- `tests/settings.test.js` — ~35 tests for settings.js (includes time block editing, overlap validation)
+- `tests/settings.test.js` — ~38 tests for settings.js (includes time block editing, overlap validation, import/export modal tabs)
 - `tests/features.test.js` — ~30 tests for notes, completedAt, undo/redo, recurring tasks, archive grouping
 - `tests/search.test.js` — ~10 tests for search/filter functionality
 
@@ -175,11 +175,14 @@ Defined in `task_utils.js` as `DEFAULT_TIME_BLOCKS`. A `TIME_BLOCKS` alias is ke
 - `_lastSaveTimestamp` is set to `Date.now()` on every `saveTasks` call (via monkey-patched wrapper)
 - Listener ignores changes within 500ms of last save to prevent self-triggered re-renders
 
-### Import/Export (manager.js)
-- **Export:** Downloads `tasks-{ISO-timestamp}.json` file
-- **Import:** File input accepts `.json`, merges with existing tasks:
-  - Tasks with matching IDs: updates the existing task
-  - Tasks with new IDs: appends to task list
+### Import/Export Modal (settings.js)
+The import/export modal is organized into 4 tabs for different import/export methods:
+- **JSON Tab:** Export all tasks to JSON file, import from JSON with merge logic (matching IDs updated, new IDs appended)
+- **CSV Tab:** Import tasks from CSV files with format requirements displayed (required: title; optional: priority, type, energy, url, deadline, notes, recurrence)
+- **Google Sheets Tab:** Import from published Google Sheets (publish as CSV format), preview before importing
+- **Notion Tab:** Bidirectional sync with Notion databases via column mapping UI, supports Sync Now and Import New Only modes
+
+Tab switching is handled by `setupImportExportTabs()` in settings.js. Uses `.import-export-tabs` container with `data-ie-tab` attributes and `.ie-panel` content panels.
 
 ### Drag and Drop
 - **Popup (Display tab):** Reorder within same priority group. Updates `displayOrder` values.
@@ -200,6 +203,14 @@ Defined in `task_utils.js` as `DEFAULT_TIME_BLOCKS`. A `TIME_BLOCKS` alias is ke
 - Help modal has 8 tabs: Overview, Quick Start, Schedule, Priority, Location, Settings, Import/Export, FAQ
 - FAQ section addresses common user questions about task scheduling, completion, and recurring tasks
 - Uses `.faq-item`, `.faq-question`, `.faq-answer` CSS classes for consistent styling
+
+### Completed Tasks Disclosure (Priority & Location tabs)
+- Completed tasks are displayed in collapsible disclosure sections (`<details>`) instead of checkbox toggles
+- Each priority column (Critical, Important, Someday) and location column (Home, Work) has its own disclosure
+- Disclosure shows count badge (`.completed-count`) with number of completed tasks
+- Disclosure is hidden (`.hidden` class) when no completed tasks exist
+- Uses native HTML `<details>`/`<summary>` elements with custom styling for disclosure triangle
+- Search filter applies to both active and completed task lists
 
 ## CSS Architecture
 
@@ -224,6 +235,8 @@ Defined in `:root` in `popup.css`:
 - `block-color-*` — Time block color coding (sakura, yellow, purple, sage, skyblue, orange)
 - `neumorphic-btn`, `neumorphic-input`, `neumorphic-inset-card` — Design system components
 - `save-status`, `.saving`, `.saved`, `.unsaved` — Auto-save indicator states
+- `import-export-tabs`, `.ie-panel`, `.ie-section-title`, `.ie-action-card` — Import/export modal tabbed interface
+- `completed-disclosure`, `.completed-disclosure-summary`, `.completed-count`, `.completed-tasks-list` — Completed tasks accordion
 
 ## Accessibility
 
@@ -248,7 +261,7 @@ The codebase uses the following ARIA patterns:
 ```bash
 cd tests             # All test infrastructure is in tests/
 npm install          # Install Jest + jsdom
-npm test             # Run all 210 tests
+npm test             # Run all 262 tests
 npm run test:watch   # Watch mode
 npm run test:coverage # Coverage report
 ```
@@ -287,10 +300,10 @@ This makes all listed symbols available as globals in the test scope.
 
 The `loadScript` regex also handles `async function` DOMContentLoaded handlers (needed because manager.js and popup.js DOMContentLoaded handlers are now `async`).
 
-### Test Suites (245 total)
+### Test Suites (262 total)
 - **task_utils.test.js (~90):** Task class (new fields), getTasks backfill, CRUD, settings CRUD, time blocks, undo/redo stacks, createRecurringInstance, seedSampleTasks, showInfoMessage, validateTask, debounce, withTaskLock, parseTimeRange, validateTimeBlockOverlap, renamed labels
 - **popup.test.js (~17):** createTaskItem (notes, recurrence), renderTasks, renderAllTabs, tab switching, add-task validation, open-manager button
-- **manager.test.js (~75):** generateDayHeaders/generatePlannerGrid (now async), createTaskElement (notes/recurrence badges), renderSidebarLists, renderPriorityLists, renderHomeWorkLists, renderArchiveTab, renderStatsTab, applySearchFilter, setupTabSwitching, renderPage, highlightCurrentDay, setupAddTaskModalListeners, header tooltips, FAQ tab
+- **manager.test.js (~83):** generateDayHeaders/generatePlannerGrid (now async), createTaskElement (notes/recurrence badges), renderSidebarLists, renderPriorityLists, renderHomeWorkLists, renderArchiveTab, renderStatsTab, applySearchFilter, setupTabSwitching, renderPage, highlightCurrentDay, setupAddTaskModalListeners, header tooltips, FAQ tab, completed tasks disclosure
 - **integration.test.js (~25):** Task lifecycle, schedule management, cascade completion, ordering, import/merge, validation, cross-tab sync, recurring tasks (auto-instance creation), undo/redo lifecycle
 - **settings.test.js (~35):** applySettings (theme, font-family, font-size CSS vars), initSettings (first-run seeding), populateSettingsForm, openSettingsModal/closeSettingsModal, FONT_FAMILY_MAP/FONT_SIZE_MAP constants, formatTimeInput, updateTimeBlockLabel, addTimeBlock overlap validation, renderTimeBlocksTable
 - **features.test.js (~30):** Notes field (CRUD, backfill), completedAt (set on complete, clear on uncomplete, backfill), undo/redo cycle, createRecurringInstance (daily/weekly/monthly deadline shift), recurring auto-instance via updateTask, archive date grouping
@@ -333,4 +346,4 @@ Coverage reporting via `jest --coverage` shows 0% because `new Function()` execu
 - **Recurring Task Auto-Instance:** Created inside `updateTask()` within the same `getTasks` callback before `saveTasks()` is called — avoids double-read race condition.
 - **Dark Mode:** Applied via `data-theme` attribute on `<html>` element. CSS uses `:root[data-theme="dark"]` selector. `initSettings()` must be `await`-ed before any render.
 - **No Build Process:** Load directly as unpacked extension; vanilla JS with no transpilation
-- **Test Coverage Limitation:** `new Function()` bypasses Istanbul instrumentation; behavioral coverage is validated through 200 passing tests
+- **Test Coverage Limitation:** `new Function()` bypasses Istanbul instrumentation; behavioral coverage is validated through 262 passing tests

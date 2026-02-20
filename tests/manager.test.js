@@ -80,14 +80,35 @@ function setupManagerDOM() {
                         <div class="priority-column">
                             <h3>Critical</h3>
                             <div id="critical-tasks-list" class="task-list neumorphic-inset-card"></div>
+                            <details class="completed-disclosure" id="critical-completed-disclosure">
+                                <summary class="completed-disclosure-summary">
+                                    <span class="disclosure-label">Completed</span>
+                                    <span class="completed-count" id="critical-completed-count">0</span>
+                                </summary>
+                                <div id="critical-completed-list" class="completed-tasks-list"></div>
+                            </details>
                         </div>
                         <div class="priority-column">
                             <h3>Important</h3>
                             <div id="important-tasks-list" class="task-list neumorphic-inset-card"></div>
+                            <details class="completed-disclosure" id="important-completed-disclosure">
+                                <summary class="completed-disclosure-summary">
+                                    <span class="disclosure-label">Completed</span>
+                                    <span class="completed-count" id="important-completed-count">0</span>
+                                </summary>
+                                <div id="important-completed-list" class="completed-tasks-list"></div>
+                            </details>
                         </div>
                         <div class="priority-column">
                             <h3>Someday</h3>
                             <div id="someday-tasks-list" class="task-list neumorphic-inset-card"></div>
+                            <details class="completed-disclosure" id="someday-completed-disclosure">
+                                <summary class="completed-disclosure-summary">
+                                    <span class="disclosure-label">Completed</span>
+                                    <span class="completed-count" id="someday-completed-count">0</span>
+                                </summary>
+                                <div id="someday-completed-list" class="completed-tasks-list"></div>
+                            </details>
                         </div>
                     </div>
                 </div>
@@ -101,10 +122,24 @@ function setupManagerDOM() {
                         <div class="priority-column">
                             <h3>Home</h3>
                             <div id="home-tasks-list" class="task-list neumorphic-inset-card"></div>
+                            <details class="completed-disclosure" id="home-completed-disclosure">
+                                <summary class="completed-disclosure-summary">
+                                    <span class="disclosure-label">Completed</span>
+                                    <span class="completed-count" id="home-completed-count">0</span>
+                                </summary>
+                                <div id="home-completed-list" class="completed-tasks-list"></div>
+                            </details>
                         </div>
                         <div class="priority-column">
                             <h3>Work</h3>
                             <div id="work-tasks-list" class="task-list neumorphic-inset-card"></div>
+                            <details class="completed-disclosure" id="work-completed-disclosure">
+                                <summary class="completed-disclosure-summary">
+                                    <span class="disclosure-label">Completed</span>
+                                    <span class="completed-count" id="work-completed-count">0</span>
+                                </summary>
+                                <div id="work-completed-list" class="completed-tasks-list"></div>
+                            </details>
                         </div>
                     </div>
                 </div>
@@ -538,6 +573,99 @@ describe('renderHomeWorkLists', () => {
         renderHomeWorkLists([]);
         expect(document.getElementById('home-tasks-list').innerHTML).toContain('No tasks in this category');
         expect(document.getElementById('work-tasks-list').innerHTML).toContain('No tasks in this category');
+    });
+});
+
+describe('Completed Tasks Disclosure - Priority Tab', () => {
+    test('renders completed tasks in disclosure sections', () => {
+        const tasks = [
+            { id: 't1', title: 'Active Critical', priority: 'CRITICAL', completed: false, type: 'home', energy: 'low', displayOrder: 0, schedule: [], deadline: '2025-12-01', notes: '', recurrence: null },
+            { id: 't2', title: 'Completed Critical', priority: 'CRITICAL', completed: true, type: 'home', energy: 'low', displayOrder: 0, schedule: [], deadline: '2025-12-01', notes: '', recurrence: null, completedAt: '2025-01-01' },
+            { id: 't3', title: 'Completed Important', priority: 'IMPORTANT', completed: true, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: '2025-01-01' },
+        ];
+        renderPriorityLists(tasks);
+
+        // Active task in main list
+        expect(document.getElementById('critical-tasks-list').querySelectorAll('.task-item').length).toBe(1);
+
+        // Completed tasks in disclosure lists
+        expect(document.getElementById('critical-completed-list').querySelectorAll('.task-item').length).toBe(1);
+        expect(document.getElementById('important-completed-list').querySelectorAll('.task-item').length).toBe(1);
+    });
+
+    test('updates completed count badges', () => {
+        const tasks = [
+            { id: 't1', title: 'Done 1', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: '2025-01-01' },
+            { id: 't2', title: 'Done 2', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'low', displayOrder: 1, schedule: [], notes: '', recurrence: null, completedAt: '2025-01-01' },
+        ];
+        renderPriorityLists(tasks);
+
+        expect(document.getElementById('someday-completed-count').textContent).toBe('2');
+    });
+
+    test('hides disclosure when no completed tasks', () => {
+        const tasks = [
+            { id: 't1', title: 'Active', priority: 'CRITICAL', completed: false, type: 'home', energy: 'low', displayOrder: 0, schedule: [], deadline: '2025-12-01', notes: '', recurrence: null },
+        ];
+        renderPriorityLists(tasks);
+
+        expect(document.getElementById('critical-completed-disclosure').classList.contains('hidden')).toBe(true);
+    });
+
+    test('shows disclosure when has completed tasks', () => {
+        const tasks = [
+            { id: 't1', title: 'Done', priority: 'IMPORTANT', completed: true, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: '2025-01-01' },
+        ];
+        renderPriorityLists(tasks);
+
+        expect(document.getElementById('important-completed-disclosure').classList.contains('hidden')).toBe(false);
+    });
+});
+
+describe('Completed Tasks Disclosure - Location Tab', () => {
+    test('renders completed tasks in disclosure sections', () => {
+        const tasks = [
+            { id: 't1', title: 'Active Home', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null },
+            { id: 't2', title: 'Completed Home', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: '2025-01-01' },
+            { id: 't3', title: 'Completed Work', priority: 'SOMEDAY', completed: true, type: 'work', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: '2025-01-01' },
+        ];
+        renderHomeWorkLists(tasks);
+
+        // Active task in main list
+        expect(document.getElementById('home-tasks-list').querySelectorAll('.task-item').length).toBe(1);
+
+        // Completed tasks in disclosure lists
+        expect(document.getElementById('home-completed-list').querySelectorAll('.task-item').length).toBe(1);
+        expect(document.getElementById('work-completed-list').querySelectorAll('.task-item').length).toBe(1);
+    });
+
+    test('updates completed count badges', () => {
+        const tasks = [
+            { id: 't1', title: 'Done 1', priority: 'SOMEDAY', completed: true, type: 'work', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: '2025-01-01' },
+            { id: 't2', title: 'Done 2', priority: 'IMPORTANT', completed: true, type: 'work', energy: 'low', displayOrder: 1, schedule: [], notes: '', recurrence: null, completedAt: '2025-01-01' },
+            { id: 't3', title: 'Done 3', priority: 'CRITICAL', completed: true, type: 'work', energy: 'low', displayOrder: 2, schedule: [], deadline: '2025-12-01', notes: '', recurrence: null, completedAt: '2025-01-01' },
+        ];
+        renderHomeWorkLists(tasks);
+
+        expect(document.getElementById('work-completed-count').textContent).toBe('3');
+    });
+
+    test('hides disclosure when no completed tasks', () => {
+        const tasks = [
+            { id: 't1', title: 'Active', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null },
+        ];
+        renderHomeWorkLists(tasks);
+
+        expect(document.getElementById('home-completed-disclosure').classList.contains('hidden')).toBe(true);
+    });
+
+    test('shows disclosure when has completed tasks', () => {
+        const tasks = [
+            { id: 't1', title: 'Done', priority: 'SOMEDAY', completed: true, type: 'work', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: '2025-01-01' },
+        ];
+        renderHomeWorkLists(tasks);
+
+        expect(document.getElementById('work-completed-disclosure').classList.contains('hidden')).toBe(false);
     });
 });
 

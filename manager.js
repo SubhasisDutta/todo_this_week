@@ -278,7 +278,8 @@ function clearPlannerTasks() {
 
 function clearPriorityLists() {
     const lists = ['critical-tasks-list', 'important-tasks-list', 'someday-tasks-list'];
-    lists.forEach(id => {
+    const completedLists = ['critical-completed-list', 'important-completed-list', 'someday-completed-list'];
+    [...lists, ...completedLists].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.innerHTML = '';
     });
@@ -286,7 +287,8 @@ function clearPriorityLists() {
 
 function clearHomeWorkLists() {
     const lists = ['home-tasks-list', 'work-tasks-list'];
-    lists.forEach(id => {
+    const completedLists = ['home-completed-list', 'work-completed-list'];
+    [...lists, ...completedLists].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.innerHTML = '';
     });
@@ -329,10 +331,21 @@ function renderPriorityLists(tasks) {
     const criticalList = document.getElementById('critical-tasks-list');
     const importantList = document.getElementById('important-tasks-list');
     const somedayList = document.getElementById('someday-tasks-list');
+    const criticalCompletedList = document.getElementById('critical-completed-list');
+    const importantCompletedList = document.getElementById('important-completed-list');
+    const somedayCompletedList = document.getElementById('someday-completed-list');
 
-    const criticalTasks = tasks.filter(t => t.priority === 'CRITICAL').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-    const importantTasks = tasks.filter(t => t.priority === 'IMPORTANT').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
-    const somedayTasks = tasks.filter(t => t.priority === 'SOMEDAY').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    // Separate active and completed tasks by priority
+    const activeTasks = tasks.filter(t => !t.completed);
+    const completedTasks = tasks.filter(t => t.completed);
+
+    const criticalActive = activeTasks.filter(t => t.priority === 'CRITICAL').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    const importantActive = activeTasks.filter(t => t.priority === 'IMPORTANT').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    const somedayActive = activeTasks.filter(t => t.priority === 'SOMEDAY').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+
+    const criticalCompleted = completedTasks.filter(t => t.priority === 'CRITICAL').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    const importantCompleted = completedTasks.filter(t => t.priority === 'IMPORTANT').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    const somedayCompleted = completedTasks.filter(t => t.priority === 'SOMEDAY').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
 
     const renderColumn = (tasksForColumn, columnElement) => {
         if (!columnElement) return;
@@ -345,17 +358,49 @@ function renderPriorityLists(tasks) {
         });
     };
 
-    renderColumn(criticalTasks, criticalList);
-    renderColumn(importantTasks, importantList);
-    renderColumn(somedayTasks, somedayList);
+    const renderCompletedSection = (completedTasksForColumn, completedListElement, countElement, disclosureElement) => {
+        if (!completedListElement || !countElement || !disclosureElement) return;
+
+        // Update count badge
+        countElement.textContent = completedTasksForColumn.length;
+
+        // Show/hide disclosure based on whether there are completed tasks
+        if (completedTasksForColumn.length === 0) {
+            disclosureElement.classList.add('hidden');
+        } else {
+            disclosureElement.classList.remove('hidden');
+            completedTasksForColumn.forEach((task, index) => {
+                completedListElement.appendChild(createTaskElement(task, { context: 'management', index, total: completedTasksForColumn.length }));
+            });
+        }
+    };
+
+    // Render active tasks
+    renderColumn(criticalActive, criticalList);
+    renderColumn(importantActive, importantList);
+    renderColumn(somedayActive, somedayList);
+
+    // Render completed tasks in disclosure sections
+    renderCompletedSection(criticalCompleted, criticalCompletedList,
+        document.getElementById('critical-completed-count'),
+        document.getElementById('critical-completed-disclosure'));
+    renderCompletedSection(importantCompleted, importantCompletedList,
+        document.getElementById('important-completed-count'),
+        document.getElementById('important-completed-disclosure'));
+    renderCompletedSection(somedayCompleted, somedayCompletedList,
+        document.getElementById('someday-completed-count'),
+        document.getElementById('someday-completed-disclosure'));
 }
 
 function renderHomeWorkLists(tasks) {
     const homeList = document.getElementById('home-tasks-list');
     const workList = document.getElementById('work-tasks-list');
+    const homeCompletedList = document.getElementById('home-completed-list');
+    const workCompletedList = document.getElementById('work-completed-list');
 
-    const homeTasks = tasks.filter(t => t.type === 'home');
-    const workTasks = tasks.filter(t => t.type === 'work');
+    // Separate active and completed tasks by type
+    const activeTasks = tasks.filter(t => !t.completed);
+    const completedTasks = tasks.filter(t => t.completed);
 
     const priorityOrder = { 'CRITICAL': 1, 'IMPORTANT': 2, 'SOMEDAY': 3 };
     const sortTasks = (a, b) => {
@@ -364,8 +409,10 @@ function renderHomeWorkLists(tasks) {
         return (a.displayOrder || 0) - (b.displayOrder || 0);
     };
 
-    homeTasks.sort(sortTasks);
-    workTasks.sort(sortTasks);
+    const homeActive = activeTasks.filter(t => t.type === 'home').sort(sortTasks);
+    const workActive = activeTasks.filter(t => t.type === 'work').sort(sortTasks);
+    const homeCompleted = completedTasks.filter(t => t.type === 'home').sort(sortTasks);
+    const workCompleted = completedTasks.filter(t => t.type === 'work').sort(sortTasks);
 
     const renderColumn = (tasksForColumn, columnElement) => {
         if (!columnElement) return;
@@ -378,8 +425,34 @@ function renderHomeWorkLists(tasks) {
         });
     };
 
-    renderColumn(homeTasks, homeList);
-    renderColumn(workTasks, workList);
+    const renderCompletedSection = (completedTasksForColumn, completedListElement, countElement, disclosureElement) => {
+        if (!completedListElement || !countElement || !disclosureElement) return;
+
+        // Update count badge
+        countElement.textContent = completedTasksForColumn.length;
+
+        // Show/hide disclosure based on whether there are completed tasks
+        if (completedTasksForColumn.length === 0) {
+            disclosureElement.classList.add('hidden');
+        } else {
+            disclosureElement.classList.remove('hidden');
+            completedTasksForColumn.forEach((task, index) => {
+                completedListElement.appendChild(createTaskElement(task, { context: 'management', index, total: completedTasksForColumn.length }));
+            });
+        }
+    };
+
+    // Render active tasks
+    renderColumn(homeActive, homeList);
+    renderColumn(workActive, workList);
+
+    // Render completed tasks in disclosure sections
+    renderCompletedSection(homeCompleted, homeCompletedList,
+        document.getElementById('home-completed-count'),
+        document.getElementById('home-completed-disclosure'));
+    renderCompletedSection(workCompleted, workCompletedList,
+        document.getElementById('work-completed-count'),
+        document.getElementById('work-completed-disclosure'));
 }
 
 // --- ARCHIVE TAB ---
@@ -674,7 +747,10 @@ function setupPrioritySearch() {
     const containers = [
         document.getElementById('critical-tasks-list'),
         document.getElementById('important-tasks-list'),
-        document.getElementById('someday-tasks-list')
+        document.getElementById('someday-tasks-list'),
+        document.getElementById('critical-completed-list'),
+        document.getElementById('important-completed-list'),
+        document.getElementById('someday-completed-list')
     ];
 
     const debouncedFilter = debounce((q) => applySearchFilter(q, containers), 300);
@@ -696,7 +772,9 @@ function setupLocationSearch() {
 
     const containers = [
         document.getElementById('home-tasks-list'),
-        document.getElementById('work-tasks-list')
+        document.getElementById('work-tasks-list'),
+        document.getElementById('home-completed-list'),
+        document.getElementById('work-completed-list')
     ];
 
     const debouncedFilter = debounce((q) => applySearchFilter(q, containers), 300);
@@ -1139,20 +1217,24 @@ function setupDragAndDropListeners() {
         event.preventDefault();
         if (!draggedTaskInfo) return;
 
+        // Capture dragged info immediately before any async operations
+        const currentDragInfo = { ...draggedTaskInfo };
+        draggedTaskInfo = null;
+
         const dropTarget = event.target.closest('.grid-cell, #unassigned-tasks-list');
-        if (!dropTarget) { draggedTaskInfo = null; return; }
+        if (!dropTarget) return;
 
         const tasks = await getTasksAsync();
-        const task = tasks.find(t => t.id === draggedTaskInfo.taskId);
-        if (!task) { draggedTaskInfo = null; return; }
+        const task = tasks.find(t => t.id === currentDragInfo.taskId);
+        if (!task) return;
 
         let scheduleChanged = false;
 
         if (dropTarget.id === 'unassigned-tasks-list') {
-            if (draggedTaskInfo.sourceDay && draggedTaskInfo.sourceBlockId) {
-                const idx = task.schedule.findIndex(item => item.day === draggedTaskInfo.sourceDay && item.blockId === draggedTaskInfo.sourceBlockId);
+            if (currentDragInfo.sourceDay && currentDragInfo.sourceBlockId) {
+                const idx = task.schedule.findIndex(item => item.day === currentDragInfo.sourceDay && item.blockId === currentDragInfo.sourceBlockId);
                 if (idx > -1) { task.schedule.splice(idx, 1); scheduleChanged = true; }
-            } else if (!draggedTaskInfo.sourceDay && task.schedule.length > 0) {
+            } else if (!currentDragInfo.sourceDay && task.schedule.length > 0) {
                 task.schedule = [];
                 scheduleChanged = true;
             }
@@ -1160,14 +1242,14 @@ function setupDragAndDropListeners() {
             const day = dropTarget.dataset.day;
             const blockId = dropTarget.dataset.blockId;
 
-            if (day === draggedTaskInfo.sourceDay && blockId === draggedTaskInfo.sourceBlockId) {
-                draggedTaskInfo = null; return;
+            if (day === currentDragInfo.sourceDay && blockId === currentDragInfo.sourceBlockId) {
+                return;
             }
             const alreadyExists = task.schedule.some(item => item.day === day && item.blockId === blockId);
-            if (alreadyExists) { draggedTaskInfo = null; return; }
+            if (alreadyExists) return;
 
-            if (draggedTaskInfo.sourceDay && draggedTaskInfo.sourceBlockId) {
-                const idx = task.schedule.findIndex(item => item.day === draggedTaskInfo.sourceDay && item.blockId === draggedTaskInfo.sourceBlockId);
+            if (currentDragInfo.sourceDay && currentDragInfo.sourceBlockId) {
+                const idx = task.schedule.findIndex(item => item.day === currentDragInfo.sourceDay && item.blockId === currentDragInfo.sourceBlockId);
                 if (idx > -1) task.schedule.splice(idx, 1);
             }
             task.schedule.push({ day, blockId, completed: false });
@@ -1178,7 +1260,6 @@ function setupDragAndDropListeners() {
             await saveTasksAsync(tasks);
             setTimeout(renderPage, 0);
         }
-        draggedTaskInfo = null;
     });
 }
 

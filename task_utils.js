@@ -25,8 +25,28 @@ const DEFAULT_SETTINGS = {
     fontSize: 'medium',
     hasSeenSampleTasks: false,
     notionApiKey: '',
-    notionDatabaseId: '',
-    googleSheetsUrl: ''
+    notionDatabaseId: '',      // Keep for backward compatibility
+    notionViewId: '',          // View/Database ID for Notion sync
+    googleSheetsUrl: '',
+    // Notion column mapping configuration
+    notionColumnMapping: {
+        title: '',      // Auto-detected (type: 'title')
+        priority: '',   // Maps to CRITICAL/IMPORTANT/SOMEDAY
+        status: '',     // Maps to completed (true/false)
+        type: '',       // Maps to home/work
+        energy: '',     // Maps to low/high
+        deadline: '',   // Date field
+        notes: '',      // Rich text field
+        url: ''         // URL field
+    },
+    notionValueMappings: {
+        priority: { CRITICAL: '', IMPORTANT: '', SOMEDAY: '' },
+        type: { home: '', work: '' },
+        energy: { low: '', high: '' },
+        status: { completed: '', incomplete: '' }
+    },
+    notionLastSyncedAt: null,
+    notionSyncEnabled: false
 };
 
 // --- Task Data Structure and Storage ---
@@ -43,7 +63,8 @@ class Task {
         energy = 'low',
         notes = '',
         completedAt = null,
-        recurrence = null
+        recurrence = null,
+        notionPageId = null
     ) {
         this.id = id || `task_${new Date().getTime()}_${Math.random().toString(36).substr(2, 9)}`;
         this.title = title;
@@ -58,6 +79,7 @@ class Task {
         this.notes = notes;
         this.completedAt = completedAt;
         this.recurrence = recurrence;
+        this.notionPageId = notionPageId;
     }
 }
 
@@ -103,6 +125,10 @@ function getTasks(callback) {
                 }
                 if (typeof taskInstance.recurrence === 'undefined') {
                     taskInstance.recurrence = null;
+                    needsSave = true;
+                }
+                if (typeof taskInstance.notionPageId === 'undefined') {
+                    taskInstance.notionPageId = null;
                     needsSave = true;
                 }
                 return taskInstance;
@@ -208,7 +234,8 @@ function createRecurringInstance(task) {
         task.energy,
         task.notes || '',
         null,        // completedAt = null
-        task.recurrence
+        task.recurrence,
+        null         // notionPageId = null (recurring instances are not linked to Notion)
     );
 }
 
