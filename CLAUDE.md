@@ -34,7 +34,7 @@ This is a **Weekly Task Manager** — a Chrome/Chromium browser extension (Manif
 - `tests/integration.test.js` — ~25 end-to-end tests (includes recurring tasks, undo lifecycle)
 - `tests/settings.test.js` — ~38 tests for settings.js (includes time block editing, overlap validation, import/export modal tabs)
 - `tests/features.test.js` — ~30 tests for notes, completedAt, undo/redo, recurring tasks, archive grouping
-- `tests/search.test.js` — ~10 tests for search/filter functionality
+- `tests/search.test.js` — ~14 tests for search/filter functionality (including schedule search)
 
 ## Data Model
 
@@ -56,7 +56,8 @@ Tasks are stored in `chrome.storage.local` under the `tasks` key as an array of 
   energy: string,          // 'low' | 'high'
   notes: string,           // Optional notes/description (default: '')
   completedAt: string|null,// ISO timestamp when task was completed (default: null)
-  recurrence: string|null  // null | 'daily' | 'weekly' | 'monthly'
+  recurrence: string|null, // null | 'daily' | 'weekly' | 'monthly'
+  lastModified: string     // ISO timestamp when task was last modified (auto-set on create/update)
 }
 ```
 
@@ -113,14 +114,14 @@ Defined in `task_utils.js` as `DEFAULT_TIME_BLOCKS`. A `TIME_BLOCKS` alias is ke
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `Task` | `new Task(id, title, url, priority, completed, deadline, type, displayOrder, schedule, energy, notes, completedAt, recurrence)` | Constructor with defaults. Auto-generates ID if null. |
-| `getTasks` | `getTasks(callback)` | Reads tasks from storage. Backfills missing fields including `notes`, `completedAt`, `recurrence`. |
+| `Task` | `new Task(id, title, url, priority, completed, deadline, type, displayOrder, schedule, energy, notes, completedAt, recurrence, notionPageId, lastModified)` | Constructor with defaults. Auto-generates ID if null. Auto-sets `lastModified` to current timestamp if null. |
+| `getTasks` | `getTasks(callback)` | Reads tasks from storage. Backfills missing fields including `notes`, `completedAt`, `recurrence`, `lastModified`. |
 | `getTasksAsync` | `getTasksAsync()` → Promise | Promise wrapper for `getTasks`. |
 | `saveTasks` | `saveTasks(tasks, callback)` | Serializes to plain objects and saves. Updates `_lastSaveTimestamp` for sync guard. |
 | `saveTasksAsync` | `saveTasksAsync(tasks)` → Promise | Promise wrapper for `saveTasks`. Rejects on failure. |
 | `addNewTask` | `addNewTask(title, url, priority, deadline, type, energy, notes, recurrence)` → Promise | Creates task with computed `displayOrder`. |
 | `getTaskById` | `getTaskById(taskId)` → Promise | Returns single task or `undefined`. |
-| `updateTask` | `updateTask(updatedTask)` → Promise | Finds task, calls `updateTaskCompletion`, sets `completedAt`, auto-creates recurring instance on completion. Returns boolean. |
+| `updateTask` | `updateTask(updatedTask)` → Promise | Finds task, calls `updateTaskCompletion`, sets `completedAt`, updates `lastModified`, auto-creates recurring instance on completion. Returns boolean. |
 | `updateTaskCompletion` | `updateTaskCompletion(task)` | If all `schedule[].completed === true`, sets `task.completed = true`. |
 | `deleteTask` | `deleteTask(taskId)` → Promise | Removes by ID. Returns boolean. |
 | `validateTask` | `validateTask(task)` → string[] | Returns error messages. Checks: title required, CRITICAL needs deadline, URL format. |
@@ -212,6 +213,13 @@ Tab switching is handled by `setupImportExportTabs()` in settings.js. Uses `.imp
 - Uses native HTML `<details>`/`<summary>` elements with custom styling for disclosure triangle
 - Search filter applies to both active and completed task lists
 
+### Archive Tab
+- Displays all completed tasks grouped by completion date (Today, Yesterday, This Week, Older)
+- Within each date group, tasks are sorted by `lastModified` timestamp (latest first)
+- Search bar filters tasks by title (50% wider than other search bars for better usability)
+- Restore button returns completed tasks to active state
+- "Clear All Completed" button permanently deletes all completed tasks
+
 ## CSS Architecture
 
 ### Custom Properties
@@ -261,7 +269,7 @@ The codebase uses the following ARIA patterns:
 ```bash
 cd tests             # All test infrastructure is in tests/
 npm install          # Install Jest + jsdom
-npm test             # Run all 262 tests
+npm test             # Run all ~280 tests
 npm run test:watch   # Watch mode
 npm run test:coverage # Coverage report
 ```
@@ -300,14 +308,14 @@ This makes all listed symbols available as globals in the test scope.
 
 The `loadScript` regex also handles `async function` DOMContentLoaded handlers (needed because manager.js and popup.js DOMContentLoaded handlers are now `async`).
 
-### Test Suites (262 total)
-- **task_utils.test.js (~90):** Task class (new fields), getTasks backfill, CRUD, settings CRUD, time blocks, undo/redo stacks, createRecurringInstance, seedSampleTasks, showInfoMessage, validateTask, debounce, withTaskLock, parseTimeRange, validateTimeBlockOverlap, renamed labels
+### Test Suites (~280 total)
+- **task_utils.test.js (~95):** Task class (new fields including lastModified), getTasks backfill, CRUD, settings CRUD, time blocks, undo/redo stacks, createRecurringInstance, seedSampleTasks, showInfoMessage, validateTask, debounce, withTaskLock, parseTimeRange, validateTimeBlockOverlap, renamed labels
 - **popup.test.js (~17):** createTaskItem (notes, recurrence), renderTasks, renderAllTabs, tab switching, add-task validation, open-manager button
-- **manager.test.js (~83):** generateDayHeaders/generatePlannerGrid (now async), createTaskElement (notes/recurrence badges), renderSidebarLists, renderPriorityLists, renderHomeWorkLists, renderArchiveTab, renderStatsTab, applySearchFilter, setupTabSwitching, renderPage, highlightCurrentDay, setupAddTaskModalListeners, header tooltips, FAQ tab, completed tasks disclosure
+- **manager.test.js (~85):** generateDayHeaders/generatePlannerGrid (now async), createTaskElement (notes/recurrence badges), renderSidebarLists, renderPriorityLists, renderHomeWorkLists, renderArchiveTab (with lastModified sorting), renderStatsTab, applySearchFilter, setupTabSwitching, renderPage, highlightCurrentDay, setupAddTaskModalListeners, header tooltips, FAQ tab, completed tasks disclosure
 - **integration.test.js (~25):** Task lifecycle, schedule management, cascade completion, ordering, import/merge, validation, cross-tab sync, recurring tasks (auto-instance creation), undo/redo lifecycle
 - **settings.test.js (~35):** applySettings (theme, font-family, font-size CSS vars), initSettings (first-run seeding), populateSettingsForm, openSettingsModal/closeSettingsModal, FONT_FAMILY_MAP/FONT_SIZE_MAP constants, formatTimeInput, updateTimeBlockLabel, addTimeBlock overlap validation, renderTimeBlocksTable
-- **features.test.js (~30):** Notes field (CRUD, backfill), completedAt (set on complete, clear on uncomplete, backfill), undo/redo cycle, createRecurringInstance (daily/weekly/monthly deadline shift), recurring auto-instance via updateTask, archive date grouping
-- **search.test.js (~10):** applySearchFilter (hide non-matching, show all for empty query, case insensitive, multi-container, partial match), setupPrioritySearch, setupLocationSearch
+- **features.test.js (~35):** Notes field (CRUD, backfill), completedAt (set on complete, clear on uncomplete, backfill), lastModified field (auto-set, update on modify, backfill), undo/redo cycle, createRecurringInstance (daily/weekly/monthly deadline shift, fresh lastModified), recurring auto-instance via updateTask, archive date grouping
+- **search.test.js (~17):** applySearchFilter (hide non-matching, show all for empty query, case insensitive, multi-container, partial match, grid cell filtering), setupScheduleSearch, setupPrioritySearch, setupLocationSearch, setupArchiveSearch
 
 ### Known Limitation
 Coverage reporting via `jest --coverage` shows 0% because `new Function()` execution bypasses Istanbul's code instrumentation. Tests still validate behavior correctly.
@@ -339,11 +347,11 @@ Coverage reporting via `jest --coverage` shows 0% because `new Function()` execu
 - **Permissions:** `storage` (data persistence), `tabs` (open manager page), `host_permissions` for `https://api.notion.com/*`
 - **Cross-Page Sync:** Popup and manager stay in sync via `chrome.storage.onChanged` listener with 500ms self-change guard
 - **Task IDs:** Format `task_{timestamp}_{random9chars}` for uniqueness
-- **Backfill/Migration:** `getTasks()` auto-adds missing `displayOrder`, `schedule`, `schedule[].completed`, `energy`, `notes`, `completedAt`, and `recurrence` fields on read
+- **Backfill/Migration:** `getTasks()` auto-adds missing `displayOrder`, `schedule`, `schedule[].completed`, `energy`, `notes`, `completedAt`, `recurrence`, and `lastModified` fields on read
 - **Script Load Order:** `task_utils.js` → `settings.js` → `manager.js` / `popup.js`. Both HTML files must follow this order.
 - **Async DOMContentLoaded:** Both `manager.js` and `popup.js` DOMContentLoaded handlers are `async`. The `loadScript` helper in tests handles both `function` and `async function` variants.
 - **Undo/Redo Stacks:** `_undoStack` and `_redoStack` are module-level variables in `task_utils.js`. They persist between tests in the same test file since `loadScript` runs once at the top of non-beforeEach files. Ensure tests that depend on an empty redo stack call `pushUndoState()` first (which clears `_redoStack`).
 - **Recurring Task Auto-Instance:** Created inside `updateTask()` within the same `getTasks` callback before `saveTasks()` is called — avoids double-read race condition.
 - **Dark Mode:** Applied via `data-theme` attribute on `<html>` element. CSS uses `:root[data-theme="dark"]` selector. `initSettings()` must be `await`-ed before any render.
 - **No Build Process:** Load directly as unpacked extension; vanilla JS with no transpilation
-- **Test Coverage Limitation:** `new Function()` bypasses Istanbul instrumentation; behavioral coverage is validated through 262 passing tests
+- **Test Coverage Limitation:** `new Function()` bypasses Istanbul instrumentation; behavioral coverage is validated through ~280 passing tests

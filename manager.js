@@ -26,8 +26,10 @@ function setupAllListeners() {
     setupHelpListeners();
     setupAddTaskModalListeners();
     setupUndoKeyboardListeners();
+    setupScheduleSearch();
     setupPrioritySearch();
     setupLocationSearch();
+    setupArchiveSearch();
     setupArchiveListeners();
 }
 
@@ -166,6 +168,7 @@ function setupSchedulingListeners() {
             });
         } else if (target.matches('.toggle-schedule-btn')) {
             const taskItem = target.closest('.task-item');
+            if (!taskItem) return;
             const scheduleDetails = taskItem.querySelector('.task-schedule-details');
             if (scheduleDetails) {
                 const isHidden = scheduleDetails.style.display === 'none';
@@ -238,6 +241,7 @@ function setupSchedulingListeners() {
 
         if (target.matches('.save-schedule-btn')) {
             const taskItem = target.closest('.editing-schedule');
+            if (!taskItem) return;
             const taskId = taskItem.dataset.taskId;
             const task = await getTaskById(taskId);
             if (!task) return;
@@ -500,6 +504,13 @@ async function renderArchiveTab() {
 
     Object.entries(groups).forEach(([groupName, groupTasks]) => {
         if (groupTasks.length === 0) return;
+
+        // Sort tasks by lastModified (latest first)
+        groupTasks.sort((a, b) => {
+            const aTime = a.lastModified ? new Date(a.lastModified).getTime() : 0;
+            const bTime = b.lastModified ? new Date(b.lastModified).getTime() : 0;
+            return bTime - aTime; // Descending order (latest first)
+        });
         const groupEl = document.createElement('div');
         groupEl.classList.add('archive-date-group');
         groupEl.innerHTML = `<h3>${groupName} (${groupTasks.length})</h3>`;
@@ -576,7 +587,126 @@ function setupArchiveListeners() {
     }
 }
 
-// --- STATS TAB ---
+// --- STATS TAB (Enhanced) ---
+
+// Helper: Calculate tasks completed in a date range
+function getCompletedInRange(tasks, startDate, endDate) {
+    return tasks.filter(t => {
+        if (!t.completed || !t.completedAt) return false;
+        const completedDate = new Date(t.completedAt);
+        return completedDate >= startDate && completedDate < endDate;
+    });
+}
+
+// Helper: Calculate streak (consecutive days with completions)
+function calculateStreak(tasks) {
+    const completedTasks = tasks.filter(t => t.completed && t.completedAt);
+    if (completedTasks.length === 0) return 0;
+
+    // Get all unique completion dates
+    const completionDates = new Set();
+    completedTasks.forEach(t => {
+        const date = new Date(t.completedAt);
+        completionDates.add(date.toDateString());
+    });
+
+    // Check consecutive days starting from today going backwards
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let streak = 0;
+    let checkDate = new Date(today);
+
+    // First check if today has completions, if not start from yesterday
+    if (!completionDates.has(checkDate.toDateString())) {
+        checkDate.setDate(checkDate.getDate() - 1);
+    }
+
+    while (completionDates.has(checkDate.toDateString())) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+    }
+
+    return streak;
+}
+
+// Helper: Get peak productivity hours from completedAt timestamps
+function getPeakHours(tasks) {
+    const hourCounts = Array(24).fill(0);
+    tasks.forEach(t => {
+        if (t.completed && t.completedAt) {
+            const hour = new Date(t.completedAt).getHours();
+            hourCounts[hour]++;
+        }
+    });
+    return hourCounts;
+}
+
+// Helper: Calculate focus distribution (Deep Work vs Other based on time blocks)
+async function getFocusDistribution(tasks) {
+    const blocks = await getTimeBlocks();
+    const deepWorkBlockIds = blocks
+        .filter(b => b.label.toLowerCase().includes('deep work') || b.id.includes('deep-work') || b.id.includes('ai-study'))
+        .map(b => b.id);
+
+    let deepWorkCount = 0;
+    let otherCount = 0;
+
+    tasks.forEach(task => {
+        (task.schedule || []).forEach(item => {
+            if (deepWorkBlockIds.includes(item.blockId)) {
+                deepWorkCount++;
+            } else {
+                otherCount++;
+            }
+        });
+    });
+
+    return { deepWorkCount, otherCount };
+}
+
+// Helper: Get time block distribution
+async function getBlockDistribution(tasks) {
+    const blocks = await getTimeBlocks();
+    const blockCounts = {};
+    blocks.forEach(b => { blockCounts[b.id] = { label: b.label, count: 0 }; });
+
+    tasks.forEach(task => {
+        (task.schedule || []).forEach(item => {
+            if (blockCounts[item.blockId]) {
+                blockCounts[item.blockId].count++;
+            }
+        });
+    });
+
+    return Object.values(blockCounts).filter(b => b.count > 0).sort((a, b) => b.count - a.count);
+}
+
+// Helper: Find stale tasks (created > 14 days ago, not completed)
+function getStaleTasks(tasks) {
+    const twoWeeksAgo = new Date();
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+    return tasks.filter(t => {
+        if (t.completed) return false;
+        // Extract timestamp from task ID (format: task_{timestamp}_{random})
+        const match = t.id.match(/task_(\d+)_/);
+        if (match) {
+            const createdAt = new Date(parseInt(match[1]));
+            return createdAt < twoWeeksAgo;
+        }
+        // Fallback to lastModified
+        if (t.lastModified) {
+            return new Date(t.lastModified) < twoWeeksAgo;
+        }
+        return false;
+    }).map(t => {
+        const match = t.id.match(/task_(\d+)_/);
+        const createdAt = match ? new Date(parseInt(match[1])) : (t.lastModified ? new Date(t.lastModified) : new Date());
+        const daysOld = Math.floor((new Date() - createdAt) / (1000 * 60 * 60 * 24));
+        return { ...t, daysOld };
+    }).sort((a, b) => b.daysOld - a.daysOld).slice(0, 5);
+}
+
 async function renderStatsTab() {
     const container = document.getElementById('stats-content');
     if (!container) return;
@@ -587,17 +717,57 @@ async function renderStatsTab() {
     const active = total - completed;
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
+    // Week-over-week momentum
+    const now = new Date();
+    const thisWeekStart = new Date(now);
+    thisWeekStart.setDate(now.getDate() - 7);
+    thisWeekStart.setHours(0, 0, 0, 0);
+    const lastWeekStart = new Date(thisWeekStart);
+    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+
+    const thisWeekCompleted = getCompletedInRange(tasks, thisWeekStart, now).length;
+    const lastWeekCompleted = getCompletedInRange(tasks, lastWeekStart, thisWeekStart).length;
+    const weekChange = lastWeekCompleted > 0
+        ? Math.round(((thisWeekCompleted - lastWeekCompleted) / lastWeekCompleted) * 100)
+        : (thisWeekCompleted > 0 ? 100 : 0);
+    const momentumArrow = weekChange > 0 ? 'up' : (weekChange < 0 ? 'down' : 'neutral');
+    const momentumIcon = weekChange > 0 ? '⬆️' : (weekChange < 0 ? '⬇️' : '➡️');
+
+    // Streak
+    const streak = calculateStreak(tasks);
+
+    // Focus distribution
+    const focusData = await getFocusDistribution(tasks);
+    const focusTotal = focusData.deepWorkCount + focusData.otherCount;
+    const deepWorkPercent = focusTotal > 0 ? Math.round((focusData.deepWorkCount / focusTotal) * 100) : 0;
+
+    // Peak hours
+    const hourCounts = getPeakHours(tasks);
+    const maxHourCount = Math.max(...hourCounts, 1);
+    const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
+    const peakHourLabel = peakHour < 12 ? `${peakHour || 12}AM` : `${peakHour === 12 ? 12 : peakHour - 12}PM`;
+
+    // Time block distribution
+    const blockDistribution = await getBlockDistribution(tasks);
+    const maxBlockCount = blockDistribution.length > 0 ? blockDistribution[0].count : 1;
+
+    // Stale tasks
+    const staleTasks = getStaleTasks(tasks);
+
+    // Priority counts
     const criticalCount = tasks.filter(t => t.priority === 'CRITICAL').length;
     const importantCount = tasks.filter(t => t.priority === 'IMPORTANT').length;
     const somedayCount = tasks.filter(t => t.priority === 'SOMEDAY').length;
 
+    // Energy counts
     const lowEnergyCount = tasks.filter(t => t.energy === 'low').length;
     const highEnergyCount = tasks.filter(t => t.energy === 'high').length;
 
+    // Home/Work counts
     const homeCount = tasks.filter(t => t.type === 'home').length;
     const workCount = tasks.filter(t => t.type === 'work').length;
 
-    // Tasks per day this week (from schedule)
+    // Tasks per day this week
     const tasksPerDay = {};
     currentDays.forEach(day => { tasksPerDay[day] = 0; });
     tasks.forEach(task => {
@@ -608,118 +778,286 @@ async function renderStatsTab() {
         });
     });
     const maxDayCount = Math.max(...Object.values(tasksPerDay), 1);
-
     const dayAbbr = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
+    const todayName = currentDays[0];
+
+    // SVG circle calculations
+    const ringRadius = 58;
+    const ringCircumference = 2 * Math.PI * ringRadius;
+    const ringOffset = ringCircumference - (completionRate / 100) * ringCircumference;
+
+    // Donut chart calculations for focus
+    const donutRadius = 36;
+    const donutCircumference = 2 * Math.PI * donutRadius;
+    const deepWorkDash = (deepWorkPercent / 100) * donutCircumference;
 
     container.innerHTML = `
-        <h2>📊 Task Statistics</h2>
+        <h2>📊 Insights & Analytics</h2>
 
-        <!-- Summary Cards -->
-        <div class="stats-section">
-            <div class="stats-grid">
-                <div class="stats-card">
-                    <div class="stats-number">${total}</div>
-                    <div class="stats-label">Total Tasks</div>
-                </div>
-                <div class="stats-card">
-                    <div class="stats-number" style="color:var(--success-text)">${completed}</div>
-                    <div class="stats-label">Completed</div>
-                </div>
-                <div class="stats-card">
-                    <div class="stats-number">${active}</div>
-                    <div class="stats-label">Active</div>
-                </div>
-                <div class="stats-card">
-                    <div class="stats-number">${completionRate}%</div>
-                    <div class="stats-label">Completion Rate</div>
-                </div>
-            </div>
-        </div>
+        <!-- SVG Definitions -->
+        <svg width="0" height="0">
+            <defs>
+                <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#4299e1;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#667eea;stop-opacity:1" />
+                </linearGradient>
+                <linearGradient id="deepWorkGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#4299e1;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#667eea;stop-opacity:1" />
+                </linearGradient>
+                <linearGradient id="otherGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#9ae6b4;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#68d391;stop-opacity:1" />
+                </linearGradient>
+            </defs>
+        </svg>
 
-        <!-- Completion Bar -->
-        <div class="stats-section">
-            <h3>Completion Progress</h3>
-            <div class="stats-completion-bar">
-                <div class="stats-completion-fill" style="width:${completionRate}%">${completionRate > 10 ? completionRate + '%' : ''}</div>
-            </div>
-            <p style="font-size:0.82em; color:var(--text-muted); margin:4px 0 0;">${completed} of ${total} tasks completed</p>
-        </div>
-
-        <!-- Priority Distribution -->
-        <div class="stats-section">
-            <h3>Priority Distribution</h3>
-            <div class="stats-priority-row">
-                <span class="stats-priority-label">🔥 Critical</span>
-                <div class="stats-priority-bar-track">
-                    <div class="stats-priority-bar-fill bar-critical" style="width:${total > 0 ? (criticalCount/total*100) : 0}%"></div>
-                </div>
-                <span class="stats-priority-count">${criticalCount}</span>
-            </div>
-            <div class="stats-priority-row">
-                <span class="stats-priority-label">⭐ Important</span>
-                <div class="stats-priority-bar-track">
-                    <div class="stats-priority-bar-fill bar-important" style="width:${total > 0 ? (importantCount/total*100) : 0}%"></div>
-                </div>
-                <span class="stats-priority-count">${importantCount}</span>
-            </div>
-            <div class="stats-priority-row">
-                <span class="stats-priority-label">🗓️ Someday</span>
-                <div class="stats-priority-bar-track">
-                    <div class="stats-priority-bar-fill bar-someday" style="width:${total > 0 ? (somedayCount/total*100) : 0}%"></div>
-                </div>
-                <span class="stats-priority-count">${somedayCount}</span>
-            </div>
-        </div>
-
-        <!-- Tasks Per Day (this week) -->
-        <div class="stats-section">
-            <h3>Tasks Scheduled Per Day (This Week)</h3>
-            <div class="stats-bar-chart">
-                ${currentDays.map(day => `
-                    <div class="stats-bar-group">
-                        <span class="stats-bar-value">${tasksPerDay[day] || 0}</span>
-                        <div class="stats-bar bar-blue" style="height:${maxDayCount > 0 ? Math.max((tasksPerDay[day] || 0) / maxDayCount * 90, 4) : 4}px"></div>
-                        <span class="stats-bar-label">${dayAbbr[day] || day.slice(0,3)}</span>
+        <div class="stats-bento-grid">
+            <!-- Hero: Weekly Progress Ring -->
+            <div class="stats-glass-card stats-hero-card">
+                <div class="stats-ring-container">
+                    <svg class="stats-ring-svg" viewBox="0 0 140 140">
+                        <circle class="stats-ring-bg" cx="70" cy="70" r="${ringRadius}" />
+                        <circle class="stats-ring-progress" cx="70" cy="70" r="${ringRadius}"
+                            stroke-dasharray="${ringCircumference}"
+                            stroke-dashoffset="${ringOffset}" />
+                    </svg>
+                    <div class="stats-ring-center">
+                        <div class="stats-ring-percent">${completionRate}%</div>
+                        <div class="stats-ring-label">Complete</div>
                     </div>
-                `).join('')}
+                </div>
+                <div class="stats-hero-title">Weekly Progress</div>
             </div>
-        </div>
 
-        <!-- Energy Distribution -->
-        <div class="stats-section">
-            <h3>Energy Distribution</h3>
-            <div class="stats-priority-row">
-                <span class="stats-priority-label">🍃 Low</span>
-                <div class="stats-priority-bar-track">
-                    <div class="stats-priority-bar-fill bar-someday" style="width:${total > 0 ? (lowEnergyCount/total*100) : 0}%"></div>
+            <!-- Momentum Card -->
+            <div class="stats-glass-card stats-momentum-card">
+                <div class="stats-section-header">
+                    <span class="stats-section-icon">⚡</span>
+                    <span class="stats-section-title">Momentum</span>
                 </div>
-                <span class="stats-priority-count">${lowEnergyCount}</span>
-            </div>
-            <div class="stats-priority-row">
-                <span class="stats-priority-label">⚡ High</span>
-                <div class="stats-priority-bar-track">
-                    <div class="stats-priority-bar-fill bar-critical" style="width:${total > 0 ? (highEnergyCount/total*100) : 0}%"></div>
+                <div class="stats-momentum-value">
+                    <span class="stats-momentum-arrow ${momentumArrow}">${momentumIcon}</span>
+                    <span class="stats-momentum-percent">${Math.abs(weekChange)}%</span>
                 </div>
-                <span class="stats-priority-count">${highEnergyCount}</span>
+                <div class="stats-momentum-label">vs. last week</div>
+                <div class="stats-momentum-detail">
+                    This week: ${thisWeekCompleted} completed<br>
+                    Last week: ${lastWeekCompleted} completed
+                </div>
             </div>
-        </div>
 
-        <!-- Home vs Work -->
-        <div class="stats-section">
-            <h3>Home vs Work</h3>
-            <div class="stats-priority-row">
-                <span class="stats-priority-label">🏠 Home</span>
-                <div class="stats-priority-bar-track">
-                    <div class="stats-priority-bar-fill bar-blue" style="width:${total > 0 ? (homeCount/total*100) : 0}%"></div>
-                </div>
-                <span class="stats-priority-count">${homeCount}</span>
+            <!-- Streak Card -->
+            <div class="stats-glass-card stats-streak-card">
+                <div class="stats-streak-icon">🔥</div>
+                <div class="stats-streak-count">${streak}</div>
+                <div class="stats-streak-label">Day Streak</div>
             </div>
-            <div class="stats-priority-row">
-                <span class="stats-priority-label">💼 Work</span>
-                <div class="stats-priority-bar-track">
-                    <div class="stats-priority-bar-fill bar-important" style="width:${total > 0 ? (workCount/total*100) : 0}%"></div>
+
+            <!-- Mini Stats Row -->
+            <div class="stats-glass-card stats-mini-card stats-card-sm">
+                <div class="stats-mini-number">${total}</div>
+                <div class="stats-mini-label">Total Tasks</div>
+            </div>
+            <div class="stats-glass-card stats-mini-card stats-card-sm">
+                <div class="stats-mini-number success">${completed}</div>
+                <div class="stats-mini-label">Completed</div>
+            </div>
+            <div class="stats-glass-card stats-mini-card stats-card-sm">
+                <div class="stats-mini-number">${active}</div>
+                <div class="stats-mini-label">Active</div>
+            </div>
+            <div class="stats-glass-card stats-mini-card stats-card-sm">
+                <div class="stats-mini-number warning">${staleTasks.length}</div>
+                <div class="stats-mini-label">Stale Tasks</div>
+            </div>
+
+            <!-- Focus Distribution -->
+            <div class="stats-glass-card stats-card-lg">
+                <div class="stats-section-header">
+                    <span class="stats-section-icon">🧠</span>
+                    <span class="stats-section-title">Focus Distribution</span>
                 </div>
-                <span class="stats-priority-count">${workCount}</span>
+                <div class="stats-focus-chart">
+                    <div class="stats-donut-container">
+                        <svg class="stats-donut-svg" viewBox="0 0 100 100">
+                            <circle class="stats-donut-bg" cx="50" cy="50" r="${donutRadius}" />
+                            <circle class="stats-donut-segment" cx="50" cy="50" r="${donutRadius}"
+                                stroke="url(#deepWorkGradient)"
+                                stroke-dasharray="${deepWorkDash} ${donutCircumference}"
+                                stroke-dashoffset="0" />
+                        </svg>
+                    </div>
+                    <div class="stats-focus-legend">
+                        <div class="stats-legend-item">
+                            <span class="stats-legend-dot deep"></span>
+                            <span class="stats-legend-text">Deep Work</span>
+                            <span class="stats-legend-value">${focusData.deepWorkCount} (${deepWorkPercent}%)</span>
+                        </div>
+                        <div class="stats-legend-item">
+                            <span class="stats-legend-dot other"></span>
+                            <span class="stats-legend-text">Other</span>
+                            <span class="stats-legend-value">${focusData.otherCount} (${100 - deepWorkPercent}%)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Peak Hours Heatmap -->
+            <div class="stats-glass-card stats-card-lg">
+                <div class="stats-section-header">
+                    <span class="stats-section-icon">⏰</span>
+                    <span class="stats-section-title">Peak Productivity Hours</span>
+                </div>
+                <div class="stats-heatmap">
+                    ${Array.from({length: 12}, (_, i) => {
+                        const hour = i + 6; // Show 6AM to 5PM (work hours)
+                        const count = hourCounts[hour] || 0;
+                        const intensity = maxHourCount > 0 ? Math.ceil((count / maxHourCount) * 5) : 0;
+                        return `<div class="stats-heatmap-cell" data-intensity="${intensity}" title="${hour < 12 ? hour + 'AM' : (hour === 12 ? '12PM' : (hour - 12) + 'PM')}: ${count} tasks"></div>`;
+                    }).join('')}
+                </div>
+                <div class="stats-heatmap-labels">
+                    ${['6a', '7a', '8a', '9a', '10a', '11a', '12p', '1p', '2p', '3p', '4p', '5p'].map(l =>
+                        `<span class="stats-heatmap-label">${l}</span>`
+                    ).join('')}
+                </div>
+                ${hourCounts.some(c => c > 0) ? `
+                <div class="stats-peak-insight">
+                    <span class="stats-peak-insight-icon">💡</span>
+                    <span>You're most productive around <strong>${peakHourLabel}</strong></span>
+                </div>
+                ` : ''}
+            </div>
+
+            <!-- Time Block Distribution -->
+            <div class="stats-glass-card stats-card-lg">
+                <div class="stats-section-header">
+                    <span class="stats-section-icon">📊</span>
+                    <span class="stats-section-title">Time Block Usage</span>
+                </div>
+                <div class="stats-block-bars">
+                    ${blockDistribution.slice(0, 6).map((b, i) => `
+                        <div class="stats-block-row">
+                            <span class="stats-block-label">${b.label}</span>
+                            <div class="stats-block-bar-track">
+                                <div class="stats-block-bar-fill gradient-${(i % 6) + 1}" style="width:${(b.count / maxBlockCount * 100)}%"></div>
+                            </div>
+                            <span class="stats-block-count">${b.count}</span>
+                        </div>
+                    `).join('')}
+                    ${blockDistribution.length === 0 ? '<p style="color:var(--text-muted);font-size:0.85em;text-align:center;">No scheduled tasks yet</p>' : ''}
+                </div>
+            </div>
+
+            <!-- Stale Tasks Alert -->
+            <div class="stats-glass-card stats-card-lg stats-stale-card">
+                <div class="stats-section-header">
+                    <span class="stats-section-icon">🐢</span>
+                    <span class="stats-section-title">Aging Tasks (2+ weeks)</span>
+                </div>
+                ${staleTasks.length > 0 ? `
+                <div class="stats-stale-list">
+                    ${staleTasks.map(t => `
+                        <div class="stats-stale-item">
+                            <span class="stats-stale-title">${t.title}</span>
+                            <span class="stats-stale-age">${t.daysOld}d</span>
+                        </div>
+                    `).join('')}
+                </div>
+                ` : `
+                <div class="stats-empty-stale">🎉 No stale tasks! You're on top of things.</div>
+                `}
+            </div>
+
+            <!-- Tasks Per Day Chart -->
+            <div class="stats-glass-card stats-card-full">
+                <div class="stats-section-header">
+                    <span class="stats-section-icon">📅</span>
+                    <span class="stats-section-title">Weekly Schedule</span>
+                </div>
+                <div class="stats-bar-chart">
+                    ${currentDays.map(day => `
+                        <div class="stats-bar-group">
+                            <span class="stats-bar-value">${tasksPerDay[day] || 0}</span>
+                            <div class="stats-bar ${day === todayName ? 'today' : ''}" style="height:${maxDayCount > 0 ? Math.max((tasksPerDay[day] || 0) / maxDayCount * 80, 4) : 4}px"></div>
+                            <span class="stats-bar-label ${day === todayName ? 'today' : ''}">${dayAbbr[day] || day.slice(0,3)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- Priority Distribution -->
+            <div class="stats-glass-card stats-card-md">
+                <div class="stats-section-header">
+                    <span class="stats-section-icon">⭐</span>
+                    <span class="stats-section-title">Priority</span>
+                </div>
+                <div class="stats-priority-row">
+                    <span class="stats-priority-label">🔥 Critical</span>
+                    <div class="stats-priority-bar-track">
+                        <div class="stats-priority-bar-fill bar-critical" style="width:${total > 0 ? (criticalCount/total*100) : 0}%"></div>
+                    </div>
+                    <span class="stats-priority-count">${criticalCount}</span>
+                </div>
+                <div class="stats-priority-row">
+                    <span class="stats-priority-label">⭐ Important</span>
+                    <div class="stats-priority-bar-track">
+                        <div class="stats-priority-bar-fill bar-important" style="width:${total > 0 ? (importantCount/total*100) : 0}%"></div>
+                    </div>
+                    <span class="stats-priority-count">${importantCount}</span>
+                </div>
+                <div class="stats-priority-row">
+                    <span class="stats-priority-label">🗓️ Someday</span>
+                    <div class="stats-priority-bar-track">
+                        <div class="stats-priority-bar-fill bar-someday" style="width:${total > 0 ? (somedayCount/total*100) : 0}%"></div>
+                    </div>
+                    <span class="stats-priority-count">${somedayCount}</span>
+                </div>
+            </div>
+
+            <!-- Energy Distribution -->
+            <div class="stats-glass-card stats-card-md">
+                <div class="stats-section-header">
+                    <span class="stats-section-icon">⚡</span>
+                    <span class="stats-section-title">Energy</span>
+                </div>
+                <div class="stats-priority-row">
+                    <span class="stats-priority-label">🍃 Low</span>
+                    <div class="stats-priority-bar-track">
+                        <div class="stats-priority-bar-fill bar-someday" style="width:${total > 0 ? (lowEnergyCount/total*100) : 0}%"></div>
+                    </div>
+                    <span class="stats-priority-count">${lowEnergyCount}</span>
+                </div>
+                <div class="stats-priority-row">
+                    <span class="stats-priority-label">⚡ High</span>
+                    <div class="stats-priority-bar-track">
+                        <div class="stats-priority-bar-fill bar-critical" style="width:${total > 0 ? (highEnergyCount/total*100) : 0}%"></div>
+                    </div>
+                    <span class="stats-priority-count">${highEnergyCount}</span>
+                </div>
+            </div>
+
+            <!-- Home vs Work -->
+            <div class="stats-glass-card stats-card-md">
+                <div class="stats-section-header">
+                    <span class="stats-section-icon">🌍</span>
+                    <span class="stats-section-title">Location</span>
+                </div>
+                <div class="stats-priority-row">
+                    <span class="stats-priority-label">🏠 Home</span>
+                    <div class="stats-priority-bar-track">
+                        <div class="stats-priority-bar-fill bar-blue" style="width:${total > 0 ? (homeCount/total*100) : 0}%"></div>
+                    </div>
+                    <span class="stats-priority-count">${homeCount}</span>
+                </div>
+                <div class="stats-priority-row">
+                    <span class="stats-priority-label">💼 Work</span>
+                    <div class="stats-priority-bar-track">
+                        <div class="stats-priority-bar-fill bar-important" style="width:${total > 0 ? (workCount/total*100) : 0}%"></div>
+                    </div>
+                    <span class="stats-priority-count">${workCount}</span>
+                </div>
             </div>
         </div>
     `;
@@ -727,7 +1065,7 @@ async function renderStatsTab() {
 
 // --- SEARCH / FILTER ---
 
-function applySearchFilter(query, containers) {
+function applySearchFilter(query, containers, includeGridCells = false) {
     const q = query.trim().toLowerCase();
     containers.forEach(container => {
         if (!container) return;
@@ -737,6 +1075,37 @@ function applySearchFilter(query, containers) {
             taskEl.style.display = (!q || title.includes(q)) ? '' : 'none';
         });
     });
+
+    // Also filter tasks in grid cells for schedule tab
+    if (includeGridCells) {
+        document.querySelectorAll('.grid-cell .task-item').forEach(taskEl => {
+            const titleEl = taskEl.querySelector('.task-title');
+            const title = titleEl ? titleEl.textContent.toLowerCase() : '';
+            taskEl.style.display = (!q || title.includes(q)) ? '' : 'none';
+        });
+    }
+}
+
+function setupScheduleSearch() {
+    const input = document.getElementById('schedule-search-input');
+    const clearBtn = document.getElementById('schedule-search-clear');
+    if (!input) return;
+
+    const containers = [
+        document.getElementById('unassigned-tasks-list'),
+        document.getElementById('assigned-tasks-list')
+    ];
+
+    const debouncedFilter = debounce((q) => applySearchFilter(q, containers, true), 300);
+
+    input.addEventListener('input', () => debouncedFilter(input.value));
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            input.value = '';
+            applySearchFilter('', containers, true);
+        });
+    }
 }
 
 function setupPrioritySearch() {
@@ -785,6 +1154,36 @@ function setupLocationSearch() {
         clearBtn.addEventListener('click', () => {
             input.value = '';
             applySearchFilter('', containers);
+        });
+    }
+}
+
+function setupArchiveSearch() {
+    const input = document.getElementById('archive-search-input');
+    const clearBtn = document.getElementById('archive-search-clear');
+    if (!input) return;
+
+    const debouncedFilter = debounce((q) => {
+        const container = document.getElementById('archive-list');
+        if (!container) return;
+        container.querySelectorAll('.task-item').forEach(taskEl => {
+            const titleEl = taskEl.querySelector('.task-title');
+            const title = titleEl ? titleEl.textContent.toLowerCase() : '';
+            taskEl.style.display = (!q.trim() || title.includes(q.trim().toLowerCase())) ? '' : 'none';
+        });
+    }, 300);
+
+    input.addEventListener('input', () => debouncedFilter(input.value));
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            input.value = '';
+            const container = document.getElementById('archive-list');
+            if (container) {
+                container.querySelectorAll('.task-item').forEach(taskEl => {
+                    taskEl.style.display = '';
+                });
+            }
         });
     }
 }

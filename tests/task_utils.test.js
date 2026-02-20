@@ -243,6 +243,20 @@ describe('updateTask', () => {
         expect(result).toBe(true);
         // The task should be marked completed since all schedule items are completed
     });
+
+    test('updates lastModified timestamp', async () => {
+        const oldTime = '2025-01-01T00:00:00.000Z';
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low', lastModified: oldTime }]);
+
+        const before = new Date().toISOString();
+        await updateTask({ id: 'task1', title: 'Updated', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low', lastModified: oldTime });
+        const after = new Date().toISOString();
+
+        const updated = await getTaskById('task1');
+        expect(updated.lastModified).not.toBe(oldTime);
+        expect(updated.lastModified >= before).toBe(true);
+        expect(updated.lastModified <= after).toBe(true);
+    });
 });
 
 describe('deleteTask', () => {
@@ -412,6 +426,21 @@ describe('Task new fields', () => {
         expect(task.completedAt).toBe('2025-01-01T00:00:00.000Z');
         expect(task.recurrence).toBe('weekly');
     });
+
+    test('new Task has lastModified set automatically', () => {
+        const before = new Date().toISOString();
+        const task = new Task(null, 'Test');
+        const after = new Date().toISOString();
+        expect(task.lastModified).toBeDefined();
+        expect(task.lastModified >= before).toBe(true);
+        expect(task.lastModified <= after).toBe(true);
+    });
+
+    test('Task accepts lastModified param', () => {
+        const customTime = '2025-01-15T12:00:00.000Z';
+        const task = new Task('id1', 'Title', '', 'SOMEDAY', false, null, 'home', 0, [], 'low', '', null, null, null, customTime);
+        expect(task.lastModified).toBe(customTime);
+    });
 });
 
 describe('getTasks backfill for new fields', () => {
@@ -435,6 +464,15 @@ describe('getTasks backfill for new fields', () => {
         seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' }]);
         getTasks(tasks => {
             expect(tasks[0].recurrence).toBeNull();
+            done();
+        });
+    });
+
+    test('backfills missing lastModified', (done) => {
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' }]);
+        getTasks(tasks => {
+            expect(tasks[0].lastModified).toBeDefined();
+            expect(new Date(tasks[0].lastModified).getTime()).not.toBeNaN();
             done();
         });
     });
@@ -518,6 +556,17 @@ describe('createRecurringInstance', () => {
         const task = new Task('id1', 'Test', '', 'CRITICAL', false, '2025-06-01', 'home', 0, [], 'low', '', null, 'weekly');
         const instance = createRecurringInstance(task);
         expect(instance.deadline).toBe('2025-06-08');
+    });
+
+    test('new instance has fresh lastModified timestamp', () => {
+        const oldTime = '2025-01-01T00:00:00.000Z';
+        const task = new Task('id1', 'Test', '', 'SOMEDAY', false, null, 'home', 0, [], 'low', '', null, 'daily', null, oldTime);
+        const before = new Date().toISOString();
+        const instance = createRecurringInstance(task);
+        const after = new Date().toISOString();
+        expect(instance.lastModified).toBeDefined();
+        expect(instance.lastModified >= before).toBe(true);
+        expect(instance.lastModified <= after).toBe(true);
     });
 });
 

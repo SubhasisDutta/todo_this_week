@@ -1,6 +1,6 @@
 # Weekly Task Manager
 
-**Version 1.2.0**
+**Version 1.3.0**
 
 A Chrome/Chromium browser extension for managing weekly tasks with priority levels, categories, energy tracking, and a visual weekly planner grid. Schedule tasks into time blocks, track completion across the week, and keep everything in sync between the popup and full-page planner.
 
@@ -16,6 +16,7 @@ A Chrome/Chromium browser extension for managing weekly tasks with priority leve
 - **Task Notes:** Add detailed notes/descriptions to any task; collapsible in all views
 - **Recurring Tasks:** Mark tasks as Daily, Weekly, or Monthly — a new instance is automatically created when the task is completed
 - **Cascade Completion:** When all scheduled assignments for a task are completed, the parent task is automatically marked complete
+- **Last Modified Tracking:** Every task has a `lastModified` timestamp that updates automatically on any change
 - **Auto-Save:** Inline edits in the planner are auto-saved after 1.5 seconds of inactivity, with a visual status indicator (Saving/Saved/Unsaved)
 - **Cross-Tab Sync:** Changes in the popup are reflected in the planner page in real-time, and vice versa
 - **Import/Export:** Back up tasks to JSON or CSV (timestamped files), or import from JSON with smart merge logic (matching IDs update, new IDs create)
@@ -54,7 +55,7 @@ Access the planner by clicking the "PLANNER" button in the popup. It opens in a 
 
 - **LOCATION Tab** — Two columns (Home, Work) for viewing tasks grouped by category, with a search/filter bar.
 
-- **ARCHIVE Tab** — Completed tasks grouped by completion date. Each group can be restored individually; a "Clear All Completed" button removes all completed tasks (with undo support).
+- **ARCHIVE Tab** — Completed tasks grouped by completion date, sorted by last modified (most recent first) within each group. Features a wider search bar and individual restore buttons; a "Clear All Completed" button removes all completed tasks (with undo support).
 
 - **STATS Tab** — Visual HTML/CSS charts showing task completion rate, priority distribution, energy distribution, and tasks per day of the week.
 
@@ -161,17 +162,17 @@ npm run test:watch
 npm run test:coverage
 ```
 
-The test suite includes **245 tests** across 7 test files:
+The test suite includes **280+ tests** across 7 test files:
 
 | Test Suite | Tests | Coverage |
 |-----------|-------|----------|
-| `task_utils.test.js` | ~90 | Task class (new fields), CRUD, settings, time blocks, undo/redo, recurring tasks, time validation, debounce, sync |
+| `task_utils.test.js` | ~95 | Task class (new fields incl. lastModified), CRUD, settings, time blocks, undo/redo, recurring tasks, time validation, debounce, sync |
 | `popup.test.js` | ~17 | Task item rendering, tab switching, completion handlers, drag-and-drop |
-| `manager.test.js` | ~75 | Grid generation, day headers, sidebar lists, priority/location/archive/stats rendering, search filter, add task modal, header tooltips, FAQ tab |
+| `manager.test.js` | ~85 | Grid generation, day headers, sidebar lists, priority/location/archive/stats rendering, archive sorting by lastModified, search filter, add task modal, header tooltips, FAQ tab |
 | `integration.test.js` | ~25 | Task lifecycle, scheduling, cascade completion, ordering, import/merge, recurring tasks, undo/redo |
-| `settings.test.js` | ~35 | applySettings, initSettings, modal open/close, form population, time block editing, overlap validation |
-| `features.test.js` | ~30 | Notes field, completedAt stamping, undo/redo stacks, recurring task creation, archive grouping |
-| `search.test.js` | ~10 | applySearchFilter logic, setupPrioritySearch, setupLocationSearch |
+| `settings.test.js` | ~38 | applySettings, initSettings, modal open/close, form population, time block editing, overlap validation |
+| `features.test.js` | ~33 | Notes field, completedAt stamping, lastModified tracking, undo/redo stacks, recurring task creation, archive grouping |
+| `search.test.js` | ~17 | applySearchFilter logic, setupPrioritySearch, setupLocationSearch, setupArchiveSearch |
 
 ### Debugging
 
@@ -219,6 +220,7 @@ todo_this_week/
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.3.0 | 2026-02-19 | Added lastModified timestamp tracking for all tasks, archive tab sorting by last modified (most recent first), wider archive search bar, Notion integration with column/value mapping, 280+ tests |
 | 1.2.0 | 2026-02-18 | Dedicated import/export modal (JSON + CSV export), dedicated time blocks modal with inline label editing and overlap validation, schedule tab header styling, help modal FAQ section, 245 tests |
 | 1.1.0 | 2026-02-17 | Settings modal (dark mode, fonts), Notion + Google Sheets import, task notes, recurring tasks, undo/redo, archive tab, stats tab, search/filter, help modal, global add task button |
 | 1.0.0 | 2025-08-16 | Test suite with 114 tests (Jest + jsdom), comprehensive documentation |

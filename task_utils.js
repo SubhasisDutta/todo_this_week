@@ -64,7 +64,8 @@ class Task {
         notes = '',
         completedAt = null,
         recurrence = null,
-        notionPageId = null
+        notionPageId = null,
+        lastModified = null
     ) {
         this.id = id || `task_${new Date().getTime()}_${Math.random().toString(36).substr(2, 9)}`;
         this.title = title;
@@ -80,6 +81,7 @@ class Task {
         this.completedAt = completedAt;
         this.recurrence = recurrence;
         this.notionPageId = notionPageId;
+        this.lastModified = lastModified || new Date().toISOString();
     }
 }
 
@@ -129,6 +131,10 @@ function getTasks(callback) {
                 }
                 if (typeof taskInstance.notionPageId === 'undefined') {
                     taskInstance.notionPageId = null;
+                    needsSave = true;
+                }
+                if (typeof taskInstance.lastModified === 'undefined') {
+                    taskInstance.lastModified = new Date().toISOString();
                     needsSave = true;
                 }
                 return taskInstance;
@@ -235,7 +241,8 @@ function createRecurringInstance(task) {
         task.notes || '',
         null,        // completedAt = null
         task.recurrence,
-        null         // notionPageId = null (recurring instances are not linked to Notion)
+        null,        // notionPageId = null (recurring instances are not linked to Notion)
+        null         // lastModified = null (will be auto-set by constructor)
     );
 }
 
@@ -257,6 +264,9 @@ async function updateTask(updatedTask) {
                 } else if (wasCompleted && !updatedTask.completed) {
                     updatedTask.completedAt = null;
                 }
+
+                // Update lastModified timestamp
+                updatedTask.lastModified = new Date().toISOString();
 
                 tasks[taskIndex] = updatedTask;
 

@@ -175,6 +175,45 @@ describe('Undo / Redo', () => {
 });
 
 // -------------------------------------------------------
+// lastModified field
+// -------------------------------------------------------
+describe('lastModified field', () => {
+    test('lastModified is set on task creation', async () => {
+        const before = new Date().toISOString();
+        const task = await addNewTask('Test', '', 'SOMEDAY', null, 'home', 'low');
+        const after = new Date().toISOString();
+        expect(task.lastModified).toBeDefined();
+        expect(task.lastModified >= before).toBe(true);
+        expect(task.lastModified <= after).toBe(true);
+    });
+
+    test('lastModified is updated when task is modified', async () => {
+        const task = await addNewTask('Test', '', 'SOMEDAY', null, 'home', 'low');
+        const originalModified = task.lastModified;
+
+        // Wait a tiny bit to ensure time difference
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        const retrieved = await getTaskById(task.id);
+        retrieved.title = 'Updated Title';
+        await updateTask(retrieved);
+
+        const afterUpdate = await getTaskById(task.id);
+        expect(afterUpdate.lastModified).not.toBe(originalModified);
+        expect(new Date(afterUpdate.lastModified).getTime()).toBeGreaterThan(new Date(originalModified).getTime());
+    });
+
+    test('lastModified backfilled for old tasks', (done) => {
+        seedTasks([{ id: 'old-task', title: 'Old', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' }]);
+        getTasks(tasks => {
+            expect(tasks[0].lastModified).toBeDefined();
+            expect(new Date(tasks[0].lastModified).getTime()).not.toBeNaN();
+            done();
+        });
+    });
+});
+
+// -------------------------------------------------------
 // Recurring Tasks
 // -------------------------------------------------------
 describe('Recurring tasks', () => {
@@ -196,6 +235,16 @@ describe('Recurring tasks', () => {
         expect(next.completed).toBe(false);
         expect(next.schedule).toEqual([]);
         expect(next.completedAt).toBeNull();
+    });
+
+    test('createRecurringInstance sets fresh lastModified', () => {
+        const oldTime = '2025-01-01T00:00:00.000Z';
+        const task = new Task('orig', 'Test', '', 'SOMEDAY', false, null, 'home', 0, [], 'low', '', null, 'daily', null, oldTime);
+        const before = new Date().toISOString();
+        const next = createRecurringInstance(task);
+        const after = new Date().toISOString();
+        expect(next.lastModified >= before).toBe(true);
+        expect(next.lastModified <= after).toBe(true);
     });
 
     test('daily recurrence shifts deadline by 1 day', () => {

@@ -56,6 +56,11 @@
             <!-- SCHEDULE Tab -->
             <div id="weekly-schedule" class="tab-content active" role="tabpanel" aria-labelledby="weekly-schedule">
                 <div class="schedule-tab-header">
+                    <div class="search-bar-container">
+                        <input type="search" id="schedule-search-input" class="neumorphic-input"
+                            placeholder="🔍 Search tasks by title..." aria-label="Search tasks">
+                        <button id="schedule-search-clear" class="neumorphic-btn search-clear-btn">Clear</button>
+                    </div>
                     <button id="time-blocks-btn" class="neumorphic-btn" aria-label="Configure Time Blocks">
                         <span class="btn-icon">🕐</span>
                         <span class="btn-text">Time Blocks</span>
@@ -95,7 +100,7 @@
                 <div class="search-bar-container">
                     <input type="search" id="priority-search-input" class="neumorphic-input"
                         placeholder="🔍 Search tasks by title..." aria-label="Search tasks">
-                    <button id="priority-search-clear" class="neumorphic-btn">Clear</button>
+                    <button id="priority-search-clear" class="neumorphic-btn search-clear-btn">Clear</button>
                 </div>
 
                 <h2>All Tasks</h2>
@@ -142,7 +147,7 @@
                 <div class="search-bar-container">
                     <input type="search" id="location-search-input" class="neumorphic-input"
                         placeholder="🔍 Search tasks by title..." aria-label="Search tasks">
-                    <button id="location-search-clear" class="neumorphic-btn">Clear</button>
+                    <button id="location-search-clear" class="neumorphic-btn search-clear-btn">Clear</button>
                 </div>
                 <div class="tasks-display-area">
                     <div class="priority-column">
@@ -174,7 +179,14 @@
             <div id="archive-tab" class="tab-content" role="tabpanel" aria-labelledby="archive-tab">
                 <div class="archive-header">
                     <h2>Completed Tasks Archive</h2>
-                    <button id="clear-all-completed-btn" class="neumorphic-btn">🗑️ Clear All Completed</button>
+                    <div class="archive-header-actions">
+                        <div class="search-bar-container">
+                            <input type="search" id="archive-search-input" class="neumorphic-input"
+                                placeholder="🔍 Search tasks by title..." aria-label="Search archived tasks">
+                            <button id="archive-search-clear" class="neumorphic-btn search-clear-btn">Clear</button>
+                        </div>
+                        <button id="clear-all-completed-btn" class="neumorphic-btn">🗑️ Clear All Completed</button>
+                    </div>
                 </div>
                 <div id="archive-list">
                     <!-- Rendered by renderArchiveTab() -->

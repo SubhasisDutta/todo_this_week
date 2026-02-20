@@ -55,6 +55,12 @@ function setupManagerDOM() {
 
             <div class="main-content">
                 <div id="weekly-schedule" class="tab-content active" role="tabpanel">
+                    <div class="schedule-tab-header">
+                        <div class="search-bar-container">
+                            <input type="search" id="schedule-search-input" placeholder="Search tasks...">
+                            <button id="schedule-search-clear">Clear</button>
+                        </div>
+                    </div>
                     <div class="planner-container">
                         <div class="tasks-column" id="unassigned-tasks-container">
                             <h3>Unassigned Tasks</h3>
@@ -147,7 +153,13 @@ function setupManagerDOM() {
                 <div id="archive-tab" class="tab-content" role="tabpanel">
                     <div class="archive-header">
                         <h2>Completed Tasks Archive</h2>
-                        <button id="clear-archive-btn" class="neumorphic-btn">Clear All Completed</button>
+                        <div class="archive-header-actions">
+                            <div class="search-bar-container">
+                                <input type="search" id="archive-search-input" placeholder="Search archived tasks...">
+                                <button id="archive-search-clear">Clear</button>
+                            </div>
+                            <button id="clear-all-completed-btn" class="neumorphic-btn">Clear All Completed</button>
+                        </div>
                     </div>
                     <div id="archive-list"></div>
                 </div>
@@ -296,7 +308,8 @@ const MANAGER_EXPORTS = [
     'createTaskElement', 'setupTabSwitching', 'setupCoreFeatureListeners',
     'setupDragAndDropListeners', 'setupTaskManagementListeners', 'setupAllListeners',
     'renderArchiveTab', 'renderStatsTab',
-    'applySearchFilter', 'setupPrioritySearch', 'setupLocationSearch',
+    'getCompletedInRange', 'calculateStreak', 'getPeakHours', 'getFocusDistribution', 'getBlockDistribution', 'getStaleTasks',
+    'applySearchFilter', 'setupScheduleSearch', 'setupPrioritySearch', 'setupLocationSearch', 'setupArchiveSearch',
     'showUndoToast', 'setupUndoKeyboardListeners'
 ];
 
@@ -804,17 +817,200 @@ describe('renderArchiveTab', () => {
         const archiveList = document.getElementById('archive-list');
         expect(archiveList.querySelectorAll('.task-item').length).toBe(1);
     });
+
+    test('sorts tasks by lastModified within groups (latest first)', async () => {
+        const now = new Date();
+        const todayStr = now.toISOString();
+        seedTasks([
+            { id: 't1', title: 'Old Task', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: todayStr, lastModified: '2025-01-01T08:00:00.000Z' },
+            { id: 't2', title: 'New Task', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'low', displayOrder: 1, schedule: [], notes: '', recurrence: null, completedAt: todayStr, lastModified: '2025-01-01T12:00:00.000Z' },
+            { id: 't3', title: 'Mid Task', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'low', displayOrder: 2, schedule: [], notes: '', recurrence: null, completedAt: todayStr, lastModified: '2025-01-01T10:00:00.000Z' }
+        ]);
+        await renderArchiveTab();
+        const archiveList = document.getElementById('archive-list');
+        const taskItems = archiveList.querySelectorAll('.task-item');
+        // Should be sorted: New Task (12:00), Mid Task (10:00), Old Task (08:00)
+        expect(taskItems[0].dataset.taskId).toBe('t2');
+        expect(taskItems[1].dataset.taskId).toBe('t3');
+        expect(taskItems[2].dataset.taskId).toBe('t1');
+    });
 });
 
 describe('renderStatsTab', () => {
-    test('renders stats content', async () => {
+    test('renders stats content with bento grid', async () => {
         seedTasks([
-            { id: 't1', title: 'Done', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: null },
+            { id: 't1', title: 'Done', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: new Date().toISOString() },
             { id: 't2', title: 'Active', priority: 'IMPORTANT', completed: false, type: 'work', energy: 'high', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: null }
         ]);
         await renderStatsTab();
         const statsContent = document.getElementById('stats-content');
         expect(statsContent.innerHTML.length).toBeGreaterThan(0);
+        // Check for bento grid layout
+        expect(statsContent.querySelector('.stats-bento-grid')).not.toBeNull();
+    });
+
+    test('renders hero progress ring', async () => {
+        seedTasks([
+            { id: 't1', title: 'Task 1', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: new Date().toISOString() }
+        ]);
+        await renderStatsTab();
+        const statsContent = document.getElementById('stats-content');
+        expect(statsContent.querySelector('.stats-hero-card')).not.toBeNull();
+        expect(statsContent.querySelector('.stats-ring-svg')).not.toBeNull();
+    });
+
+    test('renders momentum card', async () => {
+        seedTasks([]);
+        await renderStatsTab();
+        const statsContent = document.getElementById('stats-content');
+        expect(statsContent.querySelector('.stats-momentum-card')).not.toBeNull();
+    });
+
+    test('renders streak card', async () => {
+        seedTasks([]);
+        await renderStatsTab();
+        const statsContent = document.getElementById('stats-content');
+        expect(statsContent.querySelector('.stats-streak-card')).not.toBeNull();
+    });
+
+    test('renders focus distribution chart', async () => {
+        seedTasks([]);
+        await renderStatsTab();
+        const statsContent = document.getElementById('stats-content');
+        expect(statsContent.querySelector('.stats-focus-chart')).not.toBeNull();
+    });
+
+    test('renders peak hours heatmap', async () => {
+        seedTasks([]);
+        await renderStatsTab();
+        const statsContent = document.getElementById('stats-content');
+        expect(statsContent.querySelector('.stats-heatmap')).not.toBeNull();
+    });
+
+    test('renders stale tasks section', async () => {
+        seedTasks([]);
+        await renderStatsTab();
+        const statsContent = document.getElementById('stats-content');
+        expect(statsContent.querySelector('.stats-stale-card')).not.toBeNull();
+    });
+});
+
+describe('getCompletedInRange', () => {
+    test('returns tasks completed within date range', () => {
+        const now = new Date();
+        const yesterday = new Date(now);
+        yesterday.setDate(now.getDate() - 1);
+        const twoDaysAgo = new Date(now);
+        twoDaysAgo.setDate(now.getDate() - 2);
+
+        const tasks = [
+            { id: 't1', completed: true, completedAt: now.toISOString() },
+            { id: 't2', completed: true, completedAt: yesterday.toISOString() },
+            { id: 't3', completed: true, completedAt: twoDaysAgo.toISOString() },
+            { id: 't4', completed: false, completedAt: null }
+        ];
+
+        const result = getCompletedInRange(tasks, yesterday, now);
+        expect(result.length).toBe(1);
+        expect(result[0].id).toBe('t2');
+    });
+
+    test('returns empty array when no completions in range', () => {
+        const tasks = [
+            { id: 't1', completed: false, completedAt: null }
+        ];
+        const result = getCompletedInRange(tasks, new Date(), new Date());
+        expect(result.length).toBe(0);
+    });
+});
+
+describe('calculateStreak', () => {
+    test('returns 0 when no completed tasks', () => {
+        const tasks = [{ id: 't1', completed: false, completedAt: null }];
+        expect(calculateStreak(tasks)).toBe(0);
+    });
+
+    test('returns streak count for consecutive days', () => {
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+
+        const tasks = [
+            { id: 't1', completed: true, completedAt: today.toISOString() },
+            { id: 't2', completed: true, completedAt: yesterday.toISOString() }
+        ];
+        expect(calculateStreak(tasks)).toBe(2);
+    });
+
+    test('breaks streak on gap day', () => {
+        const today = new Date();
+        const twoDaysAgo = new Date(today);
+        twoDaysAgo.setDate(today.getDate() - 2);
+
+        const tasks = [
+            { id: 't1', completed: true, completedAt: today.toISOString() },
+            { id: 't2', completed: true, completedAt: twoDaysAgo.toISOString() }
+        ];
+        // Streak is 1 (only today) because yesterday is missing
+        expect(calculateStreak(tasks)).toBe(1);
+    });
+});
+
+describe('getPeakHours', () => {
+    test('returns array of 24 hour counts', () => {
+        const tasks = [];
+        const result = getPeakHours(tasks);
+        expect(result.length).toBe(24);
+        expect(result.every(c => c === 0)).toBe(true);
+    });
+
+    test('counts completions by hour', () => {
+        const date = new Date();
+        date.setHours(14, 0, 0, 0); // 2 PM
+        const tasks = [
+            { id: 't1', completed: true, completedAt: date.toISOString() },
+            { id: 't2', completed: true, completedAt: date.toISOString() }
+        ];
+        const result = getPeakHours(tasks);
+        expect(result[14]).toBe(2);
+    });
+});
+
+describe('getStaleTasks', () => {
+    test('returns empty array when no stale tasks', () => {
+        const recentId = `task_${Date.now()}_abc123`;
+        const tasks = [{ id: recentId, title: 'Recent', completed: false }];
+        const result = getStaleTasks(tasks);
+        expect(result.length).toBe(0);
+    });
+
+    test('returns tasks older than 14 days', () => {
+        const oldTimestamp = Date.now() - (15 * 24 * 60 * 60 * 1000); // 15 days ago
+        const oldId = `task_${oldTimestamp}_abc123`;
+        const tasks = [{ id: oldId, title: 'Old Task', completed: false }];
+        const result = getStaleTasks(tasks);
+        expect(result.length).toBe(1);
+        expect(result[0].title).toBe('Old Task');
+        expect(result[0].daysOld).toBeGreaterThanOrEqual(15);
+    });
+
+    test('excludes completed tasks', () => {
+        const oldTimestamp = Date.now() - (15 * 24 * 60 * 60 * 1000);
+        const oldId = `task_${oldTimestamp}_abc123`;
+        const tasks = [{ id: oldId, title: 'Old Task', completed: true }];
+        const result = getStaleTasks(tasks);
+        expect(result.length).toBe(0);
+    });
+
+    test('limits results to 5 tasks', () => {
+        const oldTimestamp = Date.now() - (15 * 24 * 60 * 60 * 1000);
+        const tasks = Array.from({ length: 10 }, (_, i) => ({
+            id: `task_${oldTimestamp - i * 1000}_abc${i}`,
+            title: `Old Task ${i}`,
+            completed: false
+        }));
+        const result = getStaleTasks(tasks);
+        expect(result.length).toBe(5);
     });
 });
 

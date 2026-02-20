@@ -24,7 +24,20 @@ loadScript(path.join(__dirname, '..', 'settings.js'), [
 function setupSearchDOM() {
     document.body.innerHTML = `
         <div id="info-message-area" class="info-message" style="display: none;"></div>
-        <div id="task-lists" class="tab-content active">
+        <div id="weekly-schedule" class="tab-content active">
+            <div class="schedule-tab-header">
+                <div class="search-bar-container">
+                    <input type="search" id="schedule-search-input" placeholder="Search tasks...">
+                    <button id="schedule-search-clear">Clear</button>
+                </div>
+            </div>
+            <div id="planner-grid">
+                <div class="grid-cell"><div class="task-item"><span class="task-title">Grid Task Alpha</span></div></div>
+            </div>
+            <div id="unassigned-tasks-list"></div>
+            <div id="assigned-tasks-list"></div>
+        </div>
+        <div id="task-lists" class="tab-content">
             <div class="search-bar-container">
                 <input type="search" id="priority-search-input" placeholder="Search tasks...">
                 <button id="priority-search-clear">Clear</button>
@@ -47,10 +60,18 @@ function setupSearchDOM() {
             <span id="undo-toast-message"></span>
             <button id="undo-toast-btn">Undo</button>
         </div>
-        <div id="planner-grid"></div>
-        <div id="unassigned-tasks-list"></div>
-        <div id="assigned-tasks-list"></div>
-        <div id="archive-list"></div>
+        <div id="archive-tab" class="tab-content">
+            <div class="archive-header">
+                <h2>Completed Tasks Archive</h2>
+                <div class="archive-header-actions">
+                    <div class="search-bar-container">
+                        <input type="search" id="archive-search-input" placeholder="Search archived tasks...">
+                        <button id="archive-search-clear">Clear</button>
+                    </div>
+                </div>
+            </div>
+            <div id="archive-list"></div>
+        </div>
         <div id="stats-content"></div>
     `;
 }
@@ -65,7 +86,8 @@ const MANAGER_EXPORTS = [
     'createTaskElement', 'setupTabSwitching', 'setupCoreFeatureListeners',
     'setupDragAndDropListeners', 'setupTaskManagementListeners', 'setupAllListeners',
     'renderArchiveTab', 'renderStatsTab',
-    'applySearchFilter', 'setupPrioritySearch', 'setupLocationSearch',
+    'getCompletedInRange', 'calculateStreak', 'getPeakHours', 'getFocusDistribution', 'getBlockDistribution', 'getStaleTasks',
+    'applySearchFilter', 'setupScheduleSearch', 'setupPrioritySearch', 'setupLocationSearch', 'setupArchiveSearch',
     'showUndoToast', 'setupUndoKeyboardListeners'
 ];
 
@@ -163,5 +185,69 @@ describe('setupLocationSearch', () => {
 
     test('location search input exists in DOM', () => {
         expect(document.getElementById('location-search-input')).not.toBeNull();
+    });
+});
+
+describe('setupScheduleSearch', () => {
+    test('sets up search input without throwing', () => {
+        expect(() => setupScheduleSearch()).not.toThrow();
+    });
+
+    test('schedule search input exists in DOM', () => {
+        expect(document.getElementById('schedule-search-input')).not.toBeNull();
+    });
+});
+
+describe('setupArchiveSearch', () => {
+    test('sets up search input without throwing', () => {
+        expect(() => setupArchiveSearch()).not.toThrow();
+    });
+
+    test('archive search input exists in DOM', () => {
+        expect(document.getElementById('archive-search-input')).not.toBeNull();
+    });
+
+    test('filters archive tasks by title', () => {
+        const archiveList = document.getElementById('archive-list');
+        archiveList.innerHTML = `
+            <div class="task-item"><span class="task-title">Buy groceries</span></div>
+            <div class="task-item"><span class="task-title">Read book</span></div>
+        `;
+
+        setupArchiveSearch();
+        const input = document.getElementById('archive-search-input');
+        input.value = 'groceries';
+        input.dispatchEvent(new Event('input'));
+
+        // Wait for debounce
+        return new Promise(resolve => setTimeout(resolve, 350)).then(() => {
+            const items = archiveList.querySelectorAll('.task-item');
+            expect(items[0].style.display).not.toBe('none');
+            expect(items[1].style.display).toBe('none');
+        });
+    });
+});
+
+describe('applySearchFilter with grid cells', () => {
+    test('filters tasks in grid cells when includeGridCells is true', () => {
+        const container = document.getElementById('unassigned-tasks-list');
+        container.innerHTML = '<div class="task-item"><span class="task-title">Sidebar Task Beta</span></div>';
+
+        // Grid cell already has "Grid Task Alpha" from setupSearchDOM
+        applySearchFilter('Alpha', [container], true);
+
+        const sidebarItem = container.querySelector('.task-item');
+        expect(sidebarItem.style.display).toBe('none'); // "Sidebar Task Beta" hidden
+
+        const gridItem = document.querySelector('.grid-cell .task-item');
+        expect(gridItem.style.display).not.toBe('none'); // "Grid Task Alpha" visible
+    });
+
+    test('shows all grid cell tasks when query is empty', () => {
+        const gridItem = document.querySelector('.grid-cell .task-item');
+        gridItem.style.display = 'none';
+
+        applySearchFilter('', [], true);
+        expect(gridItem.style.display).not.toBe('none');
     });
 });
