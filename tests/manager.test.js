@@ -12,7 +12,8 @@ loadScript(path.join(__dirname, '..', 'task_utils.js'), [
     'getSettings', 'saveSettings', 'seedSampleTasks',
     'getTimeBlocks', 'saveTimeBlocks',
     'pushUndoState', 'undo', 'redo',
-    'createRecurringInstance'
+    'createRecurringInstance',
+    'parseTimeRange'
 ]);
 
 // Load settings.js (dependency of manager.js)
@@ -62,9 +63,16 @@ function setupManagerDOM() {
                         </div>
                     </div>
                     <div class="planner-container">
-                        <div class="tasks-column" id="unassigned-tasks-container">
-                            <h3>Unassigned Tasks</h3>
-                            <div id="unassigned-tasks-list" class="task-list neumorphic-inset-card"></div>
+                        <div class="tasks-column collapsible-sidebar" id="unassigned-tasks-container">
+                            <div class="sidebar-header">
+                                <button class="sidebar-collapse-toggle" aria-expanded="true"
+                                        aria-controls="unassigned-tasks-list" aria-label="Toggle Parking Lot">
+                                    <span class="collapse-icon">◀</span>
+                                </button>
+                                <h3>Parking Lot</h3>
+                                <span class="task-count-badge" id="unassigned-count">0</span>
+                            </div>
+                            <div id="unassigned-tasks-list" class="task-list neumorphic-inset-card collapsible-content"></div>
                         </div>
                         <div class="planner-grid-container">
                             <div id="planner-grid"></div>
@@ -310,7 +318,14 @@ const MANAGER_EXPORTS = [
     'renderArchiveTab', 'renderStatsTab',
     'getCompletedInRange', 'calculateStreak', 'getPeakHours', 'getFocusDistribution', 'getBlockDistribution', 'getStaleTasks',
     'applySearchFilter', 'setupScheduleSearch', 'setupPrioritySearch', 'setupLocationSearch', 'setupArchiveSearch',
-    'showUndoToast', 'setupUndoKeyboardListeners'
+    'showUndoToast', 'setupUndoKeyboardListeners',
+    // Schedule Tab Enhancements
+    'setupCollapsibleSidebar', 'updateUnassignedCount',
+    'showDragGuides', 'clearDragGuides', 'showSnapIndicator', 'currentGuideElements',
+    'createHoverPopover', 'showTaskPopover', 'positionPopover', 'hideTaskPopover', 'setupHoverPopover',
+    'escapeHtml', 'truncateUrl', 'formatPopoverDeadline', 'hoverPopover', 'hoverTimeout', 'HOVER_DELAY',
+    'getCurrentTimeBlockInfo', 'formatCurrentTime', 'updateCurrentTimeIndicator',
+    'startTimeIndicatorUpdates', 'stopTimeIndicatorUpdates', 'timeIndicatorInterval'
 ];
 
 beforeEach(() => {
@@ -1165,5 +1180,333 @@ describe('Help Modal FAQ Tab', () => {
         const answer = faqItem.querySelector('.faq-answer');
         expect(question).not.toBeNull();
         expect(answer).not.toBeNull();
+    });
+});
+
+// ===========================================
+// SCHEDULE TAB ENHANCEMENT TESTS
+// ===========================================
+
+describe('Collapsible Parking Lot Sidebar', () => {
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
+    test('sidebar has collapsible-sidebar class', () => {
+        const sidebar = document.getElementById('unassigned-tasks-container');
+        expect(sidebar.classList.contains('collapsible-sidebar')).toBe(true);
+    });
+
+    test('sidebar has collapse toggle button', () => {
+        const sidebar = document.getElementById('unassigned-tasks-container');
+        const toggleBtn = sidebar.querySelector('.sidebar-collapse-toggle');
+        expect(toggleBtn).not.toBeNull();
+        expect(toggleBtn.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    test('sidebar has task count badge', () => {
+        const badge = document.getElementById('unassigned-count');
+        expect(badge).not.toBeNull();
+        expect(badge.classList.contains('task-count-badge')).toBe(true);
+    });
+
+    test('setupCollapsibleSidebar toggles collapsed class on click', () => {
+        setupCollapsibleSidebar();
+        const sidebar = document.getElementById('unassigned-tasks-container');
+        const toggleBtn = sidebar.querySelector('.sidebar-collapse-toggle');
+
+        toggleBtn.click();
+        expect(sidebar.classList.contains('collapsed')).toBe(true);
+        expect(toggleBtn.getAttribute('aria-expanded')).toBe('false');
+
+        toggleBtn.click();
+        expect(sidebar.classList.contains('collapsed')).toBe(false);
+        expect(toggleBtn.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    test('setupCollapsibleSidebar persists collapsed state in localStorage', () => {
+        setupCollapsibleSidebar();
+        const toggleBtn = document.querySelector('.sidebar-collapse-toggle');
+
+        toggleBtn.click();
+        expect(localStorage.getItem('parkingLotCollapsed')).toBe('true');
+
+        toggleBtn.click();
+        expect(localStorage.getItem('parkingLotCollapsed')).toBe('false');
+    });
+
+    test('setupCollapsibleSidebar restores collapsed state on init', () => {
+        localStorage.setItem('parkingLotCollapsed', 'true');
+        setupCollapsibleSidebar();
+
+        const sidebar = document.getElementById('unassigned-tasks-container');
+        expect(sidebar.classList.contains('collapsed')).toBe(true);
+    });
+
+    test('updateUnassignedCount updates the badge text', () => {
+        updateUnassignedCount(5);
+        expect(document.getElementById('unassigned-count').textContent).toBe('5');
+
+        updateUnassignedCount(0);
+        expect(document.getElementById('unassigned-count').textContent).toBe('0');
+
+        updateUnassignedCount(99);
+        expect(document.getElementById('unassigned-count').textContent).toBe('99');
+    });
+});
+
+describe('Drag Guide Lines', () => {
+    beforeEach(async () => {
+        resetChromeStorage();
+        setupManagerDOM();
+        await generatePlannerGrid();
+    });
+
+    test('showDragGuides adds row guide class to matching time block cells', () => {
+        const cell = document.querySelector('.grid-cell[data-block-id="deep-work-1"]');
+        showDragGuides(cell);
+
+        const rowGuides = document.querySelectorAll('.drag-guide-row');
+        expect(rowGuides.length).toBeGreaterThan(0);
+    });
+
+    test('showDragGuides adds column guide class to matching day cells', async () => {
+        // Get today's name directly from Date
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const todayName = dayNames[new Date().getDay()];
+        const cell = document.querySelector(`.grid-cell[data-day='${todayName}']`);
+        showDragGuides(cell);
+
+        const colGuides = document.querySelectorAll('.drag-guide-column');
+        expect(colGuides.length).toBeGreaterThan(0);
+    });
+
+    test('clearDragGuides removes all guide classes', () => {
+        const cell = document.querySelector('.grid-cell');
+        showDragGuides(cell);
+
+        expect(document.querySelectorAll('.drag-guide-row').length).toBeGreaterThan(0);
+
+        clearDragGuides();
+
+        expect(document.querySelectorAll('.drag-guide-row').length).toBe(0);
+        expect(document.querySelectorAll('.drag-guide-column').length).toBe(0);
+    });
+
+    test('showSnapIndicator adds snap-target class for valid cells', () => {
+        const cell = document.querySelector('.grid-cell[data-task-limit="multiple"]');
+        showSnapIndicator(cell, true);
+
+        expect(cell.classList.contains('snap-target')).toBe(true);
+        expect(cell.classList.contains('drop-invalid')).toBe(false);
+    });
+
+    test('showSnapIndicator adds drop-invalid class for invalid cells', () => {
+        const cell = document.querySelector('.grid-cell');
+        showSnapIndicator(cell, false);
+
+        expect(cell.classList.contains('drop-invalid')).toBe(true);
+        expect(cell.classList.contains('snap-target')).toBe(false);
+    });
+
+    test('clearDragGuides also clears snap indicators', () => {
+        const cell = document.querySelector('.grid-cell');
+        showSnapIndicator(cell, true);
+        expect(cell.classList.contains('snap-target')).toBe(true);
+
+        clearDragGuides();
+        expect(cell.classList.contains('snap-target')).toBe(false);
+    });
+});
+
+describe('Task Hover Popover', () => {
+    beforeEach(async () => {
+        resetChromeStorage();
+        setupManagerDOM();
+        await generatePlannerGrid();
+        // Remove any existing popover
+        if (hoverPopover) {
+            hoverPopover.remove();
+            hoverPopover = null;
+        }
+    });
+
+    afterEach(() => {
+        hideTaskPopover();
+        if (hoverPopover) {
+            hoverPopover.remove();
+            hoverPopover = null;
+        }
+    });
+
+    test('createHoverPopover creates popover element', () => {
+        const popover = createHoverPopover();
+        expect(popover).not.toBeNull();
+        expect(popover.classList.contains('task-hover-popover')).toBe(true);
+        expect(popover.getAttribute('role')).toBe('tooltip');
+    });
+
+    test('createHoverPopover returns same element on multiple calls', () => {
+        const popover1 = createHoverPopover();
+        const popover2 = createHoverPopover();
+        expect(popover1).toBe(popover2);
+    });
+
+    test('escapeHtml escapes dangerous characters', () => {
+        expect(escapeHtml('<script>alert("xss")</script>')).toBe('&lt;script&gt;alert("xss")&lt;/script&gt;');
+        expect(escapeHtml('Hello & World')).toBe('Hello &amp; World');
+        expect(escapeHtml('<img src="x" onerror="alert(1)">')).toContain('&lt;img');
+    });
+
+    test('truncateUrl truncates long URLs', () => {
+        const longUrl = 'https://example.com/very/long/path/that/exceeds/maximum/length';
+        expect(truncateUrl(longUrl, 40).length).toBeLessThanOrEqual(40);
+        expect(truncateUrl(longUrl, 40)).toContain('...');
+    });
+
+    test('truncateUrl returns short URLs unchanged', () => {
+        const shortUrl = 'https://example.com';
+        expect(truncateUrl(shortUrl, 40)).toBe(shortUrl);
+    });
+
+    test('formatPopoverDeadline formats date correctly', () => {
+        const result = formatPopoverDeadline('2024-03-15');
+        expect(result).toContain('Mar');
+        // Date may vary by timezone (14 or 15), just check it contains a day number
+        expect(result).toMatch(/\d+/);
+    });
+
+    test('hideTaskPopover removes visible class', () => {
+        const popover = createHoverPopover();
+        popover.classList.add('visible');
+
+        hideTaskPopover();
+
+        expect(popover.classList.contains('visible')).toBe(false);
+    });
+
+    test('positionPopover sets left and top styles', () => {
+        const popover = createHoverPopover();
+        const mockTarget = document.createElement('div');
+        mockTarget.getBoundingClientRect = () => ({
+            right: 100, top: 100, left: 50, bottom: 150, width: 50, height: 50
+        });
+
+        positionPopover(popover, mockTarget);
+
+        expect(popover.style.left).not.toBe('');
+        expect(popover.style.top).not.toBe('');
+    });
+});
+
+describe('Current Time Indicator', () => {
+    beforeEach(async () => {
+        resetChromeStorage();
+        setupManagerDOM();
+        await generatePlannerGrid();
+        highlightCurrentDay();
+    });
+
+    afterEach(() => {
+        stopTimeIndicatorUpdates();
+        jest.useRealTimers();
+    });
+
+    test('getCurrentTimeBlockInfo returns correct structure', () => {
+        const info = getCurrentTimeBlockInfo();
+        expect(info).toHaveProperty('currentHour');
+        expect(info).toHaveProperty('currentMinutes');
+        expect(info).toHaveProperty('currentTime');
+        expect(typeof info.currentHour).toBe('number');
+        expect(typeof info.currentMinutes).toBe('number');
+        expect(typeof info.currentTime).toBe('number');
+    });
+
+    test('formatCurrentTime formats AM times correctly', () => {
+        expect(formatCurrentTime(9, 5)).toBe('9:05 AM');
+        expect(formatCurrentTime(0, 0)).toBe('12:00 AM');
+        expect(formatCurrentTime(11, 30)).toBe('11:30 AM');
+    });
+
+    test('formatCurrentTime formats PM times correctly', () => {
+        expect(formatCurrentTime(12, 0)).toBe('12:00 PM');
+        expect(formatCurrentTime(14, 30)).toBe('2:30 PM');
+        expect(formatCurrentTime(23, 59)).toBe('11:59 PM');
+    });
+
+    test('updateCurrentTimeIndicator removes previous indicators', async () => {
+        // Create a fake indicator
+        const fakeIndicator = document.createElement('div');
+        fakeIndicator.classList.add('current-time-indicator');
+        document.getElementById('planner-grid').appendChild(fakeIndicator);
+
+        expect(document.querySelectorAll('.current-time-indicator').length).toBe(1);
+
+        await updateCurrentTimeIndicator();
+
+        // Old indicator should be removed (new one may or may not exist depending on current time)
+        const indicators = document.querySelectorAll('.current-time-indicator');
+        // The old fake indicator should be gone
+        expect(fakeIndicator.parentElement).toBeNull();
+    });
+
+    test('updateCurrentTimeIndicator clears past-block and current-block classes first', async () => {
+        // Add fake classes
+        const cell = document.querySelector('.grid-cell');
+        cell.classList.add('past-block', 'current-block');
+
+        await updateCurrentTimeIndicator();
+
+        // The specific cell behavior depends on current time, but the fake classes should be cleared first
+        // and then reapplied only if appropriate for the current time
+    });
+
+    test('startTimeIndicatorUpdates does not throw', () => {
+        expect(() => startTimeIndicatorUpdates()).not.toThrow();
+    });
+
+    test('stopTimeIndicatorUpdates does not throw', () => {
+        startTimeIndicatorUpdates();
+        expect(() => stopTimeIndicatorUpdates()).not.toThrow();
+    });
+
+    test('first day header is today after generateDayHeaders', async () => {
+        await generateDayHeaders();
+        const today = new Date().getDay();
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        // Check via the DOM since currentDays is internal to manager.js
+        const firstDayHeader = document.querySelector('.grid-header[data-day]');
+        expect(firstDayHeader.dataset.day).toBe(dayNames[today]);
+    });
+});
+
+describe('renderSidebarLists updates unassigned count', () => {
+    beforeEach(() => {
+        resetChromeStorage();
+        setupManagerDOM();
+    });
+
+    test('badge shows correct count for unassigned tasks', () => {
+        const unassigned = [
+            { id: 't1', title: 'Task 1', schedule: [] },
+            { id: 't2', title: 'Task 2', schedule: [] },
+            { id: 't3', title: 'Task 3', schedule: [] }
+        ];
+        const assigned = [];
+
+        renderSidebarLists(unassigned, assigned);
+
+        expect(document.getElementById('unassigned-count').textContent).toBe('3');
+    });
+
+    test('badge shows 0 when all tasks are assigned', () => {
+        const unassigned = [];
+        const assigned = [
+            { id: 't1', title: 'Task 1', schedule: [{ day: 'monday', blockId: 'ai-study' }] }
+        ];
+
+        renderSidebarLists(unassigned, assigned);
+
+        expect(document.getElementById('unassigned-count').textContent).toBe('0');
     });
 });

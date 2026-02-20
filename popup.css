@@ -2573,6 +2573,505 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
     text-decoration: underline;
 }
 
+/* ===========================================
+   SCHEDULE TAB ENHANCEMENTS
+   =========================================== */
+
+/* --- Feature 1: Collapsible Parking Lot Sidebar --- */
+.collapsible-sidebar {
+    transition: flex-basis var(--transition-speed) ease,
+                width var(--transition-speed) ease,
+                min-width var(--transition-speed) ease;
+}
+
+.collapsible-sidebar.collapsed {
+    flex: 0 0 52px;
+    min-width: 52px;
+    overflow: hidden;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    min-height: 40px;
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: opacity var(--transition-speed) ease;
+}
+
+.sidebar-collapse-toggle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: var(--bg-primary);
+    box-shadow: 3px 3px 6px var(--shadow-dark), -3px -3px 6px var(--shadow-light);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+    flex-shrink: 0;
+}
+
+.sidebar-collapse-toggle:hover {
+    box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light);
+}
+
+.sidebar-collapse-toggle:focus-visible {
+    box-shadow: var(--focus-ring), 3px 3px 6px var(--shadow-dark), -3px -3px 6px var(--shadow-light);
+    outline: none;
+}
+
+.collapse-icon {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    transition: transform var(--transition-speed) ease;
+    display: inline-block;
+}
+
+.collapsible-sidebar.collapsed .collapse-icon {
+    transform: rotate(180deg);
+}
+
+.collapsible-sidebar.collapsed .sidebar-header h3 {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.collapsible-sidebar.collapsed .task-count-badge {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.collapsible-content {
+    transition: opacity var(--transition-speed) ease;
+}
+
+.collapsible-sidebar.collapsed .collapsible-content {
+    opacity: 0;
+    pointer-events: none;
+    height: 0;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.task-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 8px;
+    border-radius: 12px;
+    background: var(--accent-blue);
+    color: white;
+    font-size: 0.75em;
+    font-weight: 700;
+    flex-shrink: 0;
+    transition: opacity var(--transition-speed) ease;
+}
+
+/* --- Feature 2: Drag Guide Lines --- */
+.drag-guide-row {
+    position: relative;
+}
+
+.drag-guide-row::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    background: rgba(0, 123, 255, 0.04);
+    border-top: 2px dashed rgba(0, 123, 255, 0.25);
+    border-bottom: 2px dashed rgba(0, 123, 255, 0.25);
+    pointer-events: none;
+    z-index: 5;
+    border-radius: inherit;
+}
+
+.drag-guide-column {
+    position: relative;
+}
+
+.drag-guide-column::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 123, 255, 0.06);
+    border-left: 2px dashed rgba(0, 123, 255, 0.3);
+    border-right: 2px dashed rgba(0, 123, 255, 0.3);
+    pointer-events: none;
+    z-index: 4;
+    border-radius: inherit;
+}
+
+/* Enhanced drop target with pulse */
+.grid-cell.drag-over {
+    outline: 2px dashed var(--accent-blue);
+    background-color: rgba(0, 123, 255, 0.08) !important;
+    position: relative;
+}
+
+.grid-cell.drag-over::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+        rgba(0, 123, 255, 0.1) 0%,
+        rgba(0, 123, 255, 0.02) 50%,
+        rgba(0, 123, 255, 0.1) 100%);
+    border-radius: inherit;
+    animation: pulse-glow 1.2s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes pulse-glow {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
+/* Snap target indicator (valid drop zone) */
+.grid-cell.snap-target {
+    box-shadow:
+        inset 0 0 0 2px var(--accent-blue),
+        0 0 12px rgba(0, 123, 255, 0.35);
+    transform: scale(1.02);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    z-index: 10;
+}
+
+/* Invalid drop zone feedback */
+.grid-cell.drop-invalid {
+    outline: 2px dashed var(--priority-critical);
+    background-color: rgba(220, 53, 69, 0.06) !important;
+}
+
+.grid-cell.drop-invalid::after {
+    content: '⊘';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.4em;
+    color: var(--priority-critical);
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Enhanced dragging task visual */
+.task-item.dragging {
+    opacity: 0.5;
+    transform: scale(0.95) rotate(-1deg);
+    box-shadow:
+        8px 8px 20px rgba(0, 0, 0, 0.15),
+        -2px -2px 10px var(--shadow-light);
+    z-index: 100;
+}
+
+/* --- Feature 3: Task Hover Popover --- */
+.task-hover-popover {
+    position: fixed;
+    z-index: 1000;
+    min-width: 280px;
+    max-width: 340px;
+    padding: 16px;
+    background: var(--bg-primary);
+    border-radius: var(--border-radius-lg);
+    box-shadow:
+        8px 8px 24px var(--shadow-dark),
+        -6px -6px 16px var(--shadow-light),
+        0 4px 20px rgba(0, 0, 0, 0.12);
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.task-hover-popover.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.popover-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--inset-bg);
+}
+
+.popover-priority-indicator {
+    width: 4px;
+    min-height: 36px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.popover-priority-indicator.priority-CRITICAL { background: var(--priority-critical); }
+.popover-priority-indicator.priority-IMPORTANT { background: var(--priority-important); }
+.popover-priority-indicator.priority-SOMEDAY { background: var(--priority-someday); }
+
+.popover-title {
+    flex: 1;
+    font-size: 1em;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.popover-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.popover-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: var(--border-radius-sm);
+    font-size: 0.72em;
+    font-weight: 500;
+    background: var(--inset-bg);
+    color: var(--text-secondary);
+}
+
+.popover-tag.energy-high {
+    background: rgba(255, 193, 7, 0.15);
+    color: #c9a406;
+}
+
+.popover-tag.energy-low {
+    background: rgba(99, 179, 237, 0.15);
+    color: var(--accent-blue);
+}
+
+.popover-tag.type-work {
+    background: rgba(103, 126, 234, 0.15);
+    color: #667eea;
+}
+
+.popover-tag.type-home {
+    background: rgba(72, 187, 120, 0.15);
+    color: #38a169;
+}
+
+.popover-notes {
+    font-size: 0.82em;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    padding: 10px;
+    background: var(--inset-bg);
+    border-radius: var(--border-radius-sm);
+    margin-bottom: 10px;
+    max-height: 90px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.popover-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78em;
+    color: var(--accent-blue);
+    text-decoration: none;
+    padding: 6px 10px;
+    background: rgba(0, 123, 255, 0.08);
+    border-radius: var(--border-radius-sm);
+    word-break: break-all;
+    margin-bottom: 10px;
+}
+
+.popover-link:hover {
+    background: rgba(0, 123, 255, 0.15);
+    text-decoration: underline;
+}
+
+.popover-schedule-list {
+    padding-top: 10px;
+    border-top: 1px solid var(--inset-bg);
+}
+
+.popover-schedule-title {
+    font-size: 0.7em;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+}
+
+.popover-schedule-item {
+    font-size: 0.78em;
+    color: var(--text-secondary);
+    padding: 3px 0;
+}
+
+.popover-schedule-item .schedule-check {
+    color: var(--success-text);
+    margin-right: 4px;
+}
+
+/* --- Feature 4: Current Time Indicator --- */
+.current-time-indicator {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        var(--priority-critical) 8%,
+        var(--priority-critical) 92%,
+        transparent 100%);
+    z-index: 50;
+    pointer-events: none;
+}
+
+.current-time-indicator::before {
+    content: '';
+    position: absolute;
+    left: -5px;
+    top: -4px;
+    width: 10px;
+    height: 10px;
+    background: var(--priority-critical);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--priority-critical);
+}
+
+.current-time-indicator::after {
+    content: attr(data-time);
+    position: absolute;
+    left: 10px;
+    top: -8px;
+    font-size: 0.62em;
+    font-weight: 600;
+    color: var(--priority-critical);
+    background: var(--bg-primary);
+    padding: 2px 5px;
+    border-radius: 3px;
+    white-space: nowrap;
+    box-shadow: 1px 1px 3px var(--shadow-dark);
+}
+
+/* Dim past time blocks */
+.grid-cell.past-block {
+    opacity: 0.45;
+    background-color: var(--inset-bg) !important;
+}
+
+.grid-cell.past-block .task-item {
+    opacity: 0.75;
+}
+
+.time-label.past-block {
+    opacity: 0.5;
+    color: var(--text-muted);
+}
+
+/* Current time block highlight */
+.grid-cell.current-block {
+    position: relative;
+    box-shadow:
+        inset 0 0 0 2px rgba(220, 53, 69, 0.25),
+        inset 2px 2px 4px var(--shadow-dark),
+        inset -2px -2px 4px var(--shadow-light);
+}
+
+.time-label.current-block {
+    color: var(--priority-critical);
+    font-weight: 700;
+}
+
+/* Animated pulse for current block on today's column */
+@keyframes current-block-pulse {
+    0%, 100% { box-shadow: inset 0 0 0 2px rgba(220, 53, 69, 0.2); }
+    50% { box-shadow: inset 0 0 0 2px rgba(220, 53, 69, 0.4); }
+}
+
+.grid-cell.current-block.today {
+    animation: current-block-pulse 2.5s ease-in-out infinite;
+}
+
+/* --- Dark Mode Adjustments for Schedule Enhancements --- */
+:root[data-theme="dark"] .drag-guide-row::before,
+:root[data-theme="dark"] .drag-guide-column::after {
+    border-color: rgba(99, 179, 237, 0.35);
+    background: rgba(99, 179, 237, 0.06);
+}
+
+:root[data-theme="dark"] .grid-cell.drag-over {
+    outline-color: var(--accent-blue);
+    background-color: rgba(99, 179, 237, 0.12) !important;
+}
+
+:root[data-theme="dark"] .grid-cell.snap-target {
+    box-shadow:
+        inset 0 0 0 2px var(--accent-blue),
+        0 0 14px rgba(99, 179, 237, 0.4);
+}
+
+:root[data-theme="dark"] .task-hover-popover {
+    box-shadow:
+        8px 8px 24px rgba(0, 0, 0, 0.5),
+        -4px -4px 12px rgba(50, 60, 90, 0.15);
+}
+
+:root[data-theme="dark"] .current-time-indicator {
+    background: linear-gradient(90deg,
+        transparent 0%,
+        #fc8181 8%,
+        #fc8181 92%,
+        transparent 100%);
+}
+
+:root[data-theme="dark"] .current-time-indicator::before {
+    background: #fc8181;
+    box-shadow: 0 0 10px #fc8181;
+}
+
+:root[data-theme="dark"] .current-time-indicator::after {
+    color: #fc8181;
+}
+
+:root[data-theme="dark"] .grid-cell.past-block {
+    background-color: rgba(20, 25, 40, 0.8) !important;
+}
+
+:root[data-theme="dark"] .popover-tag.energy-high {
+    color: #ecc94b;
+}
+
+:root[data-theme="dark"] .popover-tag.type-work {
+    color: #a3bffa;
+}
+
+:root[data-theme="dark"] .popover-tag.type-home {
+    color: #68d391;
+}
+
 /* --- Responsive Adjustments for New Tabs --- */
 @media (max-width: 768px) {
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -2584,4 +3083,18 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
     .import-export-tabs .tab-link { font-size: 0.78em; padding: 6px 10px; }
     .ie-actions { grid-template-columns: 1fr; }
     .ie-help-links { flex-direction: column; gap: 8px; }
+
+    /* Collapsible sidebar responsive */
+    .collapsible-sidebar.collapsed {
+        flex: 0 0 44px;
+        min-width: 44px;
+    }
+    .sidebar-collapse-toggle {
+        width: 28px;
+        height: 28px;
+    }
+    .task-hover-popover {
+        min-width: 240px;
+        max-width: 280px;
+    }
 }

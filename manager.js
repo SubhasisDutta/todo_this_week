@@ -13,6 +13,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     await renderPage();
     setupAllListeners();
     setupStorageSync(renderPage);
+
+    // Schedule Tab Enhancements
+    setupCollapsibleSidebar();
+    setupHoverPopover();
+    startTimeIndicatorUpdates();
 });
 
 function setupAllListeners() {
@@ -308,6 +313,9 @@ function renderSidebarLists(unassigned, assigned) {
     } else {
         unassignedListEl.innerHTML = '<p class="empty-list-msg">All tasks assigned!</p>';
     }
+
+    // Update parking lot badge count
+    updateUnassignedCount(unassigned.length);
 
     assignedListEl.innerHTML = '';
     if (assigned.length > 0) {
@@ -1586,25 +1594,60 @@ function setupDragAndDropListeners() {
     const handleDragOver = (event) => {
         event.preventDefault();
         const dropTarget = event.target.closest('.grid-cell, #unassigned-tasks-list');
-        if (!dropTarget) { event.dataTransfer.dropEffect = 'none'; return; }
+
+        // Clear previous visual indicators
+        document.querySelectorAll('.drag-over, .snap-target, .drop-invalid').forEach(el => {
+            el.classList.remove('drag-over', 'snap-target', 'drop-invalid');
+        });
+
+        if (!dropTarget) {
+            clearDragGuides();
+            event.dataTransfer.dropEffect = 'none';
+            return;
+        }
+
         if (dropTarget.classList.contains('grid-cell')) {
             const limit = dropTarget.dataset.taskLimit;
             const tasksInCell = dropTarget.querySelectorAll('.task-item:not(.dragging)').length;
-            if (limit === '1' && tasksInCell >= 1) { event.dataTransfer.dropEffect = 'none'; return; }
+
+            // Show guide lines
+            showDragGuides(dropTarget);
+
+            // Check if drop is valid
+            if (limit === '0') {
+                showSnapIndicator(dropTarget, false);
+                event.dataTransfer.dropEffect = 'none';
+                return;
+            }
+            if (limit === '1' && tasksInCell >= 1) {
+                showSnapIndicator(dropTarget, false);
+                event.dataTransfer.dropEffect = 'none';
+                return;
+            }
+
+            showSnapIndicator(dropTarget, true);
+        } else {
+            // Dropping on unassigned list
+            clearDragGuides();
         }
+
         event.dataTransfer.dropEffect = 'move';
-        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
         dropTarget.classList.add('drag-over');
     };
 
     const handleDragLeave = (event) => {
         const dropTarget = event.target.closest('.grid-cell, #unassigned-tasks-list');
-        if (dropTarget) dropTarget.classList.remove('drag-over');
+        if (dropTarget) {
+            dropTarget.classList.remove('drag-over', 'snap-target', 'drop-invalid');
+        }
     };
 
     const handleDragEnd = () => {
         document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
-        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        document.querySelectorAll('.drag-over, .snap-target, .drop-invalid').forEach(el => {
+            el.classList.remove('drag-over', 'snap-target', 'drop-invalid');
+        });
+        clearDragGuides();
         draggedTaskInfo = null;
     };
 
@@ -1914,3 +1957,370 @@ function setupTaskManagementListeners() {
         });
     });
 }
+
+// ===========================================
+// SCHEDULE TAB ENHANCEMENTS
+// ===========================================
+
+// --- Feature 1: Collapsible Parking Lot Sidebar ---
+
+function setupCollapsibleSidebar() {
+    const sidebar = document.getElementById('unassigned-tasks-container');
+    const toggleBtn = sidebar?.querySelector('.sidebar-collapse-toggle');
+    if (!toggleBtn) return;
+
+    // Restore saved state from localStorage
+    const isCollapsed = localStorage.getItem('parkingLotCollapsed') === 'true';
+    if (isCollapsed) {
+        sidebar.classList.add('collapsed');
+        toggleBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    toggleBtn.addEventListener('click', () => {
+        const expanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+        sidebar.classList.toggle('collapsed');
+        toggleBtn.setAttribute('aria-expanded', !expanded);
+        localStorage.setItem('parkingLotCollapsed', !expanded ? 'false' : 'true');
+    });
+}
+
+function updateUnassignedCount(count) {
+    const badge = document.getElementById('unassigned-count');
+    if (badge) badge.textContent = count;
+}
+
+// --- Feature 2: Drag Guide Lines ---
+
+let currentGuideElements = { row: [], column: [] };
+
+function showDragGuides(targetCell) {
+    clearDragGuides();
+    if (!targetCell) return;
+
+    const day = targetCell.dataset.day;
+    const blockId = targetCell.dataset.blockId;
+
+    // Highlight entire row (same time block across all days)
+    const rowCells = document.querySelectorAll(`.grid-cell[data-block-id='${blockId}']`);
+    rowCells.forEach(cell => {
+        cell.classList.add('drag-guide-row');
+        currentGuideElements.row.push(cell);
+    });
+
+    // Highlight the time label for this block
+    const timeLabels = document.querySelectorAll('.time-label');
+    const gridCellGroups = document.querySelectorAll(`.grid-cell[data-block-id]`);
+    const blockIds = [...new Set([...gridCellGroups].map(c => c.dataset.blockId))];
+    const blockIndex = blockIds.indexOf(blockId);
+    if (blockIndex >= 0 && timeLabels[blockIndex]) {
+        timeLabels[blockIndex].classList.add('drag-guide-row');
+        currentGuideElements.row.push(timeLabels[blockIndex]);
+    }
+
+    // Highlight entire column (same day across all time blocks)
+    const colCells = document.querySelectorAll(`.grid-cell[data-day='${day}']`);
+    colCells.forEach(cell => {
+        if (!cell.classList.contains('drag-guide-row')) {
+            cell.classList.add('drag-guide-column');
+            currentGuideElements.column.push(cell);
+        }
+    });
+
+    // Highlight the day header
+    const dayHeader = document.querySelector(`.grid-header[data-day='${day}']`);
+    if (dayHeader) {
+        dayHeader.classList.add('drag-guide-column');
+        currentGuideElements.column.push(dayHeader);
+    }
+}
+
+function clearDragGuides() {
+    currentGuideElements.row.forEach(el => el.classList.remove('drag-guide-row'));
+    currentGuideElements.column.forEach(el => el.classList.remove('drag-guide-column'));
+    currentGuideElements = { row: [], column: [] };
+
+    // Also clear snap indicators
+    document.querySelectorAll('.snap-target, .drop-invalid').forEach(el => {
+        el.classList.remove('snap-target', 'drop-invalid');
+    });
+}
+
+function showSnapIndicator(cell, isValid) {
+    cell.classList.remove('snap-target', 'drop-invalid');
+    if (isValid) {
+        cell.classList.add('snap-target');
+    } else {
+        cell.classList.add('drop-invalid');
+    }
+}
+
+// --- Feature 3: Task Hover Popover ---
+
+let hoverPopover = null;
+let hoverTimeout = null;
+const HOVER_DELAY = 400; // ms before showing popover
+
+function createHoverPopover() {
+    if (hoverPopover) return hoverPopover;
+
+    hoverPopover = document.createElement('div');
+    hoverPopover.classList.add('task-hover-popover');
+    hoverPopover.setAttribute('role', 'tooltip');
+    document.body.appendChild(hoverPopover);
+    return hoverPopover;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function truncateUrl(url, maxLength = 40) {
+    if (!url) return '';
+    if (url.length <= maxLength) return url;
+    return url.substring(0, maxLength - 3) + '...';
+}
+
+function formatPopoverDeadline(deadline) {
+    if (!deadline) return '';
+    const date = new Date(deadline);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+async function showTaskPopover(taskElement, taskId) {
+    const task = await getTaskById(taskId);
+    if (!task) return;
+
+    const popover = createHoverPopover();
+
+    // Day name mapping
+    const dayMapping = {
+        monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed',
+        thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun'
+    };
+
+    // Build schedule HTML
+    let scheduleHTML = '';
+    if (task.schedule && task.schedule.length > 0) {
+        const timeBlocks = await getTimeBlocks();
+        const scheduleItems = task.schedule.map(item => {
+            const block = timeBlocks.find(b => b.id === item.blockId);
+            const checkIcon = item.completed ? '<span class="schedule-check">✓</span>' : '○';
+            return `<div class="popover-schedule-item">${checkIcon} ${dayMapping[item.day] || item.day} ${block?.time || ''}</div>`;
+        }).join('');
+        scheduleHTML = `
+            <div class="popover-schedule-list">
+                <div class="popover-schedule-title">Schedule</div>
+                ${scheduleItems}
+            </div>
+        `;
+    }
+
+    popover.innerHTML = `
+        <div class="popover-header">
+            <div class="popover-priority-indicator priority-${task.priority}"></div>
+            <div class="popover-title">${escapeHtml(task.title)}</div>
+        </div>
+        <div class="popover-meta">
+            <span class="popover-tag type-${task.type}">${task.type === 'home' ? '🏠 Home' : '💼 Work'}</span>
+            <span class="popover-tag energy-${task.energy}">${task.energy === 'high' ? '⚡ High Energy' : '🍃 Low Energy'}</span>
+            ${task.recurrence ? `<span class="popover-tag">🔄 ${task.recurrence}</span>` : ''}
+            ${task.deadline ? `<span class="popover-tag">📅 ${formatPopoverDeadline(task.deadline)}</span>` : ''}
+        </div>
+        ${task.notes ? `<div class="popover-notes">${escapeHtml(task.notes)}</div>` : ''}
+        ${task.url ? `<a href="${escapeHtml(task.url)}" class="popover-link" target="_blank" rel="noopener">🔗 ${truncateUrl(task.url)}</a>` : ''}
+        ${scheduleHTML}
+    `;
+
+    // Position popover
+    positionPopover(popover, taskElement);
+
+    // Show with animation
+    requestAnimationFrame(() => {
+        popover.classList.add('visible');
+    });
+}
+
+function positionPopover(popover, targetElement) {
+    const rect = targetElement.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Get popover dimensions (estimate if not visible)
+    popover.style.visibility = 'hidden';
+    popover.style.display = 'block';
+    const popoverRect = popover.getBoundingClientRect();
+    popover.style.visibility = '';
+    popover.style.display = '';
+
+    const popoverWidth = popoverRect.width || 320;
+    const popoverHeight = popoverRect.height || 200;
+
+    // Calculate position (prefer right side, then below)
+    let left = rect.right + 12;
+    let top = rect.top;
+
+    // Check if popover fits to the right
+    if (left + popoverWidth > viewportWidth - 20) {
+        // Try left side
+        left = rect.left - popoverWidth - 12;
+        if (left < 20) {
+            // Fall back to below
+            left = Math.max(20, Math.min(rect.left, viewportWidth - popoverWidth - 20));
+            top = rect.bottom + 12;
+        }
+    }
+
+    // Ensure vertical fit
+    if (top + popoverHeight > viewportHeight - 20) {
+        top = Math.max(20, viewportHeight - popoverHeight - 20);
+    }
+
+    popover.style.left = `${left}px`;
+    popover.style.top = `${top}px`;
+}
+
+function hideTaskPopover() {
+    if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+        hoverTimeout = null;
+    }
+    if (hoverPopover) {
+        hoverPopover.classList.remove('visible');
+    }
+}
+
+function setupHoverPopover() {
+    const plannerGrid = document.getElementById('planner-grid');
+    if (!plannerGrid) return;
+
+    plannerGrid.addEventListener('mouseenter', (event) => {
+        const taskItem = event.target.closest('.grid-cell .task-item');
+        if (!taskItem) return;
+
+        const taskId = taskItem.dataset.taskId;
+        if (!taskId) return;
+
+        // Clear any existing timeout
+        if (hoverTimeout) clearTimeout(hoverTimeout);
+
+        hoverTimeout = setTimeout(async () => {
+            await showTaskPopover(taskItem, taskId);
+        }, HOVER_DELAY);
+    }, true);
+
+    plannerGrid.addEventListener('mouseleave', (event) => {
+        const taskItem = event.target.closest('.grid-cell .task-item');
+        if (taskItem) {
+            hideTaskPopover();
+        }
+    }, true);
+
+    // Hide on scroll
+    plannerGrid.addEventListener('scroll', hideTaskPopover);
+    window.addEventListener('scroll', hideTaskPopover);
+
+    // Hide when dragging starts
+    plannerGrid.addEventListener('dragstart', hideTaskPopover);
+}
+
+// --- Feature 4: Current Time Indicator ---
+
+let timeIndicatorInterval = null;
+
+function getCurrentTimeBlockInfo() {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinutes = now.getMinutes();
+    const currentTime = currentHour + (currentMinutes / 60); // decimal hours
+
+    return { currentHour, currentMinutes, currentTime };
+}
+
+function formatCurrentTime(hours, minutes) {
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHour = hours % 12 || 12;
+    const displayMinutes = minutes.toString().padStart(2, '0');
+    return `${displayHour}:${displayMinutes} ${period}`;
+}
+
+async function updateCurrentTimeIndicator() {
+    const { currentHour, currentMinutes, currentTime } = getCurrentTimeBlockInfo();
+    const todayName = currentDays[0]; // First day is always today (after rotation)
+
+    const blocks = await getTimeBlocks();
+
+    // Remove existing indicators and classes
+    document.querySelectorAll('.current-time-indicator').forEach(el => el.remove());
+    document.querySelectorAll('.past-block, .current-block').forEach(el => {
+        el.classList.remove('past-block', 'current-block');
+    });
+
+    // Get unique block IDs in grid order
+    const gridCells = document.querySelectorAll('.grid-cell[data-block-id]');
+    const blockIds = [...new Set([...gridCells].map(c => c.dataset.blockId))];
+    const timeLabels = document.querySelectorAll('.time-label');
+
+    blockIds.forEach((blockId, index) => {
+        const block = blocks.find(b => b.id === blockId);
+        if (!block) return;
+
+        const range = parseTimeRange(block.time);
+        if (!range) return;
+
+        // Get today's cell for this block
+        const todayCell = document.querySelector(
+            `.grid-cell[data-day='${todayName}'][data-block-id='${blockId}']`
+        );
+        const timeLabel = timeLabels[index];
+
+        if (!todayCell) return;
+
+        // Check if this block is in the past
+        if (range.end <= currentTime) {
+            todayCell.classList.add('past-block');
+            if (timeLabel) timeLabel.classList.add('past-block');
+        }
+        // Check if current time is within this block
+        else if (range.start <= currentTime && currentTime < range.end) {
+            todayCell.classList.add('current-block');
+            if (timeLabel) timeLabel.classList.add('current-block');
+
+            // Calculate position within block
+            const blockDuration = range.end - range.start;
+            const elapsed = currentTime - range.start;
+            const percentComplete = (elapsed / blockDuration) * 100;
+
+            // Create time indicator line
+            const indicator = document.createElement('div');
+            indicator.classList.add('current-time-indicator');
+            indicator.style.top = `${percentComplete}%`;
+            indicator.setAttribute('data-time', formatCurrentTime(currentHour, currentMinutes));
+
+            // Position relative to cell
+            todayCell.style.position = 'relative';
+            todayCell.appendChild(indicator);
+        }
+    });
+}
+
+function startTimeIndicatorUpdates() {
+    // Initial update
+    updateCurrentTimeIndicator();
+
+    // Update every minute
+    timeIndicatorInterval = setInterval(() => {
+        updateCurrentTimeIndicator();
+    }, 60000); // 60 seconds
+}
+
+function stopTimeIndicatorUpdates() {
+    if (timeIndicatorInterval) {
+        clearInterval(timeIndicatorInterval);
+        timeIndicatorInterval = null;
+    }
+}
+
+// Clean up on page unload
+window.addEventListener('beforeunload', stopTimeIndicatorUpdates);

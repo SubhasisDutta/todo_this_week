@@ -67,10 +67,19 @@
                     </button>
                 </div>
                 <div class="planner-container">
-                    <!-- Column 1: Unassigned Tasks -->
-                    <div class="tasks-column" id="unassigned-tasks-container">
-                        <h3>Unassigned Tasks</h3>
-                        <div id="unassigned-tasks-list" class="task-list neumorphic-inset-card">
+                    <!-- Column 1: Parking Lot (Collapsible Unassigned Tasks) -->
+                    <div class="tasks-column collapsible-sidebar" id="unassigned-tasks-container">
+                        <div class="sidebar-header">
+                            <button class="sidebar-collapse-toggle"
+                                    aria-expanded="true"
+                                    aria-controls="unassigned-tasks-list"
+                                    aria-label="Toggle Parking Lot visibility">
+                                <span class="collapse-icon">◀</span>
+                            </button>
+                            <h3>Parking Lot</h3>
+                            <span class="task-count-badge" id="unassigned-count">0</span>
+                        </div>
+                        <div id="unassigned-tasks-list" class="task-list neumorphic-inset-card collapsible-content">
                             <!-- Unassigned tasks rendered by JS -->
                         </div>
                     </div>
@@ -326,6 +335,14 @@
                         <li>🍃 <strong>Low</strong> / ⚡ <strong>High</strong> energy — Match tasks to your energy
                             levels.</li>
                         <li>🔄 <strong>Recurring</strong> — Tasks that auto-renew daily/weekly/monthly.</li>
+                    </ul>
+
+                    <p><strong>Schedule Tab Features:</strong></p>
+                    <ul>
+                        <li>🧩 <strong>Parking Lot</strong> — Collapsible sidebar for unscheduled tasks. Drag to grid to schedule.</li>
+                        <li>🤏 <strong>Snap Guides</strong> — Visual row/column guides when dragging tasks for precise placement.</li>
+                        <li>🕵️ <strong>Hover Details</strong> — Hover over grid tasks to see full details without opening edit form.</li>
+                        <li>🌗 <strong>Time Indicator</strong> — Red line shows current time. Past blocks are dimmed.</li>
                     </ul>
                 </div>
 
@@ -619,6 +636,26 @@
                     <div class="faq-item">
                         <h4 class="faq-question">Why did my changes disappear after editing?</h4>
                         <p class="faq-answer">Inline edits auto-save after 1.5 seconds of inactivity. If you close the edit form or navigate away immediately, changes may not be saved. Watch for the "Saved" indicator, or click the Save button to save immediately.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">What is the Parking Lot sidebar?</h4>
+                        <p class="faq-answer">The Parking Lot (left sidebar in SCHEDULE tab) holds all unscheduled tasks. You can collapse it using the arrow button to gain more screen space for the grid. The badge shows how many tasks are waiting to be scheduled. Drag tasks from here onto the grid to assign them to time blocks.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">What do the colored guide lines mean when dragging tasks?</h4>
+                        <p class="faq-answer">When you drag a task over the schedule grid, blue guide lines highlight the target row (time block) and column (day) to help you place it accurately. Valid drop zones show a blue glow, while blocked or full slots show a red indicator with a "no entry" symbol.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">How do I see full task details on the schedule grid?</h4>
+                        <p class="faq-answer">Hover over any task on the grid for about half a second. A popover will appear showing the full title, notes, energy level, task type, deadline, URL, and schedule details. This helps you see task information without opening the edit form.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">What does the red line on the schedule mean?</h4>
+                        <p class="faq-answer">The red horizontal line shows the current time position on today's column. It updates every minute. Past time blocks (above the line) appear dimmed to help you focus on upcoming tasks. The current time block has a subtle red highlight.</p>
                     </div>
                 </div>
 

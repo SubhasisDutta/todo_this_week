@@ -220,6 +220,45 @@ Tab switching is handled by `setupImportExportTabs()` in settings.js. Uses `.imp
 - Restore button returns completed tasks to active state
 - "Clear All Completed" button permanently deletes all completed tasks
 
+### Schedule Tab Enhancements (v1.4.0)
+
+#### Parking Lot Sidebar
+- Left sidebar renamed from "Unassigned Tasks" to "Parking Lot"
+- Collapsible via toggle button with `◀` icon
+- Collapse state persisted in `localStorage` (`parkingLotCollapsed` key)
+- Task count badge shows number of unscheduled tasks
+- CSS: `.collapsible-sidebar`, `.collapsed`, `.sidebar-header`, `.sidebar-collapse-toggle`, `.task-count-badge`
+- JS: `setupCollapsibleSidebar()`, `updateUnassignedCount(count)`
+
+#### Drag Guide Lines
+- Visual row/column guides when dragging tasks over the grid
+- Blue dashed lines highlight the target time block row and day column
+- Valid drop zones show blue glow (`.snap-target`)
+- Invalid drop zones (blocked or full slots) show red indicator (`.drop-invalid`)
+- Enhanced during `dragover` in `setupDragAndDropListeners()`
+- CSS: `.drag-guide-row`, `.drag-guide-column`, `.snap-target`, `.drop-invalid`
+- JS: `showDragGuides(cell)`, `clearDragGuides()`, `showSnapIndicator(cell, isValid)`
+
+#### Progressive Disclosure (Hover Popover)
+- Hover over grid tasks for 400ms to show detailed popover
+- Displays: title, priority indicator, type, energy, deadline, notes, URL, schedule items
+- Smart positioning to avoid viewport edges
+- Hidden during drag operations
+- CSS: `.task-hover-popover`, `.popover-header`, `.popover-meta`, `.popover-tag`, `.popover-notes`, `.popover-link`, `.popover-schedule-list`
+- JS: `createHoverPopover()`, `showTaskPopover(element, taskId)`, `positionPopover()`, `hideTaskPopover()`, `setupHoverPopover()`, `escapeHtml()`, `truncateUrl()`, `formatPopoverDeadline()`
+- Constant: `HOVER_DELAY = 400` ms
+
+#### Current Time Indicator
+- Red horizontal line shows current time position on today's column
+- Line includes time label (e.g., "2:30 PM")
+- Past time blocks appear dimmed (opacity 0.5)
+- Current time block has subtle red border highlight
+- Updates every 60 seconds
+- Uses `parseTimeRange()` from task_utils.js to calculate position within block
+- CSS: `.current-time-indicator`, `.past-block`, `.current-block`, `@keyframes current-block-pulse`
+- JS: `getCurrentTimeBlockInfo()`, `formatCurrentTime(hours, minutes)`, `updateCurrentTimeIndicator()`, `startTimeIndicatorUpdates()`, `stopTimeIndicatorUpdates()`
+- Variable: `timeIndicatorInterval` (setInterval ID)
+
 ## CSS Architecture
 
 ### Custom Properties
@@ -308,10 +347,10 @@ This makes all listed symbols available as globals in the test scope.
 
 The `loadScript` regex also handles `async function` DOMContentLoaded handlers (needed because manager.js and popup.js DOMContentLoaded handlers are now `async`).
 
-### Test Suites (~280 total)
+### Test Suites (~327 total)
 - **task_utils.test.js (~95):** Task class (new fields including lastModified), getTasks backfill, CRUD, settings CRUD, time blocks, undo/redo stacks, createRecurringInstance, seedSampleTasks, showInfoMessage, validateTask, debounce, withTaskLock, parseTimeRange, validateTimeBlockOverlap, renamed labels
 - **popup.test.js (~17):** createTaskItem (notes, recurrence), renderTasks, renderAllTabs, tab switching, add-task validation, open-manager button
-- **manager.test.js (~85):** generateDayHeaders/generatePlannerGrid (now async), createTaskElement (notes/recurrence badges), renderSidebarLists, renderPriorityLists, renderHomeWorkLists, renderArchiveTab (with lastModified sorting), renderStatsTab, applySearchFilter, setupTabSwitching, renderPage, highlightCurrentDay, setupAddTaskModalListeners, header tooltips, FAQ tab, completed tasks disclosure
+- **manager.test.js (~122):** generateDayHeaders/generatePlannerGrid (now async), createTaskElement (notes/recurrence badges), renderSidebarLists, renderPriorityLists, renderHomeWorkLists, renderArchiveTab (with lastModified sorting), renderStatsTab, applySearchFilter, setupTabSwitching, renderPage, highlightCurrentDay, setupAddTaskModalListeners, header tooltips, FAQ tab, completed tasks disclosure, collapsible parking lot, drag guide lines, hover popover, current time indicator
 - **integration.test.js (~25):** Task lifecycle, schedule management, cascade completion, ordering, import/merge, validation, cross-tab sync, recurring tasks (auto-instance creation), undo/redo lifecycle
 - **settings.test.js (~35):** applySettings (theme, font-family, font-size CSS vars), initSettings (first-run seeding), populateSettingsForm, openSettingsModal/closeSettingsModal, FONT_FAMILY_MAP/FONT_SIZE_MAP constants, formatTimeInput, updateTimeBlockLabel, addTimeBlock overlap validation, renderTimeBlocksTable
 - **features.test.js (~35):** Notes field (CRUD, backfill), completedAt (set on complete, clear on uncomplete, backfill), lastModified field (auto-set, update on modify, backfill), undo/redo cycle, createRecurringInstance (daily/weekly/monthly deadline shift, fresh lastModified), recurring auto-instance via updateTask, archive date grouping
