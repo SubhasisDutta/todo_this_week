@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Weekly Task Planner",
-  "version": "1.5.0",
-  "description": "A weekly task planner with priority management, scheduling, visual time blocking, routines, magic fill, focus mode, and advanced productivity features.",
+  "version": "1.6.0",
+  "description": "A weekly task planner with priority management, scheduling, visual time blocking, magic fill, focus mode, corner toast notifications, and auto-save settings.",
   "permissions": [
     "storage",
     "tabs",

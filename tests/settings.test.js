@@ -53,7 +53,6 @@ function setupSettingsDOM() {
                     <option value="medium">Medium</option>
                     <option value="large">Large</option>
                 </select>
-                <button id="save-settings-btn">Save</button>
                 <button id="settings-close-btn">Close</button>
             </div>
         </div>

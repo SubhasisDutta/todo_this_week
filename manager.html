@@ -70,10 +70,6 @@
                             <span class="btn-icon-text">🎯</span>
                             <span class="btn-tooltip">Focus Mode</span>
                         </button>
-                        <button id="habits-btn" class="neumorphic-btn" aria-label="Manage Habits">
-                            <span class="btn-icon">🔄</span>
-                            <span class="btn-text">Habits</span>
-                        </button>
                         <button id="time-blocks-btn" class="neumorphic-btn" aria-label="Configure Time Blocks">
                             <span class="btn-icon">🕐</span>
                             <span class="btn-text">Time Blocks</span>
@@ -280,10 +276,6 @@
                 </div>
             </section>
 
-            <!-- Save Settings -->
-            <div style="text-align:center; margin-top:8px;">
-                <button id="save-settings-btn" class="neumorphic-btn" style="min-width:160px;">💾 Save Settings</button>
-            </div>
         </div>
     </div>
 
@@ -535,21 +527,20 @@
                 <!-- Settings -->
                 <div id="help-settings-guide" class="help-panel">
                     <h3 class="help-section-title">⚙️ Settings</h3>
-                    <p>Click the ⚙️ icon in the top-right corner to open Settings.</p>
+                    <p>Click the ⚙️ icon in the top-right corner to open Settings. All settings auto-save immediately when changed.</p>
 
                     <div class="help-step">
                         <div class="help-step-number">1</div>
                         <div class="help-step-content">
                             <h4>Dark / Light Mode</h4>
-                            <p>Toggle the theme switch. Changes apply immediately as a preview. Click <em>Save
-                                    Settings</em> to persist.</p>
+                            <p>Toggle the theme switch. Changes apply immediately and are automatically saved.</p>
                         </div>
                     </div>
                     <div class="help-step">
                         <div class="help-step-number">2</div>
                         <div class="help-step-content">
                             <h4>Font Family &amp; Size</h4>
-                            <p>Choose from 5 font families and 3 sizes. Preview updates live as you select.</p>
+                            <p>Choose from 5 font families and 3 sizes. Changes apply instantly and are auto-saved.</p>
                         </div>
                     </div>
 
@@ -648,21 +639,13 @@
                     <div class="help-step">
                         <div class="help-step-number">4</div>
                         <div class="help-step-content">
-                            <h4>Habits 🔄</h4>
-                            <p>Click the <strong>Habits</strong> button to open the habits library. Drag a habit card onto any grid cell to instantly create multiple tasks. Create your own habits by clicking "Create Habit" and selecting tasks from the sidebar, or use the pre-built habits like "Morning Routine", "Deep Work Session", and "Wind Down".</p>
-                        </div>
-                    </div>
-
-                    <div class="help-step">
-                        <div class="help-step-number">5</div>
-                        <div class="help-step-content">
                             <h4>Task Details (Double-Click)</h4>
                             <p>Double-click any task in the Parking Lot or Assigned sidebar to open a detailed view showing all task information including notes, schedule, and URL. From there you can edit or delete the task.</p>
                         </div>
                     </div>
 
                     <div class="help-step">
-                        <div class="help-step-number">6</div>
+                        <div class="help-step-number">5</div>
                         <div class="help-step-content">
                             <h4>Fluid Resizing</h4>
                             <p>Drag the bottom edge of a task in the grid to extend it into subsequent time blocks. If another task is in the way, it will be automatically pushed down to make room.</p>
@@ -670,7 +653,7 @@
                     </div>
 
                     <div class="help-step">
-                        <div class="help-step-number">7</div>
+                        <div class="help-step-number">6</div>
                         <div class="help-step-content">
                             <h4>Time Tracking ⏱️</h4>
                             <p>Click the clock icon on any grid task to start tracking time. Click again when done to record the actual duration. This helps you compare planned vs. actual time for better future estimates.</p>
@@ -678,7 +661,7 @@
                     </div>
 
                     <div class="help-step">
-                        <div class="help-step-number">8</div>
+                        <div class="help-step-number">7</div>
                         <div class="help-step-content">
                             <h4>Buffer Zones</h4>
                             <p>When you have back-to-back tasks, a "5m buffer" indicator appears between them as a visual reminder to take a short break and transition mentally.</p>
@@ -1168,50 +1151,6 @@
             <div class="modal-actions">
                 <button id="details-edit-btn" class="neumorphic-btn">✏️ Edit</button>
                 <button id="details-delete-btn" class="neumorphic-btn delete-btn">🗑️ Delete</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Habits Modal -->
-    <div id="habits-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="habits-modal-title">
-        <div class="modal-content modal-content-large">
-            <div class="modal-header">
-                <h2 id="habits-modal-title">🔄 Habits</h2>
-                <button id="habits-close-btn" class="neumorphic-btn icon-btn" aria-label="Close">✕</button>
-            </div>
-
-            <p class="habits-description">Drag a habit onto the schedule grid to apply it. Habits create multiple tasks at once to help build your daily routines.</p>
-
-            <!-- Create Habit Form (initially hidden) -->
-            <div id="create-habit-form" class="create-habit-form hidden">
-                <h3>Create New Habit</h3>
-                <div class="form-group">
-                    <label for="habit-name-input">Habit Name:</label>
-                    <input type="text" id="habit-name-input" class="neumorphic-input" placeholder="e.g., Evening Wind Down">
-                </div>
-                <div class="form-group">
-                    <label for="habit-description-input">Description:</label>
-                    <input type="text" id="habit-description-input" class="neumorphic-input" placeholder="e.g., Relax and prepare for sleep">
-                </div>
-                <div class="form-group">
-                    <label>Select Tasks from Parking Lot:</label>
-                    <div id="habit-task-selection" class="habit-task-selection">
-                        <!-- Tasks rendered by JS -->
-                    </div>
-                </div>
-                <div class="form-actions">
-                    <button id="save-habit-btn" class="neumorphic-btn">💾 Save Habit</button>
-                    <button id="cancel-habit-btn" class="neumorphic-btn">Cancel</button>
-                </div>
-            </div>
-
-            <div id="habits-list" class="habits-grid">
-                <!-- Rendered by JS -->
-            </div>
-
-            <div class="habits-footer">
-                <button id="create-habit-btn" class="neumorphic-btn">➕ Create Habit</button>
-                <p class="habits-hint">💡 Tip: Select tasks from your Parking Lot to create a new habit.</p>
             </div>
         </div>
     </div>

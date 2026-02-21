@@ -74,11 +74,6 @@ global.seedTimeBlocks = (timeBlocks) => {
     store.timeBlocks = JSON.parse(JSON.stringify(timeBlocks));
 };
 
-// Helper to seed storage with habits
-global.seedHabits = (habits) => {
-    store.habits = JSON.parse(JSON.stringify(habits));
-};
-
 // Stub global.fetch for Notion/Sheets import tests
 global.fetch = jest.fn(() =>
     Promise.resolve({

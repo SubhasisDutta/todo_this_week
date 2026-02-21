@@ -5,9 +5,10 @@ const path = require('path');
 
 // Load task_utils first (dependency)
 loadScript(path.join(__dirname, '..', 'task_utils.js'), [
-    'DEFAULT_TIME_BLOCKS', 'TIME_BLOCKS', 'DEFAULT_SETTINGS', 'DEFAULT_HABITS',
+    'DEFAULT_TIME_BLOCKS', 'TIME_BLOCKS', 'DEFAULT_SETTINGS',
     'Task', 'getTasks', 'saveTasks', 'addNewTask', 'getTaskById',
     'updateTaskCompletion', 'updateTask', 'deleteTask', 'showInfoMessage',
+    'getOrCreateToastContainer',
     'getTasksAsync', 'saveTasksAsync', 'withTaskLock', 'validateTask', 'isValidUrl',
     'debounce', 'setupStorageSync', '_lastSaveTimestamp',
     'getSettings', 'saveSettings', 'seedSampleTasks',
@@ -15,7 +16,7 @@ loadScript(path.join(__dirname, '..', 'task_utils.js'), [
     'pushUndoState', 'undo', 'redo',
     'createRecurringInstance',
     'parseTimeRange',
-    'getHabits', 'saveHabits', 'duplicateTask'
+    'duplicateTask'
 ]);
 
 // Load settings.js (dependency of manager.js)
@@ -46,7 +47,6 @@ function setupManagerDOM() {
                         <div class="schedule-header-actions">
                             <button id="magic-fill-btn" class="neumorphic-btn" title="Magic Fill">✨ Magic Fill</button>
                             <button id="focus-mode-btn" class="neumorphic-btn" title="Focus Mode">🎯 Focus</button>
-                            <button id="habits-btn" class="neumorphic-btn" title="Habits">🔄 Habits</button>
                         </div>
                     </div>
                     <div class="planner-container">
@@ -115,28 +115,6 @@ function setupManagerDOM() {
                 </div>
             </div>
 
-            <!-- Habits Modal -->
-            <div id="habits-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
-                <div class="modal-content habits-content">
-                    <div class="modal-header">
-                        <h2>Habits</h2>
-                        <button id="habits-close-btn" class="neumorphic-btn icon-btn" aria-label="Close">✕</button>
-                    </div>
-                    <div id="create-habit-form" class="create-habit-form hidden">
-                        <input type="text" id="habit-name-input">
-                        <input type="text" id="habit-description-input">
-                        <div id="habit-task-selection"></div>
-                        <button id="save-habit-btn">Save</button>
-                        <button id="cancel-habit-btn">Cancel</button>
-                    </div>
-                    <p class="habits-instructions">Drag a habit onto the schedule grid to apply it.</p>
-                    <div id="habits-list" class="habits-grid"></div>
-                    <div class="habits-footer">
-                        <button id="create-habit-btn" class="neumorphic-btn">➕ Create Habit</button>
-                    </div>
-                </div>
-            </div>
-
             <!-- Undo Toast -->
             <div id="undo-toast" style="display: none;">
                 <span id="undo-toast-message"></span>
@@ -175,7 +153,6 @@ const MANAGER_EXPORTS = [
     'getTodayName', 'findScheduleGaps', 'magicFillGaps', 'setupMagicFillButton',
     'renderBufferZones',
     'toggleFocusMode', 'highlightCurrentBlockOnly', 'showAllBlocks', 'setupFocusModeButton', 'focusModeActive',
-    'openHabitsModal', 'closeHabitsModal', 'renderHabitsList', 'applyHabitToGrid', 'setupHabitsListeners', 'createNewHabit', 'deleteHabit', 'showCreateHabitForm', 'hideCreateHabitForm', 'renderHabitTaskSelection',
     'addResizeHandle', 'setupResizeListeners', 'extendTaskAcrossBlocks', 'pushTaskDown',
     'startTaskTracking', 'stopTaskTracking', 'calculateTimeDeviation', 'renderTrackingButton', 'setupTrackingListeners',
     'setupNewScheduleFeatures'
@@ -581,141 +558,6 @@ describe('Focus Mode', () => {
 });
 
 // ========================================
-// Habits Tests (~18 tests)
-// ========================================
-
-describe('Habits', () => {
-    test('DEFAULT_HABITS is defined', () => {
-        expect(DEFAULT_HABITS).toBeDefined();
-        expect(Array.isArray(DEFAULT_HABITS)).toBe(true);
-    });
-
-    test('DEFAULT_HABITS has sample habits', () => {
-        expect(DEFAULT_HABITS.length).toBeGreaterThan(0);
-    });
-
-    test('each habit has required fields', () => {
-        DEFAULT_HABITS.forEach(habit => {
-            expect(habit.id).toBeDefined();
-            expect(habit.name).toBeDefined();
-            expect(habit.tasks).toBeDefined();
-            expect(Array.isArray(habit.tasks)).toBe(true);
-        });
-    });
-
-    test('habit tasks have required fields', () => {
-        DEFAULT_HABITS.forEach(habit => {
-            habit.tasks.forEach(task => {
-                expect(task.title).toBeDefined();
-                expect(task.priority).toBeDefined();
-                expect(task.relativeBlockIndex).toBeDefined();
-            });
-        });
-    });
-
-    test('getHabits returns habits from storage', async () => {
-        const customHabits = [{ id: 'custom1', name: 'Custom', tasks: [] }];
-        chrome.storage.local.set({ habits: customHabits });
-        const habits = await getHabits();
-        expect(habits.length).toBeGreaterThanOrEqual(1);
-    });
-
-    test('getHabits returns defaults when storage empty', async () => {
-        const habits = await getHabits();
-        expect(habits).toEqual(DEFAULT_HABITS);
-    });
-
-    test('saveHabits persists to storage', async () => {
-        const newHabits = [{ id: 'h1', name: 'New Habit', tasks: [] }];
-        await saveHabits(newHabits);
-        const stored = await new Promise(resolve => {
-            chrome.storage.local.get({ habits: [] }, result => resolve(result.habits));
-        });
-        expect(stored).toEqual(newHabits);
-    });
-
-    test('habits modal exists in DOM', () => {
-        const modal = document.getElementById('habits-modal');
-        expect(modal).not.toBeNull();
-    });
-
-    test('habits button exists in DOM', () => {
-        const btn = document.getElementById('habits-btn');
-        expect(btn).not.toBeNull();
-    });
-
-    test('openHabitsModal shows the modal', async () => {
-        const modal = document.getElementById('habits-modal');
-        await openHabitsModal();
-        expect(modal.classList.contains('hidden')).toBe(false);
-    });
-
-    test('closeHabitsModal hides the modal', () => {
-        const modal = document.getElementById('habits-modal');
-        modal.classList.remove('hidden');
-        closeHabitsModal();
-        expect(modal.classList.contains('hidden')).toBe(true);
-    });
-
-    test('habits list container exists', () => {
-        const list = document.getElementById('habits-list');
-        expect(list).not.toBeNull();
-    });
-
-    test('renderHabitsList populates habit cards', async () => {
-        await openHabitsModal();
-        const list = document.getElementById('habits-list');
-        expect(list.children.length).toBeGreaterThan(0);
-    });
-
-    test('habit cards are draggable', async () => {
-        await openHabitsModal();
-        const cards = document.querySelectorAll('.habit-card');
-        if (cards.length > 0) {
-            expect(cards[0].getAttribute('draggable')).toBe('true');
-        }
-    });
-
-    test('applyHabitToGrid is a function', () => {
-        expect(typeof applyHabitToGrid).toBe('function');
-    });
-
-    test('create habit button exists', () => {
-        const btn = document.getElementById('create-habit-btn');
-        expect(btn).not.toBeNull();
-    });
-
-    test('habits close button exists', () => {
-        const btn = document.getElementById('habits-close-btn');
-        expect(btn).not.toBeNull();
-    });
-
-    test('close button exists and is clickable', async () => {
-        const closeBtn = document.getElementById('habits-close-btn');
-        expect(closeBtn).not.toBeNull();
-        // Verify clicking doesn't throw
-        expect(() => closeBtn.click()).not.toThrow();
-    });
-
-    test('createNewHabit is a function', () => {
-        expect(typeof createNewHabit).toBe('function');
-    });
-
-    test('showCreateHabitForm shows the form', () => {
-        const form = document.getElementById('create-habit-form');
-        showCreateHabitForm();
-        expect(form.classList.contains('hidden')).toBe(false);
-    });
-
-    test('hideCreateHabitForm hides the form', () => {
-        const form = document.getElementById('create-habit-form');
-        form.classList.remove('hidden');
-        hideCreateHabitForm();
-        expect(form.classList.contains('hidden')).toBe(true);
-    });
-});
-
-// ========================================
 // Fluid Resizing Tests (~12 tests)
 // ========================================
 
@@ -993,7 +835,6 @@ describe('Schedule Features Integration', () => {
         setupContextMenuListeners();
         setupMagicFillButton();
         setupFocusModeButton();
-        setupHabitsListeners();
         setupResizeListeners();
         setupTrackingListeners();
         setupTaskDetailsModalListeners();

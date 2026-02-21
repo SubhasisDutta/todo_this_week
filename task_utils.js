@@ -58,39 +58,6 @@ const DEFAULT_SETTINGS = {
     focusModeEnabled: false
 };
 
-// --- Default Habits ---
-const DEFAULT_HABITS = [
-    {
-        id: 'habit_morning',
-        name: 'Morning Routine',
-        description: 'Start your day with meditation, coffee, and email',
-        tasks: [
-            { title: 'Meditate', priority: 'IMPORTANT', energy: 'low', type: 'home', relativeBlockIndex: 0 },
-            { title: 'Coffee & News', priority: 'SOMEDAY', energy: 'low', type: 'home', relativeBlockIndex: 1 },
-            { title: 'Check Email', priority: 'IMPORTANT', energy: 'low', type: 'work', relativeBlockIndex: 2 }
-        ]
-    },
-    {
-        id: 'habit_deep_work',
-        name: 'Deep Work Session',
-        description: 'Focused work with breaks',
-        tasks: [
-            { title: 'Focus Work', priority: 'CRITICAL', energy: 'high', type: 'work', relativeBlockIndex: 0 },
-            { title: 'Short Break', priority: 'SOMEDAY', energy: 'low', type: 'home', relativeBlockIndex: 1 },
-            { title: 'Review Notes', priority: 'IMPORTANT', energy: 'low', type: 'work', relativeBlockIndex: 2 }
-        ]
-    },
-    {
-        id: 'habit_wind_down',
-        name: 'Wind Down',
-        description: 'End your day with reflection and planning',
-        tasks: [
-            { title: 'Review Day', priority: 'IMPORTANT', energy: 'low', type: 'home', relativeBlockIndex: 0 },
-            { title: 'Plan Tomorrow', priority: 'IMPORTANT', energy: 'low', type: 'work', relativeBlockIndex: 1 }
-        ]
-    }
-];
-
 // --- Task Data Structure and Storage ---
 class Task {
     constructor(
@@ -373,44 +340,71 @@ async function deleteTask(taskId) {
 // --- End of Task Data Structure and Storage ---
 
 
-// --- Info Message Functionality ---
+// --- Toast Notification Functionality ---
 
-function showInfoMessage(message, type = 'info', duration = 3000, documentContext = document) {
-    const messageArea = documentContext.getElementById('info-message-area');
-    if (!messageArea) {
-        console.error("Info message area not found in the provided document context!");
-        if (documentContext === document) {
-            alert(message);
-        }
-        return;
+function getOrCreateToastContainer(documentContext = document) {
+    let container = documentContext.getElementById('toast-container');
+    if (!container) {
+        container = documentContext.createElement('div');
+        container.id = 'toast-container';
+        documentContext.body.appendChild(container);
     }
+    return container;
+}
 
-    if (messageArea._infoTimeout) {
-        clearTimeout(messageArea._infoTimeout);
-    }
+function showInfoMessage(message, type = 'info', duration = 5000, documentContext = document) {
+    const container = getOrCreateToastContainer(documentContext);
 
-    messageArea.textContent = message;
-    messageArea.classList.remove('success', 'error', 'info');
-    messageArea.classList.add(type);
+    // Create toast element
+    const toast = documentContext.createElement('div');
+    toast.className = `toast ${type}`;
 
-    messageArea.style.display = 'block';
+    // Icon based on type
+    const icons = {
+        success: '✓',
+        error: '✕',
+        info: 'ℹ'
+    };
+
+    toast.innerHTML = `
+        <span class="toast-icon">${icons[type] || icons.info}</span>
+        <span class="toast-message">${message}</span>
+        <button class="toast-close" aria-label="Dismiss">✕</button>
+    `;
+
+    // Add to container
+    container.appendChild(toast);
+
+    // Trigger animation
     requestAnimationFrame(() => {
-        messageArea.classList.add('visible');
+        toast.classList.add('visible');
     });
 
-    messageArea._infoTimeout = setTimeout(() => {
-        messageArea.classList.remove('visible');
+    // Close button handler
+    const closeBtn = toast.querySelector('.toast-close');
+    const dismissToast = () => {
+        toast.classList.remove('visible');
+        toast.classList.add('hiding');
         setTimeout(() => {
-            if (!messageArea.classList.contains('visible')) {
-                messageArea.style.display = 'none';
-                messageArea.textContent = '';
-                messageArea.classList.remove(type);
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
             }
-        }, 500);
-        messageArea._infoTimeout = null;
-    }, duration);
+        }, 300);
+    };
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', dismissToast);
+    }
+
+    // Auto dismiss after duration
+    const timeoutId = setTimeout(dismissToast, duration);
+
+    // Store timeout for potential early dismissal
+    toast._dismissTimeout = timeoutId;
+
+    return toast;
 }
-// --- End of Info Message Functionality ---
+// --- End of Toast Notification Functionality ---
 
 
 // --- Promise Wrappers ---
@@ -575,31 +569,6 @@ async function getTimeBlocks() {
 async function saveTimeBlocks(blocks) {
     return new Promise((resolve, reject) => {
         chrome.storage.local.set({ timeBlocks: blocks }, () => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-            } else {
-                resolve(true);
-            }
-        });
-    });
-}
-
-// --- Habits Storage ---
-async function getHabits() {
-    return new Promise((resolve) => {
-        chrome.storage.local.get({ habits: null }, (result) => {
-            if (chrome.runtime.lastError || !result.habits || result.habits.length === 0) {
-                resolve([...DEFAULT_HABITS]);
-            } else {
-                resolve(result.habits);
-            }
-        });
-    });
-}
-
-async function saveHabits(habits) {
-    return new Promise((resolve, reject) => {
-        chrome.storage.local.set({ habits }, () => {
             if (chrome.runtime.lastError) {
                 reject(new Error(chrome.runtime.lastError.message));
             } else {

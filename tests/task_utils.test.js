@@ -7,6 +7,7 @@ loadScript(path.join(__dirname, '..', 'task_utils.js'), [
     'DEFAULT_TIME_BLOCKS', 'TIME_BLOCKS', 'DEFAULT_SETTINGS',
     'Task', 'getTasks', 'saveTasks', 'addNewTask', 'getTaskById',
     'updateTaskCompletion', 'updateTask', 'deleteTask', 'showInfoMessage',
+    'getOrCreateToastContainer',
     'getTasksAsync', 'saveTasksAsync', 'withTaskLock', 'validateTask', 'isValidUrl',
     'debounce', 'setupStorageSync', '_lastSaveTimestamp',
     'getSettings', 'saveSettings', 'seedSampleTasks',
@@ -18,7 +19,7 @@ loadScript(path.join(__dirname, '..', 'task_utils.js'), [
 
 beforeEach(() => {
     resetChromeStorage();
-    document.body.innerHTML = '<div id="info-message-area" class="info-message" style="display: none;"></div>';
+    document.body.innerHTML = '';
 });
 
 describe('Task class', () => {
@@ -276,42 +277,87 @@ describe('deleteTask', () => {
     });
 });
 
-describe('showInfoMessage', () => {
-    test('displays message in message area', () => {
-        jest.useFakeTimers();
-        showInfoMessage('Test message', 'success', 3000, document);
-        const messageArea = document.getElementById('info-message-area');
-        expect(messageArea.textContent).toBe('Test message');
-        expect(messageArea.classList.contains('success')).toBe(true);
-        jest.useRealTimers();
+describe('Toast Notifications (showInfoMessage)', () => {
+    test('creates toast container if not present', () => {
+        showInfoMessage('Test message', 'success', 5000, document);
+        const container = document.getElementById('toast-container');
+        expect(container).not.toBeNull();
+    });
+
+    test('displays toast with correct message', () => {
+        showInfoMessage('Test message', 'success', 5000, document);
+        const toast = document.querySelector('.toast');
+        expect(toast).not.toBeNull();
+        expect(toast.querySelector('.toast-message').textContent).toBe('Test message');
+    });
+
+    test('applies correct type class to toast', () => {
+        showInfoMessage('Success!', 'success', 5000, document);
+        const toast = document.querySelector('.toast.success');
+        expect(toast).not.toBeNull();
+    });
+
+    test('applies error type class', () => {
+        showInfoMessage('Error!', 'error', 5000, document);
+        const toast = document.querySelector('.toast.error');
+        expect(toast).not.toBeNull();
+    });
+
+    test('applies info type class', () => {
+        showInfoMessage('Info!', 'info', 5000, document);
+        const toast = document.querySelector('.toast.info');
+        expect(toast).not.toBeNull();
+    });
+
+    test('includes close button', () => {
+        showInfoMessage('Test', 'info', 5000, document);
+        const closeBtn = document.querySelector('.toast-close');
+        expect(closeBtn).not.toBeNull();
+    });
+
+    test('includes appropriate icon', () => {
+        showInfoMessage('Success!', 'success', 5000, document);
+        const icon = document.querySelector('.toast-icon');
+        expect(icon).not.toBeNull();
+        expect(icon.textContent).toBe('✓');
     });
 
     test('auto-hides after duration', () => {
         jest.useFakeTimers();
         showInfoMessage('Test message', 'info', 1000, document);
-        const messageArea = document.getElementById('info-message-area');
-        expect(messageArea.classList.contains('visible')).toBe(false); // Not visible yet (needs rAF)
-        jest.advanceTimersByTime(1100);
-        expect(messageArea.classList.contains('visible')).toBe(false);
+        const toast = document.querySelector('.toast');
+        expect(toast).not.toBeNull();
+
+        // Advance timer past duration + animation time
+        jest.advanceTimersByTime(1500);
+
+        // Toast should be removed or hiding
+        const remainingToast = document.querySelector('.toast:not(.hiding)');
+        expect(remainingToast).toBeNull();
         jest.useRealTimers();
     });
 
-    test('clears previous message timeout', () => {
+    test('multiple toasts can be shown simultaneously', () => {
+        showInfoMessage('First', 'info', 5000, document);
+        showInfoMessage('Second', 'success', 5000, document);
+        const toasts = document.querySelectorAll('.toast');
+        expect(toasts.length).toBe(2);
+    });
+
+    test('default duration is 5 seconds', () => {
         jest.useFakeTimers();
-        showInfoMessage('First', 'info', 3000, document);
-        showInfoMessage('Second', 'success', 3000, document);
-        const messageArea = document.getElementById('info-message-area');
-        expect(messageArea.textContent).toBe('Second');
-        expect(messageArea.classList.contains('success')).toBe(true);
-        jest.useRealTimers();
-    });
+        showInfoMessage('Test message', 'info');
+        const toast = document.querySelector('.toast');
+        expect(toast).not.toBeNull();
 
-    test('falls back to alert when message area not found', () => {
-        document.body.innerHTML = ''; // Remove message area
-        const alertMock = jest.spyOn(window, 'alert').mockImplementation(() => {});
-        showInfoMessage('Alert message', 'error', 3000, document);
-        expect(alertMock).toHaveBeenCalledWith('Alert message');
-        alertMock.mockRestore();
+        // After 4 seconds, toast should still exist
+        jest.advanceTimersByTime(4000);
+        expect(document.querySelector('.toast:not(.hiding)')).not.toBeNull();
+
+        // After 5.5 seconds total, toast should be hiding
+        jest.advanceTimersByTime(1500);
+        expect(document.querySelector('.toast:not(.hiding)')).toBeNull();
+        jest.useRealTimers();
     });
 });
 

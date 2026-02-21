@@ -1401,8 +1401,9 @@ async function importSheetsTasks(rows) {
 async function setupSettingsModalListeners(renderPageCallback) {
     const settingsBtn = document.getElementById('settings-btn');
     const settingsCloseBtn = document.getElementById('settings-close-btn');
-    const saveSettingsBtn = document.getElementById('save-settings-btn');
     const darkModeToggle = document.getElementById('dark-mode-toggle');
+    const fontFamilySelect = document.getElementById('font-family-select');
+    const fontSizeSelect = document.getElementById('font-size-select');
 
     if (settingsBtn) {
         settingsBtn.addEventListener('click', async () => {
@@ -1423,34 +1424,31 @@ async function setupSettingsModalListeners(renderPageCallback) {
         });
     }
 
-    // Live theme preview on toggle change
+    // Auto-save on theme toggle change
     if (darkModeToggle) {
-        darkModeToggle.addEventListener('change', () => {
+        darkModeToggle.addEventListener('change', async () => {
             const theme = darkModeToggle.checked ? 'dark' : 'light';
             document.documentElement.setAttribute('data-theme', theme);
+            await saveSettingsFromForm();
+            showInfoMessage('Settings saved!', 'success');
         });
     }
 
-    // Font family live preview
-    const fontFamilySelect = document.getElementById('font-family-select');
+    // Auto-save on font family change
     if (fontFamilySelect) {
-        fontFamilySelect.addEventListener('change', () => {
+        fontFamilySelect.addEventListener('change', async () => {
             const fontValue = FONT_FAMILY_MAP[fontFamilySelect.value] || FONT_FAMILY_MAP['system'];
             document.documentElement.style.setProperty('--font-family', fontValue);
+            await saveSettingsFromForm();
+            showInfoMessage('Settings saved!', 'success');
         });
     }
 
-    // Font size live preview
-    const fontSizeSelect = document.getElementById('font-size-select');
+    // Auto-save on font size change
     if (fontSizeSelect) {
-        fontSizeSelect.addEventListener('change', () => {
+        fontSizeSelect.addEventListener('change', async () => {
             const sizeValue = FONT_SIZE_MAP[fontSizeSelect.value] || FONT_SIZE_MAP['medium'];
             document.documentElement.style.setProperty('--font-size-base', sizeValue);
-        });
-    }
-
-    if (saveSettingsBtn) {
-        saveSettingsBtn.addEventListener('click', async () => {
             await saveSettingsFromForm();
             showInfoMessage('Settings saved!', 'success');
         });

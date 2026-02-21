@@ -712,46 +712,113 @@ h2 {
 }
 
 
-#info-message-area {
-    padding: 10px 15px;
-    margin-bottom: 15px; /* Space between message and tabs */
-    border-radius: 8px;
-    text-align: center;
+/* --- Toast Notification Container --- */
+#toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 10px;
+    pointer-events: none;
+    max-width: 360px;
+}
+
+/* Individual Toast */
+.toast {
+    padding: 12px 16px;
+    border-radius: var(--border-radius-md);
     font-size: 14px;
-    font-weight: bold;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Subtle shadow for a bit of depth */
-    opacity: 0; /* Start hidden for fade-in effect */
-    max-height: 0; /* Start with no height for smooth transition */
-    overflow: hidden;
-    transition: opacity 0.5s ease-in-out, max-height 0.5s ease-in-out, padding 0.5s ease-in-out, margin-bottom 0.5s ease-in-out;
-    /* display: none; will be controlled by JS, opacity/max-height for transitions */
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
+    opacity: 0;
+    transform: translateX(100%);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 200px;
 }
 
-#info-message-area.visible {
+.toast.visible {
     opacity: 1;
-    max-height: 100px; /* Adjust as needed, should be enough for typical messages */
-    padding: 10px 15px; /* Restore padding when visible */
-    margin-bottom: 15px; /* Restore margin when visible */
-    /* display: block; will be handled by JS if needed, but opacity/max-height often enough */
+    transform: translateX(0);
 }
 
-/* Message Type Specific Styles */
-#info-message-area.success {
-    background-color: #d4edda; /* Light green for success (Bootstrap success color) */
-    color: #155724; /* Dark green text */
+.toast.hiding {
+    opacity: 0;
+    transform: translateX(100%);
+}
+
+.toast-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.toast-message {
+    flex: 1;
+    line-height: 1.4;
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    font-size: 14px;
+    color: inherit;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+}
+
+.toast-close:hover {
+    opacity: 1;
+}
+
+/* Toast Type Styles */
+.toast.success {
+    background-color: #d4edda;
+    color: #155724;
     border: 1px solid #c3e6cb;
 }
 
-#info-message-area.error {
-    background-color: #f8d7da; /* Light red for error (Bootstrap danger color) */
-    color: #721c24; /* Dark red text */
+.toast.error {
+    background-color: #f8d7da;
+    color: #721c24;
     border: 1px solid #f5c6cb;
 }
 
-#info-message-area.info {
-    background-color: #d1ecf1; /* Light blue for info (Bootstrap info color) */
-    color: #0c5460; /* Dark blue text */
+.toast.info {
+    background-color: #d1ecf1;
+    color: #0c5460;
     border: 1px solid #bee5eb;
+}
+
+/* Dark mode toast styles */
+:root[data-theme="dark"] .toast.success {
+    background-color: #1e4620;
+    color: #a3d9a5;
+    border-color: #2d6930;
+}
+
+:root[data-theme="dark"] .toast.error {
+    background-color: #4a1a1a;
+    color: #f5a5a5;
+    border-color: #6b2020;
+}
+
+:root[data-theme="dark"] .toast.info {
+    background-color: #1a3a4a;
+    color: #a5d5e5;
+    border-color: #2a5a6a;
+}
+
+/* Legacy support - hide old info-message-area */
+#info-message-area {
+    display: none !important;
 }
 
 /* Styles moved from manager.html */
@@ -3317,187 +3384,6 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
     background: var(--error-bg);
 }
 
-/* --- Habits Modal --- */
-.habits-description {
-    color: var(--text-secondary);
-    font-size: 0.9em;
-    margin-bottom: 16px;
-}
-
-.habits-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 16px;
-    padding: 8px 0;
-    max-height: 350px;
-    overflow-y: auto;
-}
-
-.habit-card {
-    background: var(--bg-primary);
-    border-radius: var(--border-radius-md);
-    box-shadow: 5px 5px 15px var(--shadow-dark), -5px -5px 15px var(--shadow-light);
-    padding: 16px;
-    cursor: grab;
-    transition: transform 0.15s, box-shadow 0.15s;
-}
-
-.habit-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 6px 6px 18px var(--shadow-dark), -6px -6px 18px var(--shadow-light);
-}
-
-.habit-card:active {
-    cursor: grabbing;
-}
-
-.habit-card-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-}
-
-.habit-card-title {
-    flex: 1;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.habit-delete-btn {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 4px 6px;
-    border-radius: 4px;
-    font-size: 0.9em;
-}
-
-.habit-delete-btn:hover {
-    background: var(--error-bg);
-    color: var(--error-text);
-}
-
-.habit-card-description {
-    font-size: 0.82em;
-    color: var(--text-muted);
-    margin-bottom: 12px;
-}
-
-.habit-card-tasks {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 10px;
-}
-
-.habit-task-tag {
-    background: var(--inset-bg);
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.75em;
-    color: var(--text-secondary);
-}
-
-.habit-card-hint {
-    font-size: 0.72em;
-    color: var(--text-muted);
-    font-style: italic;
-}
-
-.habits-footer {
-    padding-top: 16px;
-    border-top: 1px solid var(--inset-bg);
-    margin-top: 16px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
-
-.habits-hint {
-    color: var(--text-muted);
-    font-size: 0.85em;
-    margin: 0;
-}
-
-/* Create Habit Form */
-.create-habit-form {
-    background: var(--inset-bg);
-    border-radius: var(--border-radius-md);
-    padding: 16px;
-    margin-bottom: 16px;
-}
-
-.create-habit-form h3 {
-    margin: 0 0 12px 0;
-    color: var(--text-primary);
-    font-size: 1em;
-}
-
-.create-habit-form .form-group {
-    margin-bottom: 12px;
-}
-
-.create-habit-form .form-group label {
-    display: block;
-    margin-bottom: 4px;
-    color: var(--text-secondary);
-    font-size: 0.9em;
-}
-
-.habit-task-selection {
-    max-height: 150px;
-    overflow-y: auto;
-    border: 1px solid var(--shadow-dark);
-    border-radius: var(--border-radius-sm);
-    padding: 8px;
-    background: var(--bg-primary);
-}
-
-.habit-task-checkbox {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 4px;
-    cursor: pointer;
-    border-radius: 4px;
-}
-
-.habit-task-checkbox:hover {
-    background: var(--inset-bg);
-}
-
-.habit-task-checkbox input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-}
-
-.habit-task-checkbox .task-title {
-    flex: 1;
-    font-size: 0.9em;
-    color: var(--text-primary);
-}
-
-.habit-task-checkbox .task-priority {
-    font-size: 0.7em;
-    padding: 2px 6px;
-    border-radius: 3px;
-}
-
-.empty-selection-msg {
-    color: var(--text-muted);
-    font-size: 0.85em;
-    text-align: center;
-    padding: 20px;
-}
-
-.create-habit-form .form-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 12px;
-}
-
 /* --- Buffer Zones --- */
 .grid-cell.has-buffer-zone {
     position: relative;
@@ -3697,18 +3583,6 @@ body.resizing {
     background: rgba(255, 255, 255, 0.05);
 }
 
-:root[data-theme="dark"] .habit-card {
-    background: var(--bg-primary);
-}
-
-:root[data-theme="dark"] .create-habit-form {
-    background: rgba(0, 0, 0, 0.2);
-}
-
-:root[data-theme="dark"] .habit-task-selection {
-    background: var(--bg-primary);
-    border-color: rgba(255, 255, 255, 0.1);
-}
 
 :root[data-theme="dark"] #focus-mode-btn.active {
     background: var(--accent-blue);
@@ -3736,15 +3610,6 @@ body.resizing {
 
     .schedule-header-actions .btn-text {
         display: none;
-    }
-
-    .habits-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .habits-footer {
-        flex-direction: column;
-        align-items: stretch;
     }
 
     .details-grid {
