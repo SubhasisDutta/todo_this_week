@@ -57,7 +57,8 @@ Tasks are stored in `chrome.storage.local` under the `tasks` key as an array of 
   notes: string,           // Optional notes/description (default: '')
   completedAt: string|null,// ISO timestamp when task was completed (default: null)
   recurrence: string|null, // null | 'daily' | 'weekly' | 'monthly'
-  lastModified: string     // ISO timestamp when task was last modified (auto-set on create/update)
+  lastModified: string,    // ISO timestamp when task was last modified (auto-set on create/update)
+  colorCode: string|null   // Custom color: null | 'red' | 'blue' | 'green' | 'purple' | 'orange'
 }
 ```
 
@@ -74,10 +75,19 @@ Tasks are stored in `chrome.storage.local` under the `tasks` key as an array of 
   hasSeenSampleTasks: boolean,
   notionApiKey: string,
   notionDatabaseId: string,
-  googleSheetsUrl: string
+  googleSheetsUrl: string,
+  gapFillerTasks: Array<{title, priority, energy, type}>,  // Magic Fill quick tasks
+  focusModeEnabled: boolean  // Focus mode preference
 }
 
 'timeBlocks': Array<{id, label, time, limit, colorClass}>  // Optional; falls back to DEFAULT_TIME_BLOCKS
+
+'habits': Array<{            // Saved task habits/templates
+  id: string,
+  name: string,
+  description: string,
+  tasks: Array<{title, priority, energy, type, relativeBlockIndex}>
+}>
 ```
 
 ### Schedule Item
@@ -86,9 +96,12 @@ Each entry in the `schedule` array represents a task assignment to a specific da
 
 ```javascript
 {
-  day: string,       // 'sunday' | 'monday' | ... | 'saturday'
-  blockId: string,   // TIME_BLOCKS id (e.g., 'deep-work-1', 'ai-study')
-  completed: boolean // Individual assignment completion
+  day: string,              // 'sunday' | 'monday' | ... | 'saturday'
+  blockId: string,          // TIME_BLOCKS id (e.g., 'deep-work-1', 'ai-study')
+  completed: boolean,       // Individual assignment completion
+  spanBlocks: number,       // Number of blocks this item spans (default: 1)
+  actualStartTime: string|null, // ISO timestamp when task was actually started (for time tracking)
+  actualEndTime: string|null    // ISO timestamp when task was actually completed (for time tracking)
 }
 ```
 
@@ -259,6 +272,69 @@ Tab switching is handled by `setupImportExportTabs()` in settings.js. Uses `.imp
 - JS: `getCurrentTimeBlockInfo()`, `formatCurrentTime(hours, minutes)`, `updateCurrentTimeIndicator()`, `startTimeIndicatorUpdates()`, `stopTimeIndicatorUpdates()`
 - Variable: `timeIndicatorInterval` (setInterval ID)
 
+### Schedule Tab Enhancements (v1.5.0)
+
+#### Context Menu (Right-Click)
+- Right-click any task on the schedule grid for quick actions
+- Menu items: Duplicate, Color Code (with color picker submenu), Split Task, View Details
+- CSS: `.task-context-menu`, `.context-menu-item`, `.color-submenu`, `.color-option`
+- JS: `createContextMenu()`, `showContextMenu()`, `hideContextMenu()`, `handleContextMenuAction()`, `handleDuplicateTask()`, `handleSetColorCode()`, `handleSplitTask()`, `setupContextMenuListeners()`
+
+#### Task Details Modal
+- Double-click tasks in Parking Lot or Assigned sidebar to open details modal
+- Displays: title, priority, type, energy, deadline, recurrence, notes, URL, schedule
+- Edit and Delete buttons
+- HTML: `#task-details-modal`
+- JS: `openTaskDetailsModal()`, `closeTaskDetailsModal()`, `populateTaskDetailsModal()`, `setupTaskDetailsModalListeners()`
+
+#### Magic Fill
+- One-click auto-fill empty time blocks with quick tasks (Check email, Stretch, etc.)
+- Works on today's schedule only
+- Uses `gapFillerTasks` from settings (configurable)
+- JS: `getTodayName()`, `findScheduleGaps()`, `magicFillGaps()`, `setupMagicFillButton()`
+
+#### Buffer Zones
+- Visual "5m buffer" indicator between back-to-back scheduled tasks
+- Helps prevent cognitive overload with transition reminders
+- CSS: `.has-buffer-zone::after`
+- JS: `renderBufferZones()`
+
+#### Focus Mode
+- Toggle button hides all time blocks except current one
+- Reduces visual clutter for focused work
+- CSS: `.focus-mode`, `.focus-hidden`, `.focus-current`, `.focus-mode-active`
+- JS: `toggleFocusMode()`, `highlightCurrentBlockOnly()`, `showAllBlocks()`, `setupFocusModeButton()`
+- Variable: `focusModeActive`
+
+#### Habits
+- Pre-defined task clusters that can be dragged onto the grid
+- Default habits: Morning Routine, Deep Work Session, Wind Down
+- Users can create custom habits from tasks in their Parking Lot
+- Stored in `chrome.storage.local` under `habits` key
+- HTML: `#habits-modal`, `#create-habit-form`
+- JS: `openHabitsModal()`, `closeHabitsModal()`, `renderHabitsList()`, `applyHabitToGrid()`, `createNewHabit()`, `deleteHabit()`, `setupHabitsListeners()`, `showCreateHabitForm()`, `hideCreateHabitForm()`, `renderHabitTaskSelection()`
+- Storage: `getHabits()`, `saveHabits()`, `DEFAULT_HABITS`
+
+#### Fluid Resizing
+- Drag bottom edge of grid tasks to extend into subsequent blocks
+- Automatically pushes conflicting tasks to next available slot
+- CSS: `.task-resize-handle`, `.resize-preview`
+- JS: `addResizeHandle()`, `setupResizeListeners()`, `handleResize()`, `finishResize()`, `extendTaskAcrossBlocks()`, `pushTaskDown()`
+- Variables: `isResizing`, `resizeStartY`, `resizeTaskId`, `resizeCell`, `resizePreview`
+
+#### Actual vs Planned Time Tracking
+- Per-task opt-in time tracking via clock button on grid tasks
+- Records actual start/end times in schedule items
+- Calculates deviation from planned time
+- CSS: `.tracking-btn`, `.tracking-btn.active`, `.tracking-btn.completed`
+- JS: `startTaskTracking()`, `stopTaskTracking()`, `calculateTimeDeviation()`, `renderTrackingButton()`, `setupTrackingListeners()`
+
+#### Color Coding
+- Custom color indicator on tasks (red, blue, green, purple, orange)
+- Applied via context menu color picker
+- Stored in `task.colorCode`
+- CSS: `.task-item[data-color-code="red"]` etc.
+
 ## CSS Architecture
 
 ### Custom Properties
@@ -308,7 +384,7 @@ The codebase uses the following ARIA patterns:
 ```bash
 cd tests             # All test infrastructure is in tests/
 npm install          # Install Jest + jsdom
-npm test             # Run all ~280 tests
+npm test             # Run all ~436 tests
 npm run test:watch   # Watch mode
 npm run test:coverage # Coverage report
 ```
@@ -344,17 +420,19 @@ This makes all listed symbols available as globals in the test scope.
 - `seedTasks(tasks)` — Seeds storage with task data for test setup
 - `seedSettings(settings)` — Seeds storage with settings data
 - `seedTimeBlocks(timeBlocks)` — Seeds storage with time block data
+- `seedHabits(habits)` — Seeds storage with habits data
 
 The `loadScript` regex also handles `async function` DOMContentLoaded handlers (needed because manager.js and popup.js DOMContentLoaded handlers are now `async`).
 
-### Test Suites (~327 total)
-- **task_utils.test.js (~95):** Task class (new fields including lastModified), getTasks backfill, CRUD, settings CRUD, time blocks, undo/redo stacks, createRecurringInstance, seedSampleTasks, showInfoMessage, validateTask, debounce, withTaskLock, parseTimeRange, validateTimeBlockOverlap, renamed labels
+### Test Suites (~436 total)
+- **task_utils.test.js (~95):** Task class (new fields including lastModified, colorCode), getTasks backfill, CRUD, settings CRUD, time blocks, undo/redo stacks, createRecurringInstance, seedSampleTasks, showInfoMessage, validateTask, debounce, withTaskLock, parseTimeRange, validateTimeBlockOverlap, renamed labels, habits storage
 - **popup.test.js (~17):** createTaskItem (notes, recurrence), renderTasks, renderAllTabs, tab switching, add-task validation, open-manager button
 - **manager.test.js (~122):** generateDayHeaders/generatePlannerGrid (now async), createTaskElement (notes/recurrence badges), renderSidebarLists, renderPriorityLists, renderHomeWorkLists, renderArchiveTab (with lastModified sorting), renderStatsTab, applySearchFilter, setupTabSwitching, renderPage, highlightCurrentDay, setupAddTaskModalListeners, header tooltips, FAQ tab, completed tasks disclosure, collapsible parking lot, drag guide lines, hover popover, current time indicator
 - **integration.test.js (~25):** Task lifecycle, schedule management, cascade completion, ordering, import/merge, validation, cross-tab sync, recurring tasks (auto-instance creation), undo/redo lifecycle
 - **settings.test.js (~35):** applySettings (theme, font-family, font-size CSS vars), initSettings (first-run seeding), populateSettingsForm, openSettingsModal/closeSettingsModal, FONT_FAMILY_MAP/FONT_SIZE_MAP constants, formatTimeInput, updateTimeBlockLabel, addTimeBlock overlap validation, renderTimeBlocksTable
 - **features.test.js (~35):** Notes field (CRUD, backfill), completedAt (set on complete, clear on uncomplete, backfill), lastModified field (auto-set, update on modify, backfill), undo/redo cycle, createRecurringInstance (daily/weekly/monthly deadline shift, fresh lastModified), recurring auto-instance via updateTask, archive date grouping
 - **search.test.js (~17):** applySearchFilter (hide non-matching, show all for empty query, case insensitive, multi-container, partial match, grid cell filtering), setupScheduleSearch, setupPrioritySearch, setupLocationSearch, setupArchiveSearch
+- **schedule-features.test.js (~109):** v1.5.0 schedule enhancements: context menu (creation, actions, visibility), task actions (duplicate, color code, split), magic fill (gap detection, today only), buffer zones (back-to-back detection), focus mode (toggle, highlight current), habits (CRUD, default habits, modal, create form), fluid resizing (handle creation, span blocks), time tracking (start/stop, deviation calculation), task details modal (open/close, populate)
 
 ### Known Limitation
 Coverage reporting via `jest --coverage` shows 0% because `new Function()` execution bypasses Istanbul's code instrumentation. Tests still validate behavior correctly.

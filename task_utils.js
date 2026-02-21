@@ -46,8 +46,50 @@ const DEFAULT_SETTINGS = {
         status: { completed: '', incomplete: '' }
     },
     notionLastSyncedAt: null,
-    notionSyncEnabled: false
+    notionSyncEnabled: false,
+    // Magic Fill filler tasks
+    gapFillerTasks: [
+        { title: 'Check email', priority: 'SOMEDAY', energy: 'low', type: 'work' },
+        { title: 'Stretch break', priority: 'SOMEDAY', energy: 'low', type: 'home' },
+        { title: 'Quick review', priority: 'SOMEDAY', energy: 'low', type: 'work' },
+        { title: 'Water break', priority: 'SOMEDAY', energy: 'low', type: 'home' }
+    ],
+    // Focus mode preference
+    focusModeEnabled: false
 };
+
+// --- Default Habits ---
+const DEFAULT_HABITS = [
+    {
+        id: 'habit_morning',
+        name: 'Morning Routine',
+        description: 'Start your day with meditation, coffee, and email',
+        tasks: [
+            { title: 'Meditate', priority: 'IMPORTANT', energy: 'low', type: 'home', relativeBlockIndex: 0 },
+            { title: 'Coffee & News', priority: 'SOMEDAY', energy: 'low', type: 'home', relativeBlockIndex: 1 },
+            { title: 'Check Email', priority: 'IMPORTANT', energy: 'low', type: 'work', relativeBlockIndex: 2 }
+        ]
+    },
+    {
+        id: 'habit_deep_work',
+        name: 'Deep Work Session',
+        description: 'Focused work with breaks',
+        tasks: [
+            { title: 'Focus Work', priority: 'CRITICAL', energy: 'high', type: 'work', relativeBlockIndex: 0 },
+            { title: 'Short Break', priority: 'SOMEDAY', energy: 'low', type: 'home', relativeBlockIndex: 1 },
+            { title: 'Review Notes', priority: 'IMPORTANT', energy: 'low', type: 'work', relativeBlockIndex: 2 }
+        ]
+    },
+    {
+        id: 'habit_wind_down',
+        name: 'Wind Down',
+        description: 'End your day with reflection and planning',
+        tasks: [
+            { title: 'Review Day', priority: 'IMPORTANT', energy: 'low', type: 'home', relativeBlockIndex: 0 },
+            { title: 'Plan Tomorrow', priority: 'IMPORTANT', energy: 'low', type: 'work', relativeBlockIndex: 1 }
+        ]
+    }
+];
 
 // --- Task Data Structure and Storage ---
 class Task {
@@ -65,7 +107,8 @@ class Task {
         completedAt = null,
         recurrence = null,
         notionPageId = null,
-        lastModified = null
+        lastModified = null,
+        colorCode = null
     ) {
         this.id = id || `task_${new Date().getTime()}_${Math.random().toString(36).substr(2, 9)}`;
         this.title = title;
@@ -82,6 +125,7 @@ class Task {
         this.recurrence = recurrence;
         this.notionPageId = notionPageId;
         this.lastModified = lastModified || new Date().toISOString();
+        this.colorCode = colorCode; // Custom color: null | 'red' | 'blue' | 'green' | 'purple' | 'orange'
     }
 }
 
@@ -136,6 +180,25 @@ function getTasks(callback) {
                 if (typeof taskInstance.lastModified === 'undefined') {
                     taskInstance.lastModified = new Date().toISOString();
                     needsSave = true;
+                }
+                if (typeof taskInstance.colorCode === 'undefined') {
+                    taskInstance.colorCode = null;
+                    needsSave = true;
+                }
+                // Backfill schedule item fields for new features
+                if (taskInstance.schedule && taskInstance.schedule.length > 0) {
+                    taskInstance.schedule.forEach(scheduleItem => {
+                        if (typeof scheduleItem.spanBlocks === 'undefined') {
+                            scheduleItem.spanBlocks = 1;
+                            needsSave = true;
+                        }
+                        if (typeof scheduleItem.actualStartTime === 'undefined') {
+                            scheduleItem.actualStartTime = null;
+                        }
+                        if (typeof scheduleItem.actualEndTime === 'undefined') {
+                            scheduleItem.actualEndTime = null;
+                        }
+                    });
                 }
                 return taskInstance;
             });
@@ -519,6 +582,54 @@ async function saveTimeBlocks(blocks) {
             }
         });
     });
+}
+
+// --- Habits Storage ---
+async function getHabits() {
+    return new Promise((resolve) => {
+        chrome.storage.local.get({ habits: null }, (result) => {
+            if (chrome.runtime.lastError || !result.habits || result.habits.length === 0) {
+                resolve([...DEFAULT_HABITS]);
+            } else {
+                resolve(result.habits);
+            }
+        });
+    });
+}
+
+async function saveHabits(habits) {
+    return new Promise((resolve, reject) => {
+        chrome.storage.local.set({ habits }, () => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+            } else {
+                resolve(true);
+            }
+        });
+    });
+}
+
+// --- Duplicate Task Helper ---
+function duplicateTask(task) {
+    const newTask = new Task(
+        null, // new ID
+        task.title + ' (copy)',
+        task.url || '',
+        task.priority,
+        false, // not completed
+        task.deadline,
+        task.type,
+        task.displayOrder + 1,
+        [], // empty schedule
+        task.energy,
+        task.notes || '',
+        null, // completedAt
+        task.recurrence,
+        null, // notionPageId
+        null, // lastModified (auto-set)
+        task.colorCode
+    );
+    return newTask;
 }
 
 // --- Undo / Redo ---

@@ -3098,3 +3098,656 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
         max-width: 280px;
     }
 }
+
+/* ===========================================
+   SCHEDULE TAB ENHANCEMENTS (v1.5.0)
+   =========================================== */
+
+/* --- Schedule Header Actions --- */
+.schedule-header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.schedule-header-actions .neumorphic-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* --- Context Menu (Right-Click) --- */
+.task-context-menu {
+    position: fixed;
+    z-index: 2000;
+    background: var(--bg-primary);
+    border-radius: var(--border-radius-md);
+    box-shadow: 8px 8px 20px var(--shadow-dark), -8px -8px 20px var(--shadow-light);
+    padding: 8px 0;
+    min-width: 180px;
+    display: none;
+}
+
+.task-context-menu.visible {
+    display: block;
+}
+
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.9em;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.15s;
+}
+
+.context-menu-item:hover {
+    background: var(--inset-bg);
+}
+
+.context-menu-item .menu-icon {
+    font-size: 1.1em;
+}
+
+.context-menu-item .submenu-arrow {
+    margin-left: auto;
+    font-size: 0.7em;
+    color: var(--text-muted);
+}
+
+.context-menu-divider {
+    height: 1px;
+    background: var(--inset-bg);
+    margin: 6px 0;
+}
+
+/* Color submenu */
+.color-submenu {
+    display: none;
+    padding: 10px;
+    flex-wrap: wrap;
+    gap: 6px;
+    border-top: 1px solid var(--inset-bg);
+    margin-top: 4px;
+}
+
+.color-submenu.visible {
+    display: flex;
+}
+
+.color-option {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+}
+
+.color-option:hover {
+    transform: scale(1.15);
+    border-color: var(--text-primary);
+}
+
+.color-option[data-color=""] {
+    background: var(--inset-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8em;
+    color: var(--text-muted);
+}
+
+/* Color code indicator on tasks */
+.task-item[data-color-code="red"] { border-left: 4px solid #e74c3c !important; }
+.task-item[data-color-code="blue"] { border-left: 4px solid #3498db !important; }
+.task-item[data-color-code="green"] { border-left: 4px solid #2ecc71 !important; }
+.task-item[data-color-code="purple"] { border-left: 4px solid #9b59b6 !important; }
+.task-item[data-color-code="orange"] { border-left: 4px solid #e67e22 !important; }
+
+/* --- Task Details Modal --- */
+.task-details-content {
+    padding: 16px 0;
+}
+
+.details-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--inset-bg);
+}
+
+.details-title {
+    flex: 1;
+    margin: 0;
+    font-size: 1.2em;
+    color: var(--text-primary);
+}
+
+.details-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.details-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.details-label {
+    font-size: 0.8em;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.details-value {
+    color: var(--text-primary);
+}
+
+.details-section {
+    margin-bottom: 16px;
+}
+
+.details-section .details-label {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.details-notes {
+    background: var(--inset-bg);
+    padding: 12px;
+    border-radius: var(--border-radius-sm);
+    white-space: pre-wrap;
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    line-height: 1.5;
+}
+
+.details-schedule {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.schedule-detail-item {
+    background: var(--inset-bg);
+    padding: 6px 12px;
+    border-radius: var(--border-radius-sm);
+    font-size: 0.85em;
+    color: var(--text-secondary);
+}
+
+.schedule-detail-item.completed {
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+
+.empty-schedule-msg {
+    color: var(--text-muted);
+    font-style: italic;
+    margin: 0;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding-top: 16px;
+    border-top: 1px solid var(--inset-bg);
+}
+
+.modal-actions .delete-btn {
+    color: var(--error-text);
+}
+
+.modal-actions .delete-btn:hover {
+    background: var(--error-bg);
+}
+
+/* --- Habits Modal --- */
+.habits-description {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    margin-bottom: 16px;
+}
+
+.habits-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+    padding: 8px 0;
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+.habit-card {
+    background: var(--bg-primary);
+    border-radius: var(--border-radius-md);
+    box-shadow: 5px 5px 15px var(--shadow-dark), -5px -5px 15px var(--shadow-light);
+    padding: 16px;
+    cursor: grab;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.habit-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 6px 6px 18px var(--shadow-dark), -6px -6px 18px var(--shadow-light);
+}
+
+.habit-card:active {
+    cursor: grabbing;
+}
+
+.habit-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.habit-card-title {
+    flex: 1;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.habit-delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.habit-delete-btn:hover {
+    background: var(--error-bg);
+    color: var(--error-text);
+}
+
+.habit-card-description {
+    font-size: 0.82em;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+.habit-card-tasks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.habit-task-tag {
+    background: var(--inset-bg);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75em;
+    color: var(--text-secondary);
+}
+
+.habit-card-hint {
+    font-size: 0.72em;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.habits-footer {
+    padding-top: 16px;
+    border-top: 1px solid var(--inset-bg);
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.habits-hint {
+    color: var(--text-muted);
+    font-size: 0.85em;
+    margin: 0;
+}
+
+/* Create Habit Form */
+.create-habit-form {
+    background: var(--inset-bg);
+    border-radius: var(--border-radius-md);
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.create-habit-form h3 {
+    margin: 0 0 12px 0;
+    color: var(--text-primary);
+    font-size: 1em;
+}
+
+.create-habit-form .form-group {
+    margin-bottom: 12px;
+}
+
+.create-habit-form .form-group label {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--text-secondary);
+    font-size: 0.9em;
+}
+
+.habit-task-selection {
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid var(--shadow-dark);
+    border-radius: var(--border-radius-sm);
+    padding: 8px;
+    background: var(--bg-primary);
+}
+
+.habit-task-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 4px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.habit-task-checkbox:hover {
+    background: var(--inset-bg);
+}
+
+.habit-task-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
+.habit-task-checkbox .task-title {
+    flex: 1;
+    font-size: 0.9em;
+    color: var(--text-primary);
+}
+
+.habit-task-checkbox .task-priority {
+    font-size: 0.7em;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.empty-selection-msg {
+    color: var(--text-muted);
+    font-size: 0.85em;
+    text-align: center;
+    padding: 20px;
+}
+
+.create-habit-form .form-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+/* --- Buffer Zones --- */
+.grid-cell.has-buffer-zone {
+    position: relative;
+}
+
+.grid-cell.has-buffer-zone::after {
+    content: '5m buffer';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.6em;
+    color: var(--accent-blue);
+    background: var(--bg-primary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    z-index: 15;
+    white-space: nowrap;
+    opacity: 0.8;
+    box-shadow: 2px 2px 4px var(--shadow-dark);
+}
+
+/* --- Focus Mode --- */
+#planner-grid.focus-mode {
+    transition: all 0.3s ease;
+}
+
+.focus-hidden {
+    opacity: 0.08 !important;
+    pointer-events: none;
+    filter: grayscale(100%);
+    transition: opacity 0.3s ease;
+}
+
+.focus-current {
+    opacity: 1 !important;
+    z-index: 10;
+    position: relative;
+    box-shadow: 0 0 20px rgba(0, 123, 255, 0.2);
+}
+
+.focus-mode-active .collapsible-sidebar,
+.focus-mode-active #assigned-tasks-container {
+    opacity: 0.2;
+    pointer-events: none;
+}
+
+#focus-mode-btn.active {
+    background: var(--accent-blue);
+    color: white;
+    box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* --- Fluid Resizing --- */
+.task-resize-handle {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 10px;
+    background: transparent;
+    cursor: ns-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s, background-color 0.2s;
+    font-size: 0.6em;
+    color: var(--text-muted);
+    border-radius: 0 0 4px 4px;
+}
+
+.grid-cell .task-item {
+    position: relative;
+}
+
+.grid-cell .task-item:hover .task-resize-handle {
+    opacity: 0.7;
+}
+
+.task-resize-handle:hover {
+    opacity: 1 !important;
+    background: var(--inset-bg);
+}
+
+.resize-preview {
+    position: fixed;
+    background: rgba(0, 123, 255, 0.15);
+    border: 2px dashed var(--accent-blue);
+    pointer-events: none;
+    z-index: 1000;
+    display: none;
+    border-radius: var(--border-radius-sm);
+}
+
+body.resizing {
+    user-select: none;
+}
+
+/* --- Time Tracking Button --- */
+.tracking-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    background: var(--inset-bg);
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 0.7em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+    transition: opacity 0.2s, background-color 0.2s;
+}
+
+.grid-cell .task-item:hover .tracking-btn {
+    opacity: 1;
+}
+
+.tracking-btn.active {
+    background: var(--priority-critical);
+    color: white;
+    animation: tracking-pulse 1.5s infinite;
+}
+
+.tracking-btn.completed {
+    background: var(--success-text);
+    color: white;
+    opacity: 0.7;
+}
+
+@keyframes tracking-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* --- Undo Toast --- */
+#undo-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-primary);
+    padding: 14px 20px;
+    border-radius: var(--border-radius-md);
+    box-shadow: 8px 8px 20px var(--shadow-dark), -4px -4px 10px var(--shadow-light);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    z-index: 3000;
+}
+
+#undo-toast.hidden {
+    display: none;
+}
+
+.undo-link {
+    color: var(--accent-blue);
+    cursor: pointer;
+    text-decoration: underline;
+    background: none;
+    border: none;
+    font-size: inherit;
+    padding: 0;
+}
+
+.undo-link:hover {
+    color: var(--text-primary);
+}
+
+.undo-dismiss {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1em;
+    padding: 0 4px;
+}
+
+.undo-dismiss:hover {
+    color: var(--text-primary);
+}
+
+/* --- Dark Mode Adjustments for New Features --- */
+:root[data-theme="dark"] .task-context-menu {
+    background: var(--bg-primary);
+    box-shadow: 8px 8px 25px var(--shadow-dark), -8px -8px 25px var(--shadow-light);
+}
+
+:root[data-theme="dark"] .context-menu-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+:root[data-theme="dark"] .habit-card {
+    background: var(--bg-primary);
+}
+
+:root[data-theme="dark"] .create-habit-form {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+:root[data-theme="dark"] .habit-task-selection {
+    background: var(--bg-primary);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme="dark"] #focus-mode-btn.active {
+    background: var(--accent-blue);
+}
+
+:root[data-theme="dark"] .tracking-btn {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme="dark"] .grid-cell.has-buffer-zone::after {
+    color: var(--accent-blue);
+    background: var(--bg-primary);
+}
+
+:root[data-theme="dark"] #undo-toast {
+    background: var(--bg-primary);
+}
+
+/* --- Responsive for New Features --- */
+@media (max-width: 768px) {
+    .schedule-header-actions {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .schedule-header-actions .btn-text {
+        display: none;
+    }
+
+    .habits-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .habits-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .details-grid {
+        grid-template-columns: 1fr;
+    }
+}

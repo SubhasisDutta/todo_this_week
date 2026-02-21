@@ -36,6 +36,8 @@ function setupAllListeners() {
     setupLocationSearch();
     setupArchiveSearch();
     setupArchiveListeners();
+    // New v1.5.0 features
+    setupNewScheduleFeatures();
 }
 
 // --- RENDERING LOGIC ---
@@ -1365,6 +1367,10 @@ function createTaskElement(task, options = {}) {
         if (task.energy === 'low') taskItem.classList.add('energy-low-incomplete');
         else if (task.energy === 'high') taskItem.classList.add('energy-high-incomplete');
     }
+    // Add color code indicator
+    if (task.colorCode) {
+        taskItem.setAttribute('data-color-code', task.colorCode);
+    }
     taskItem.setAttribute('data-task-id', task.id);
 
     // Checkbox (for management and sidebar views)
@@ -2324,3 +2330,1140 @@ function stopTimeIndicatorUpdates() {
 
 // Clean up on page unload
 window.addEventListener('beforeunload', stopTimeIndicatorUpdates);
+
+// ===========================================
+// NEW SCHEDULE TAB ENHANCEMENTS (v1.5.0)
+// ===========================================
+
+// --- Feature 5: Context Menu (Right-Click Actions) ---
+
+let contextMenu = null;
+let contextMenuTaskId = null;
+let contextMenuCell = null;
+let colorSubmenu = null;
+
+function createContextMenu() {
+    if (contextMenu) return contextMenu;
+
+    contextMenu = document.createElement('div');
+    contextMenu.classList.add('task-context-menu');
+    contextMenu.setAttribute('role', 'menu');
+    contextMenu.innerHTML = `
+        <button class="context-menu-item" data-action="duplicate" role="menuitem">
+            <span class="menu-icon">📋</span> Duplicate
+        </button>
+        <button class="context-menu-item has-submenu" data-action="color" role="menuitem">
+            <span class="menu-icon">🎨</span> Color Code
+            <span class="submenu-arrow">▶</span>
+        </button>
+        <button class="context-menu-item" data-action="split" role="menuitem">
+            <span class="menu-icon">✂️</span> Split Task
+        </button>
+        <div class="context-menu-divider"></div>
+        <button class="context-menu-item" data-action="details" role="menuitem">
+            <span class="menu-icon">📝</span> View Details
+        </button>
+    `;
+
+    // Color submenu
+    colorSubmenu = document.createElement('div');
+    colorSubmenu.classList.add('color-submenu');
+    colorSubmenu.innerHTML = `
+        <button class="color-option" data-color="red" style="background-color: #e74c3c;"></button>
+        <button class="color-option" data-color="blue" style="background-color: #3498db;"></button>
+        <button class="color-option" data-color="green" style="background-color: #2ecc71;"></button>
+        <button class="color-option" data-color="purple" style="background-color: #9b59b6;"></button>
+        <button class="color-option" data-color="orange" style="background-color: #e67e22;"></button>
+        <button class="color-option" data-color="" title="Remove color">✕</button>
+    `;
+    contextMenu.appendChild(colorSubmenu);
+
+    document.body.appendChild(contextMenu);
+    return contextMenu;
+}
+
+function showContextMenu(event, taskId, cell) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    contextMenuTaskId = taskId;
+    contextMenuCell = cell;
+
+    const menu = createContextMenu();
+
+    // Position menu
+    let x = event.clientX;
+    let y = event.clientY;
+
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+    menu.classList.add('visible');
+
+    // Adjust if menu would go off screen
+    requestAnimationFrame(() => {
+        const menuRect = menu.getBoundingClientRect();
+        if (menuRect.right > window.innerWidth) {
+            menu.style.left = `${window.innerWidth - menuRect.width - 10}px`;
+        }
+        if (menuRect.bottom > window.innerHeight) {
+            menu.style.top = `${window.innerHeight - menuRect.height - 10}px`;
+        }
+    });
+
+    // Hide color submenu initially
+    if (colorSubmenu) colorSubmenu.classList.remove('visible');
+}
+
+function hideContextMenu() {
+    if (contextMenu) {
+        contextMenu.classList.remove('visible');
+        if (colorSubmenu) colorSubmenu.classList.remove('visible');
+    }
+    contextMenuTaskId = null;
+    contextMenuCell = null;
+}
+
+async function handleContextMenuAction(action, color = null) {
+    if (!contextMenuTaskId) return;
+
+    const taskId = contextMenuTaskId;
+    hideContextMenu();
+
+    switch (action) {
+        case 'duplicate':
+            await handleDuplicateTask(taskId);
+            break;
+        case 'color':
+            if (color !== null) {
+                await handleSetColorCode(taskId, color);
+            }
+            break;
+        case 'split':
+            await handleSplitTask(taskId);
+            break;
+        case 'details':
+            openTaskDetailsModal(taskId);
+            break;
+    }
+}
+
+async function handleDuplicateTask(taskId) {
+    const tasks = await getTasksAsync();
+    pushUndoState(tasks);
+
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const newTask = duplicateTask(task);
+    tasks.push(newTask);
+
+    await saveTasksAsync(tasks);
+    showInfoMessage('Task duplicated!', 'success');
+    renderPage();
+}
+
+async function handleSetColorCode(taskId, color) {
+    const task = await getTaskById(taskId);
+    if (!task) return;
+
+    const tasks = await getTasksAsync();
+    pushUndoState(tasks);
+
+    task.colorCode = color || null;
+    await updateTask(task);
+    showInfoMessage(color ? 'Color applied!' : 'Color removed!', 'success');
+    renderPage();
+}
+
+async function handleSplitTask(taskId) {
+    const task = await getTaskById(taskId);
+    if (!task || !task.schedule || task.schedule.length === 0) {
+        showInfoMessage('Cannot split task: no schedule assignments.', 'error');
+        return;
+    }
+
+    // Find the schedule item in the context menu cell
+    if (!contextMenuCell) return;
+
+    const day = contextMenuCell.dataset.day;
+    const blockId = contextMenuCell.dataset.blockId;
+    const scheduleItem = task.schedule.find(s => s.day === day && s.blockId === blockId);
+
+    if (!scheduleItem) {
+        showInfoMessage('Could not find schedule item to split.', 'error');
+        return;
+    }
+
+    // Get next block
+    const blocks = await getTimeBlocks();
+    const currentBlockIndex = blocks.findIndex(b => b.id === blockId);
+    const nextBlock = blocks[currentBlockIndex + 1];
+
+    if (!nextBlock || nextBlock.limit === '0') {
+        showInfoMessage('Cannot split: no available next time block.', 'error');
+        return;
+    }
+
+    // Check if next block already has this task
+    const alreadyInNext = task.schedule.some(s => s.day === day && s.blockId === nextBlock.id);
+    if (alreadyInNext) {
+        showInfoMessage('Task already exists in next block.', 'error');
+        return;
+    }
+
+    const tasks = await getTasksAsync();
+    pushUndoState(tasks);
+
+    // Add new schedule item for next block
+    task.schedule.push({
+        day,
+        blockId: nextBlock.id,
+        completed: false,
+        spanBlocks: 1,
+        actualStartTime: null,
+        actualEndTime: null
+    });
+
+    await updateTask(task);
+    showInfoMessage('Task split across two blocks!', 'success');
+    renderPage();
+}
+
+function setupContextMenuListeners() {
+    const plannerGrid = document.getElementById('planner-grid');
+    if (!plannerGrid) return;
+
+    // Right-click on grid tasks
+    plannerGrid.addEventListener('contextmenu', (event) => {
+        const taskItem = event.target.closest('.grid-cell .task-item');
+        if (!taskItem) return;
+
+        const taskId = taskItem.dataset.taskId;
+        const cell = taskItem.closest('.grid-cell');
+        if (taskId && cell) {
+            showContextMenu(event, taskId, cell);
+        }
+    });
+
+    // Context menu item clicks
+    document.addEventListener('click', (event) => {
+        // Hide menu on any outside click
+        if (contextMenu && contextMenu.classList.contains('visible')) {
+            if (!contextMenu.contains(event.target)) {
+                hideContextMenu();
+                return;
+            }
+
+            // Handle menu item clicks
+            const menuItem = event.target.closest('.context-menu-item');
+            if (menuItem) {
+                const action = menuItem.dataset.action;
+                if (action === 'color') {
+                    // Toggle color submenu
+                    if (colorSubmenu) {
+                        colorSubmenu.classList.toggle('visible');
+                    }
+                } else {
+                    handleContextMenuAction(action);
+                }
+            }
+
+            // Handle color option clicks
+            const colorOption = event.target.closest('.color-option');
+            if (colorOption) {
+                const color = colorOption.dataset.color;
+                handleContextMenuAction('color', color);
+            }
+        }
+    });
+
+    // Close on Escape
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && contextMenu?.classList.contains('visible')) {
+            hideContextMenu();
+        }
+    });
+}
+
+// --- Feature 6: Task Details Modal ---
+
+async function openTaskDetailsModal(taskId) {
+    const modal = document.getElementById('task-details-modal');
+    if (!modal) return;
+
+    const task = await getTaskById(taskId);
+    if (!task) return;
+
+    await populateTaskDetailsModal(task);
+    modal.classList.remove('hidden');
+}
+
+function closeTaskDetailsModal() {
+    const modal = document.getElementById('task-details-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+async function populateTaskDetailsModal(task) {
+    const blocks = await getTimeBlocks();
+
+    document.getElementById('details-task-title').textContent = task.title;
+
+    const priorityBadge = document.getElementById('details-task-priority');
+    priorityBadge.textContent = task.priority;
+    priorityBadge.className = `priority-badge priority-${task.priority}`;
+
+    document.getElementById('details-task-type').textContent = task.type === 'home' ? '🏠 Home' : '💼 Work';
+    document.getElementById('details-task-energy').textContent = task.energy === 'high' ? '⚡ High Energy' : '🍃 Low Energy';
+    document.getElementById('details-task-deadline').textContent = task.deadline || 'None';
+    document.getElementById('details-task-recurrence').textContent = task.recurrence ? `🔄 ${task.recurrence}` : 'None';
+    document.getElementById('details-task-notes').textContent = task.notes || 'No notes';
+
+    // URL
+    const urlEl = document.getElementById('details-task-url');
+    if (task.url) {
+        urlEl.innerHTML = `<a href="${escapeHtml(task.url)}" target="_blank" rel="noopener">${truncateUrl(task.url, 50)}</a>`;
+    } else {
+        urlEl.textContent = 'None';
+    }
+
+    // Schedule
+    const scheduleList = document.getElementById('details-schedule-list');
+    if (task.schedule && task.schedule.length > 0) {
+        const dayMapping = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
+        scheduleList.innerHTML = task.schedule.map(s => {
+            const block = blocks.find(b => b.id === s.blockId);
+            const checkIcon = s.completed ? '✓' : '○';
+            return `<div class="schedule-detail-item ${s.completed ? 'completed' : ''}">
+                ${checkIcon} ${dayMapping[s.day] || s.day} - ${block?.label || s.blockId} ${block?.time || ''}
+            </div>`;
+        }).join('');
+    } else {
+        scheduleList.innerHTML = '<p class="empty-schedule-msg">Not scheduled</p>';
+    }
+
+    // Store taskId for edit/delete actions
+    const modal = document.getElementById('task-details-modal');
+    modal.dataset.taskId = task.id;
+}
+
+function setupTaskDetailsModalListeners() {
+    const modal = document.getElementById('task-details-modal');
+    const closeBtn = document.getElementById('task-details-close-btn');
+    const editBtn = document.getElementById('details-edit-btn');
+    const deleteBtn = document.getElementById('details-delete-btn');
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeTaskDetailsModal);
+    }
+
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeTaskDetailsModal();
+        });
+    }
+
+    if (editBtn) {
+        editBtn.addEventListener('click', async () => {
+            const taskId = modal?.dataset.taskId;
+            if (taskId) {
+                closeTaskDetailsModal();
+                // Switch to priority tab and trigger edit
+                const priorityTab = document.querySelector('[data-tab="task-lists"]');
+                if (priorityTab) priorityTab.click();
+                // Wait for tab switch and render, then find and click edit button
+                setTimeout(() => {
+                    const editTaskBtn = document.querySelector(`.edit-task-btn-list[data-task-id="${taskId}"]`);
+                    if (editTaskBtn) {
+                        editTaskBtn.click();
+                    } else {
+                        // Task might not be visible in priority tab (e.g., completed)
+                        // Check completed disclosures
+                        const disclosures = document.querySelectorAll('.completed-disclosure');
+                        disclosures.forEach(d => d.open = true);
+                        setTimeout(() => {
+                            const btn = document.querySelector(`.edit-task-btn-list[data-task-id="${taskId}"]`);
+                            if (btn) btn.click();
+                            else showInfoMessage('Could not find task for editing. Try from Priority tab.', 'info');
+                        }, 50);
+                    }
+                }, 150);
+            }
+        });
+    }
+
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', async () => {
+            const taskId = modal?.dataset.taskId;
+            if (taskId && confirm('Are you sure you want to delete this task?')) {
+                const tasks = await getTasksAsync();
+                pushUndoState(tasks);
+                await deleteTask(taskId);
+                closeTaskDetailsModal();
+                showInfoMessage('Task deleted!', 'success');
+                renderPage();
+            }
+        });
+    }
+
+    // Double-click on parking lot tasks
+    const parkingLot = document.getElementById('unassigned-tasks-list');
+    if (parkingLot) {
+        parkingLot.addEventListener('dblclick', (e) => {
+            const taskItem = e.target.closest('.task-item');
+            if (taskItem) {
+                const taskId = taskItem.dataset.taskId;
+                if (taskId) openTaskDetailsModal(taskId);
+            }
+        });
+    }
+
+    // Double-click on assigned tasks sidebar
+    const assignedList = document.getElementById('assigned-tasks-list');
+    if (assignedList) {
+        assignedList.addEventListener('dblclick', (e) => {
+            const taskItem = e.target.closest('.task-item');
+            if (taskItem) {
+                const taskId = taskItem.dataset.taskId;
+                if (taskId) openTaskDetailsModal(taskId);
+            }
+        });
+    }
+}
+
+// --- Feature 7: Magic Fill ---
+
+function getTodayName() {
+    return currentDays[0]; // First day is always today after rotation
+}
+
+function findScheduleGaps(day, tasks, timeBlocks) {
+    const scheduledBlockIds = new Set();
+    tasks.forEach(task => {
+        task.schedule
+            .filter(s => s.day === day)
+            .forEach(s => scheduledBlockIds.add(s.blockId));
+    });
+
+    return timeBlocks
+        .filter(b => b.limit !== '0' && !scheduledBlockIds.has(b.id))
+        .map(b => ({ blockId: b.id, label: b.label, time: b.time }));
+}
+
+async function magicFillGaps() {
+    const tasks = await getTasksAsync();
+    const blocks = await getTimeBlocks();
+    const settings = await getSettings();
+    const today = getTodayName();
+
+    const gaps = findScheduleGaps(today, tasks, blocks);
+
+    if (gaps.length === 0) {
+        showInfoMessage('No empty time blocks to fill today!', 'info');
+        return;
+    }
+
+    pushUndoState(tasks);
+
+    const fillerTasks = settings.gapFillerTasks || DEFAULT_SETTINGS.gapFillerTasks;
+
+    for (let i = 0; i < gaps.length; i++) {
+        const fillerTemplate = fillerTasks[i % fillerTasks.length];
+        const newTask = new Task(
+            null,
+            fillerTemplate.title,
+            '',
+            fillerTemplate.priority,
+            false,
+            null,
+            fillerTemplate.type,
+            0,
+            [{ day: today, blockId: gaps[i].blockId, completed: false, spanBlocks: 1, actualStartTime: null, actualEndTime: null }],
+            fillerTemplate.energy
+        );
+        tasks.push(newTask);
+    }
+
+    await saveTasksAsync(tasks);
+    showInfoMessage(`Filled ${gaps.length} gaps with quick tasks!`, 'success');
+    renderPage();
+}
+
+function setupMagicFillButton() {
+    const magicFillBtn = document.getElementById('magic-fill-btn');
+    if (magicFillBtn) {
+        magicFillBtn.addEventListener('click', magicFillGaps);
+    }
+}
+
+// --- Feature 8: Buffer Zones ---
+
+async function renderBufferZones() {
+    const tasks = await getTasksAsync();
+    const blocks = await getTimeBlocks();
+
+    // Remove existing buffer zone indicators
+    document.querySelectorAll('.has-buffer-zone').forEach(el => el.classList.remove('has-buffer-zone'));
+
+    currentDays.forEach(day => {
+        const dayCells = [...document.querySelectorAll(`.grid-cell[data-day='${day}']`)];
+
+        for (let i = 0; i < dayCells.length - 1; i++) {
+            const currentCell = dayCells[i];
+            const nextCell = dayCells[i + 1];
+
+            // Check if both cells have tasks
+            const currentHasTask = currentCell.querySelector('.task-item');
+            const nextHasTask = nextCell.querySelector('.task-item');
+
+            // Check if next block is not a zero-limit block
+            const nextBlockLimit = nextCell.dataset.taskLimit;
+
+            if (currentHasTask && nextHasTask && nextBlockLimit !== '0') {
+                currentCell.classList.add('has-buffer-zone');
+            }
+        }
+    });
+}
+
+// --- Feature 9: Focus Mode ---
+
+let focusModeActive = false;
+
+function toggleFocusMode() {
+    focusModeActive = !focusModeActive;
+
+    const plannerGrid = document.getElementById('planner-grid');
+    const focusBtn = document.getElementById('focus-mode-btn');
+    const plannerContainer = document.querySelector('.planner-container');
+
+    if (focusModeActive) {
+        plannerGrid?.classList.add('focus-mode');
+        plannerContainer?.classList.add('focus-mode-active');
+        focusBtn?.classList.add('active');
+        highlightCurrentBlockOnly();
+        showInfoMessage('Focus Mode enabled - showing current time block only', 'info');
+    } else {
+        plannerGrid?.classList.remove('focus-mode');
+        plannerContainer?.classList.remove('focus-mode-active');
+        focusBtn?.classList.remove('active');
+        showAllBlocks();
+        showInfoMessage('Focus Mode disabled', 'info');
+    }
+}
+
+async function highlightCurrentBlockOnly() {
+    const { currentTime } = getCurrentTimeBlockInfo();
+    const blocks = await getTimeBlocks();
+    const todayName = currentDays[0];
+
+    // Hide all cells and labels
+    document.querySelectorAll('.grid-cell, .time-label, .grid-header').forEach(el => {
+        el.classList.add('focus-hidden');
+    });
+
+    // Show the time column header
+    const timeHeader = document.querySelector('.grid-header:not([data-day])');
+    if (timeHeader) timeHeader.classList.remove('focus-hidden');
+
+    // Find and show current block
+    blocks.forEach((block, index) => {
+        const range = parseTimeRange(block.time);
+        if (range && range.start <= currentTime && currentTime < range.end) {
+            // Show cells for current block (all days)
+            document.querySelectorAll(`[data-block-id="${block.id}"]`).forEach(el => {
+                el.classList.remove('focus-hidden');
+                el.classList.add('focus-current');
+            });
+
+            // Show time label
+            const timeLabels = document.querySelectorAll('.time-label');
+            if (timeLabels[index]) {
+                timeLabels[index].classList.remove('focus-hidden');
+                timeLabels[index].classList.add('focus-current');
+            }
+
+            // Show day headers
+            document.querySelectorAll('.grid-header[data-day]').forEach(el => {
+                el.classList.remove('focus-hidden');
+            });
+        }
+    });
+}
+
+function showAllBlocks() {
+    document.querySelectorAll('.focus-hidden, .focus-current').forEach(el => {
+        el.classList.remove('focus-hidden', 'focus-current');
+    });
+}
+
+function setupFocusModeButton() {
+    const focusBtn = document.getElementById('focus-mode-btn');
+    if (focusBtn) {
+        focusBtn.addEventListener('click', toggleFocusMode);
+    }
+}
+
+// --- Feature 10: Habits ---
+
+async function openHabitsModal() {
+    const modal = document.getElementById('habits-modal');
+    if (!modal) return;
+
+    await renderHabitsList();
+    renderHabitTaskSelection();
+    modal.classList.remove('hidden');
+}
+
+function closeHabitsModal() {
+    const modal = document.getElementById('habits-modal');
+    if (modal) modal.classList.add('hidden');
+    // Hide create form when closing
+    const createForm = document.getElementById('create-habit-form');
+    if (createForm) createForm.classList.add('hidden');
+}
+
+async function renderHabitsList() {
+    const container = document.getElementById('habits-list');
+    if (!container) return;
+
+    const habits = await getHabits();
+
+    container.innerHTML = habits.map(habit => `
+        <div class="habit-card" draggable="true" data-habit-id="${habit.id}">
+            <div class="habit-card-header">
+                <span class="habit-card-title">${escapeHtml(habit.name)}</span>
+                <button class="habit-delete-btn" data-habit-id="${habit.id}" title="Delete habit">✕</button>
+            </div>
+            <div class="habit-card-description">${escapeHtml(habit.description || '')}</div>
+            <div class="habit-card-tasks">
+                ${habit.tasks.map(t => `<span class="habit-task-tag">${escapeHtml(t.title)}</span>`).join('')}
+            </div>
+            <div class="habit-card-hint">Drag onto grid to apply</div>
+        </div>
+    `).join('');
+}
+
+async function renderHabitTaskSelection() {
+    const container = document.getElementById('habit-task-selection');
+    if (!container) return;
+
+    const tasks = await getTasksAsync();
+    const unscheduledTasks = tasks.filter(t => !t.completed && (!t.schedule || t.schedule.length === 0));
+
+    if (unscheduledTasks.length === 0) {
+        container.innerHTML = '<p class="empty-selection-msg">No unscheduled tasks available. Add tasks to your Parking Lot first.</p>';
+        return;
+    }
+
+    container.innerHTML = unscheduledTasks.map(task => `
+        <label class="habit-task-checkbox">
+            <input type="checkbox" value="${task.id}">
+            <span class="task-title">${escapeHtml(task.title)}</span>
+            <span class="task-priority priority-${task.priority}">${task.priority}</span>
+        </label>
+    `).join('');
+}
+
+function showCreateHabitForm() {
+    const form = document.getElementById('create-habit-form');
+    if (form) {
+        form.classList.remove('hidden');
+        document.getElementById('habit-name-input').value = '';
+        document.getElementById('habit-description-input').value = '';
+        // Uncheck all task checkboxes
+        document.querySelectorAll('#habit-task-selection input[type="checkbox"]').forEach(cb => cb.checked = false);
+    }
+}
+
+function hideCreateHabitForm() {
+    const form = document.getElementById('create-habit-form');
+    if (form) form.classList.add('hidden');
+}
+
+async function applyHabitToGrid(habit, targetDay, targetBlockId) {
+    const tasks = await getTasksAsync();
+    const blocks = await getTimeBlocks();
+    pushUndoState(tasks);
+
+    const startIndex = blocks.findIndex(b => b.id === targetBlockId);
+    let tasksCreated = 0;
+
+    habit.tasks.forEach(template => {
+        const blockIndex = startIndex + template.relativeBlockIndex;
+        if (blockIndex >= blocks.length) return;
+
+        const block = blocks[blockIndex];
+        if (block.limit === '0') return;
+
+        const newTask = new Task(
+            null,
+            template.title,
+            '',
+            template.priority,
+            false,
+            null,
+            template.type,
+            0,
+            [{ day: targetDay, blockId: block.id, completed: false, spanBlocks: 1, actualStartTime: null, actualEndTime: null }],
+            template.energy
+        );
+        tasks.push(newTask);
+        tasksCreated++;
+    });
+
+    await saveTasksAsync(tasks);
+    showInfoMessage(`Applied "${habit.name}" habit (${tasksCreated} tasks)!`, 'success');
+    renderPage();
+}
+
+async function createNewHabit(name, description, taskIds) {
+    const habits = await getHabits();
+    const tasks = await getTasksAsync();
+
+    const selectedTasks = tasks.filter(t => taskIds.includes(t.id));
+    if (selectedTasks.length === 0) {
+        showInfoMessage('Please select at least one task for the habit.', 'error');
+        return false;
+    }
+
+    if (!name || name.trim() === '') {
+        showInfoMessage('Please enter a name for the habit.', 'error');
+        return false;
+    }
+
+    const newHabit = {
+        id: `habit_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        name: name.trim(),
+        description: description || '',
+        tasks: selectedTasks.map((t, i) => ({
+            title: t.title,
+            priority: t.priority,
+            energy: t.energy,
+            type: t.type,
+            relativeBlockIndex: i
+        }))
+    };
+
+    routines.push(newRoutine);
+    await saveRoutines(routines);
+    showInfoMessage('Routine created!', 'success');
+    habits.push(newHabit);
+    await saveHabits(habits);
+    showInfoMessage(`Habit "${name}" created!`, 'success');
+    hideCreateHabitForm();
+    await renderHabitsList();
+    return true;
+}
+
+async function deleteHabit(habitId) {
+    const habits = await getHabits();
+    const filtered = habits.filter(h => h.id !== habitId);
+    await saveHabits(filtered);
+    showInfoMessage('Habit deleted!', 'success');
+    await renderHabitsList();
+}
+
+function setupHabitsListeners() {
+    const habitsBtn = document.getElementById('habits-btn');
+    const habitsModal = document.getElementById('habits-modal');
+    const habitsCloseBtn = document.getElementById('habits-close-btn');
+    const createHabitBtn = document.getElementById('create-habit-btn');
+    const saveHabitBtn = document.getElementById('save-habit-btn');
+    const cancelHabitBtn = document.getElementById('cancel-habit-btn');
+
+    if (habitsBtn) {
+        habitsBtn.addEventListener('click', openHabitsModal);
+    }
+
+    if (habitsCloseBtn) {
+        habitsCloseBtn.addEventListener('click', closeHabitsModal);
+    }
+
+    if (createHabitBtn) {
+        createHabitBtn.addEventListener('click', showCreateHabitForm);
+    }
+
+    if (cancelHabitBtn) {
+        cancelHabitBtn.addEventListener('click', hideCreateHabitForm);
+    }
+
+    if (saveHabitBtn) {
+        saveHabitBtn.addEventListener('click', async () => {
+            const name = document.getElementById('habit-name-input').value;
+            const description = document.getElementById('habit-description-input').value;
+            const selectedTaskIds = [...document.querySelectorAll('#habit-task-selection input[type="checkbox"]:checked')]
+                .map(cb => cb.value);
+            await createNewHabit(name, description, selectedTaskIds);
+        });
+    }
+
+    if (habitsModal) {
+        habitsModal.addEventListener('click', (e) => {
+            if (e.target === habitsModal) closeHabitsModal();
+        });
+
+        // Delete habit button clicks
+        habitsModal.addEventListener('click', async (e) => {
+            const deleteBtn = e.target.closest('.habit-delete-btn');
+            if (deleteBtn) {
+                const habitId = deleteBtn.dataset.habitId;
+                if (confirm('Delete this habit?')) {
+                    await deleteHabit(habitId);
+                }
+            }
+        });
+    }
+
+    // Habit drag to grid
+    const plannerGrid = document.getElementById('planner-grid');
+    if (plannerGrid) {
+        plannerGrid.addEventListener('drop', async (event) => {
+            const habitId = event.dataTransfer.getData('habit-id');
+            if (!habitId) return;
+
+            const dropTarget = event.target.closest('.grid-cell');
+            if (!dropTarget) return;
+
+            const habits = await getHabits();
+            const habit = habits.find(h => h.id === habitId);
+            if (!habit) return;
+
+            const day = dropTarget.dataset.day;
+            const blockId = dropTarget.dataset.blockId;
+            await applyHabitToGrid(habit, day, blockId);
+            closeHabitsModal();
+        });
+    }
+
+    // Habit card drag start
+    document.addEventListener('dragstart', (event) => {
+        const habitCard = event.target.closest('.habit-card');
+        if (habitCard) {
+            event.dataTransfer.setData('habit-id', habitCard.dataset.habitId);
+            event.dataTransfer.effectAllowed = 'copy';
+        }
+    });
+}
+
+// --- Feature 11: Fluid Resizing ---
+
+let isResizing = false;
+let resizeStartY = 0;
+let resizeTaskId = null;
+let resizeScheduleItem = null;
+let resizeCell = null;
+let resizePreview = null;
+
+function addResizeHandle(taskElement) {
+    if (taskElement.querySelector('.task-resize-handle')) return;
+
+    const handle = document.createElement('div');
+    handle.classList.add('task-resize-handle');
+    handle.innerHTML = '⋯';
+    taskElement.appendChild(handle);
+}
+
+function setupResizeListeners() {
+    const plannerGrid = document.getElementById('planner-grid');
+    if (!plannerGrid) return;
+
+    plannerGrid.addEventListener('mousedown', (e) => {
+        if (!e.target.classList.contains('task-resize-handle')) return;
+
+        const taskItem = e.target.closest('.task-item');
+        if (!taskItem) return;
+
+        const cell = taskItem.closest('.grid-cell');
+        if (!cell) return;
+
+        isResizing = true;
+        resizeStartY = e.clientY;
+        resizeTaskId = taskItem.dataset.taskId;
+        resizeCell = cell;
+
+        document.body.style.cursor = 'ns-resize';
+        document.body.classList.add('resizing');
+
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', handleResize);
+    document.addEventListener('mouseup', finishResize);
+}
+
+function handleResize(e) {
+    if (!isResizing) return;
+
+    const deltaY = e.clientY - resizeStartY;
+    const cellHeight = resizeCell?.offsetHeight || 60;
+
+    // Calculate how many blocks to extend
+    const blocksToExtend = Math.max(0, Math.floor(deltaY / cellHeight));
+
+    // Show preview
+    if (blocksToExtend > 0) {
+        showResizePreview(blocksToExtend);
+    } else {
+        hideResizePreview();
+    }
+}
+
+function showResizePreview(blocksToExtend) {
+    if (!resizeCell) return;
+
+    if (!resizePreview) {
+        resizePreview = document.createElement('div');
+        resizePreview.classList.add('resize-preview');
+        document.body.appendChild(resizePreview);
+    }
+
+    const cellRect = resizeCell.getBoundingClientRect();
+    const extendedHeight = cellRect.height * (blocksToExtend + 1);
+
+    resizePreview.style.left = `${cellRect.left}px`;
+    resizePreview.style.top = `${cellRect.top}px`;
+    resizePreview.style.width = `${cellRect.width}px`;
+    resizePreview.style.height = `${extendedHeight}px`;
+    resizePreview.style.display = 'block';
+}
+
+function hideResizePreview() {
+    if (resizePreview) {
+        resizePreview.style.display = 'none';
+    }
+}
+
+async function finishResize(e) {
+    if (!isResizing) return;
+
+    isResizing = false;
+    document.body.style.cursor = '';
+    document.body.classList.remove('resizing');
+
+    const deltaY = e.clientY - resizeStartY;
+    const cellHeight = resizeCell?.offsetHeight || 60;
+    const blocksToExtend = Math.max(0, Math.floor(deltaY / cellHeight));
+
+    hideResizePreview();
+
+    if (blocksToExtend > 0 && resizeTaskId && resizeCell) {
+        await extendTaskAcrossBlocks(resizeTaskId, resizeCell, blocksToExtend);
+    }
+
+    resizeTaskId = null;
+    resizeCell = null;
+}
+
+async function extendTaskAcrossBlocks(taskId, sourceCell, blocksToExtend) {
+    const task = await getTaskById(taskId);
+    if (!task) return;
+
+    const day = sourceCell.dataset.day;
+    const blockId = sourceCell.dataset.blockId;
+    const blocks = await getTimeBlocks();
+
+    const startIndex = blocks.findIndex(b => b.id === blockId);
+    const tasks = await getTasksAsync();
+    pushUndoState(tasks);
+
+    let extended = 0;
+    for (let i = 1; i <= blocksToExtend; i++) {
+        const nextIndex = startIndex + i;
+        if (nextIndex >= blocks.length) break;
+
+        const nextBlock = blocks[nextIndex];
+        if (nextBlock.limit === '0') break;
+
+        // Check if slot is available
+        const alreadyExists = task.schedule.some(s => s.day === day && s.blockId === nextBlock.id);
+        if (alreadyExists) continue;
+
+        // Check for conflicts
+        const conflictTask = tasks.find(t =>
+            t.id !== taskId &&
+            t.schedule.some(s => s.day === day && s.blockId === nextBlock.id)
+        );
+
+        if (conflictTask && nextBlock.limit === '1') {
+            // Push the conflicting task to the next available slot
+            const pushed = await pushTaskDown(conflictTask, day, nextBlock.id, blocks, tasks);
+            if (!pushed) {
+                showInfoMessage(`Cannot extend further: ${conflictTask.title} blocking.`, 'info');
+                break;
+            }
+        }
+
+        // Add schedule item
+        task.schedule.push({
+            day,
+            blockId: nextBlock.id,
+            completed: false,
+            spanBlocks: 1,
+            actualStartTime: null,
+            actualEndTime: null
+        });
+        extended++;
+    }
+
+    if (extended > 0) {
+        await saveTasksAsync(tasks);
+        showInfoMessage(`Extended task by ${extended} block(s)!`, 'success');
+        renderPage();
+    }
+}
+
+async function pushTaskDown(task, day, fromBlockId, blocks, tasks) {
+    const fromIndex = blocks.findIndex(b => b.id === fromBlockId);
+
+    // Find next available slot
+    for (let i = fromIndex + 1; i < blocks.length; i++) {
+        const nextBlock = blocks[i];
+        if (nextBlock.limit === '0') continue;
+
+        const occupied = tasks.some(t =>
+            t.schedule.some(s => s.day === day && s.blockId === nextBlock.id)
+        );
+
+        if (!occupied || nextBlock.limit !== '1') {
+            // Move the schedule item
+            const scheduleItemIndex = task.schedule.findIndex(s => s.day === day && s.blockId === fromBlockId);
+            if (scheduleItemIndex > -1) {
+                task.schedule[scheduleItemIndex].blockId = nextBlock.id;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// --- Feature 12: Actual vs Planned Tracking ---
+
+async function startTaskTracking(taskId, day, blockId) {
+    const task = await getTaskById(taskId);
+    if (!task) return;
+
+    const scheduleItem = task.schedule.find(s => s.day === day && s.blockId === blockId);
+    if (!scheduleItem) return;
+
+    scheduleItem.actualStartTime = new Date().toISOString();
+    await updateTask(task);
+    showInfoMessage('Tracking started!', 'success');
+    renderPage();
+}
+
+async function stopTaskTracking(taskId, day, blockId) {
+    const task = await getTaskById(taskId);
+    if (!task) return;
+
+    const scheduleItem = task.schedule.find(s => s.day === day && s.blockId === blockId);
+    if (!scheduleItem || !scheduleItem.actualStartTime) return;
+
+    scheduleItem.actualEndTime = new Date().toISOString();
+    await updateTask(task);
+    showInfoMessage('Tracking stopped!', 'success');
+    renderPage();
+}
+
+function calculateTimeDeviation(block, scheduleItem) {
+    if (!scheduleItem.actualStartTime || !scheduleItem.actualEndTime) return null;
+
+    const range = parseTimeRange(block.time);
+    if (!range) return null;
+
+    const plannedDuration = (range.end - range.start) * 60; // minutes
+    const actualStart = new Date(scheduleItem.actualStartTime);
+    const actualEnd = new Date(scheduleItem.actualEndTime);
+    const actualDuration = (actualEnd - actualStart) / (1000 * 60); // minutes
+
+    return {
+        plannedDuration,
+        actualDuration,
+        deviation: actualDuration - plannedDuration,
+        deviationPercent: Math.round(((actualDuration - plannedDuration) / plannedDuration) * 100)
+    };
+}
+
+function renderTrackingButton(taskElement, task, scheduleItem) {
+    if (!scheduleItem) return;
+
+    const existingBtn = taskElement.querySelector('.tracking-btn');
+    if (existingBtn) existingBtn.remove();
+
+    const btn = document.createElement('button');
+    btn.classList.add('tracking-btn');
+
+    const isTracking = scheduleItem.actualStartTime && !scheduleItem.actualEndTime;
+    const isComplete = scheduleItem.actualStartTime && scheduleItem.actualEndTime;
+
+    if (isTracking) {
+        btn.classList.add('active');
+        btn.innerHTML = '⏱️';
+        btn.title = 'Stop tracking';
+    } else if (isComplete) {
+        btn.classList.add('completed');
+        btn.innerHTML = '✓';
+        btn.title = 'Tracking complete';
+    } else {
+        btn.innerHTML = '⏱️';
+        btn.title = 'Start tracking';
+    }
+
+    btn.dataset.taskId = task.id;
+    btn.dataset.day = scheduleItem.day;
+    btn.dataset.blockId = scheduleItem.blockId;
+
+    taskElement.appendChild(btn);
+}
+
+function setupTrackingListeners() {
+    const plannerGrid = document.getElementById('planner-grid');
+    if (!plannerGrid) return;
+
+    plannerGrid.addEventListener('click', async (e) => {
+        const trackingBtn = e.target.closest('.tracking-btn');
+        if (!trackingBtn) return;
+
+        e.stopPropagation();
+
+        const taskId = trackingBtn.dataset.taskId;
+        const day = trackingBtn.dataset.day;
+        const blockId = trackingBtn.dataset.blockId;
+
+        if (trackingBtn.classList.contains('active')) {
+            await stopTaskTracking(taskId, day, blockId);
+        } else if (!trackingBtn.classList.contains('completed')) {
+            await startTaskTracking(taskId, day, blockId);
+        }
+    });
+}
+
+// --- Initialize New Features ---
+
+function setupNewScheduleFeatures() {
+    setupContextMenuListeners();
+    setupTaskDetailsModalListeners();
+    setupMagicFillButton();
+    setupFocusModeButton();
+    setupHabitsListeners();
+    setupResizeListeners();
+    setupTrackingListeners();
+}
+
+// Hook into original renderPage to add new features
+const _originalRenderPage = renderPage;
+renderPage = async function() {
+    await _originalRenderPage();
+
+    // Add resize handles to grid tasks
+    document.querySelectorAll('.grid-cell .task-item').forEach(taskEl => {
+        addResizeHandle(taskEl);
+    });
+
+    // Render buffer zones
+    await renderBufferZones();
+
+    // Update focus mode if active
+    if (focusModeActive) {
+        highlightCurrentBlockOnly();
+    }
+};

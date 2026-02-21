@@ -61,10 +61,24 @@
                             placeholder="🔍 Search tasks by title..." aria-label="Search tasks">
                         <button id="schedule-search-clear" class="neumorphic-btn search-clear-btn">Clear</button>
                     </div>
-                    <button id="time-blocks-btn" class="neumorphic-btn" aria-label="Configure Time Blocks">
-                        <span class="btn-icon">🕐</span>
-                        <span class="btn-text">Time Blocks</span>
-                    </button>
+                    <div class="schedule-header-actions">
+                        <button id="magic-fill-btn" class="neumorphic-btn" aria-label="Auto-fill empty time blocks">
+                            <span class="btn-icon">✨</span>
+                            <span class="btn-text">Magic Fill</span>
+                        </button>
+                        <button id="focus-mode-btn" class="neumorphic-btn icon-btn has-tooltip" aria-label="Toggle Focus Mode">
+                            <span class="btn-icon-text">🎯</span>
+                            <span class="btn-tooltip">Focus Mode</span>
+                        </button>
+                        <button id="habits-btn" class="neumorphic-btn" aria-label="Manage Habits">
+                            <span class="btn-icon">🔄</span>
+                            <span class="btn-text">Habits</span>
+                        </button>
+                        <button id="time-blocks-btn" class="neumorphic-btn" aria-label="Configure Time Blocks">
+                            <span class="btn-icon">🕐</span>
+                            <span class="btn-text">Time Blocks</span>
+                        </button>
+                    </div>
                 </div>
                 <div class="planner-container">
                     <!-- Column 1: Parking Lot (Collapsible Unassigned Tasks) -->
@@ -299,6 +313,8 @@
                     aria-selected="false">Settings</button>
                 <button class="tab-link" data-help-tab="help-import-export" role="tab"
                     aria-selected="false">Import/Export</button>
+                <button class="tab-link" data-help-tab="help-advanced" role="tab"
+                    aria-selected="false">Advanced</button>
                 <button class="tab-link" data-help-tab="help-faq" role="tab"
                     aria-selected="false">FAQ</button>
             </div>
@@ -592,6 +608,84 @@
 └─────────────────────────────────────────┘</div>
 
                     <div class="help-tip">💡 Use the JSON tab for regular backups. CSV and Google Sheets are best for bulk imports from spreadsheets. Notion sync keeps your tasks in sync with your Notion workspace.</div>
+                </div>
+
+                <!-- Advanced Features -->
+                <div id="help-advanced" class="help-panel">
+                    <h3 class="help-section-title">🚀 Advanced Features (v1.5.0)</h3>
+                    <p>These powerful features help you work more efficiently with your schedule.</p>
+
+                    <div class="help-step">
+                        <div class="help-step-number">1</div>
+                        <div class="help-step-content">
+                            <h4>Magic Fill ✨</h4>
+                            <p>Click the <strong>Magic Fill</strong> button in the schedule header to automatically fill empty time blocks with quick tasks like "Check email" or "Stretch break". Works on today's schedule only. Great for filling awkward gaps between meetings.</p>
+                        </div>
+                    </div>
+
+                    <div class="help-step">
+                        <div class="help-step-number">2</div>
+                        <div class="help-step-content">
+                            <h4>Right-Click Context Menu</h4>
+                            <p>Right-click any task on the schedule grid to access quick actions:</p>
+                            <ul>
+                                <li><strong>Duplicate</strong> — Create a copy of the task</li>
+                                <li><strong>Color Code</strong> — Assign a custom color for visual organization</li>
+                                <li><strong>Split Task</strong> — Extend the task into the next time block</li>
+                                <li><strong>View Details</strong> — Open the task details modal</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="help-step">
+                        <div class="help-step-number">3</div>
+                        <div class="help-step-content">
+                            <h4>Focus Mode 🎯</h4>
+                            <p>Click the <strong>Focus Mode</strong> button to hide all time blocks except the current one. This reduces visual clutter and helps you concentrate on what's happening now. Click again to restore the full view.</p>
+                        </div>
+                    </div>
+
+                    <div class="help-step">
+                        <div class="help-step-number">4</div>
+                        <div class="help-step-content">
+                            <h4>Habits 🔄</h4>
+                            <p>Click the <strong>Habits</strong> button to open the habits library. Drag a habit card onto any grid cell to instantly create multiple tasks. Create your own habits by clicking "Create Habit" and selecting tasks from the sidebar, or use the pre-built habits like "Morning Routine", "Deep Work Session", and "Wind Down".</p>
+                        </div>
+                    </div>
+
+                    <div class="help-step">
+                        <div class="help-step-number">5</div>
+                        <div class="help-step-content">
+                            <h4>Task Details (Double-Click)</h4>
+                            <p>Double-click any task in the Parking Lot or Assigned sidebar to open a detailed view showing all task information including notes, schedule, and URL. From there you can edit or delete the task.</p>
+                        </div>
+                    </div>
+
+                    <div class="help-step">
+                        <div class="help-step-number">6</div>
+                        <div class="help-step-content">
+                            <h4>Fluid Resizing</h4>
+                            <p>Drag the bottom edge of a task in the grid to extend it into subsequent time blocks. If another task is in the way, it will be automatically pushed down to make room.</p>
+                        </div>
+                    </div>
+
+                    <div class="help-step">
+                        <div class="help-step-number">7</div>
+                        <div class="help-step-content">
+                            <h4>Time Tracking ⏱️</h4>
+                            <p>Click the clock icon on any grid task to start tracking time. Click again when done to record the actual duration. This helps you compare planned vs. actual time for better future estimates.</p>
+                        </div>
+                    </div>
+
+                    <div class="help-step">
+                        <div class="help-step-number">8</div>
+                        <div class="help-step-content">
+                            <h4>Buffer Zones</h4>
+                            <p>When you have back-to-back tasks, a "5m buffer" indicator appears between them as a visual reminder to take a short break and transition mentally.</p>
+                        </div>
+                    </div>
+
+                    <div class="help-tip">💡 All actions support Undo (Ctrl+Z). The hover popover shows task details when you hover over grid tasks for 400ms.</div>
                 </div>
 
                 <!-- FAQ -->
@@ -1021,6 +1115,112 @@
                 </div>
             </section>
         </div>
+    </div>
+
+    <!-- Task Details Modal -->
+    <div id="task-details-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="details-modal-title">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="details-modal-title">Task Details</h2>
+                <button id="task-details-close-btn" class="neumorphic-btn icon-btn" aria-label="Close">✕</button>
+            </div>
+
+            <div class="task-details-content">
+                <div class="details-header">
+                    <h3 id="details-task-title" class="details-title"></h3>
+                    <span id="details-task-priority" class="priority-badge"></span>
+                </div>
+
+                <div class="details-grid">
+                    <div class="details-row">
+                        <span class="details-label">Type:</span>
+                        <span id="details-task-type" class="details-value"></span>
+                    </div>
+                    <div class="details-row">
+                        <span class="details-label">Energy:</span>
+                        <span id="details-task-energy" class="details-value"></span>
+                    </div>
+                    <div class="details-row">
+                        <span class="details-label">Deadline:</span>
+                        <span id="details-task-deadline" class="details-value"></span>
+                    </div>
+                    <div class="details-row">
+                        <span class="details-label">Recurrence:</span>
+                        <span id="details-task-recurrence" class="details-value"></span>
+                    </div>
+                    <div class="details-row">
+                        <span class="details-label">URL:</span>
+                        <span id="details-task-url" class="details-value"></span>
+                    </div>
+                </div>
+
+                <div class="details-section">
+                    <span class="details-label">Notes:</span>
+                    <p id="details-task-notes" class="details-notes"></p>
+                </div>
+
+                <div class="details-section">
+                    <span class="details-label">Schedule:</span>
+                    <div id="details-schedule-list" class="details-schedule"></div>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button id="details-edit-btn" class="neumorphic-btn">✏️ Edit</button>
+                <button id="details-delete-btn" class="neumorphic-btn delete-btn">🗑️ Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Habits Modal -->
+    <div id="habits-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="habits-modal-title">
+        <div class="modal-content modal-content-large">
+            <div class="modal-header">
+                <h2 id="habits-modal-title">🔄 Habits</h2>
+                <button id="habits-close-btn" class="neumorphic-btn icon-btn" aria-label="Close">✕</button>
+            </div>
+
+            <p class="habits-description">Drag a habit onto the schedule grid to apply it. Habits create multiple tasks at once to help build your daily routines.</p>
+
+            <!-- Create Habit Form (initially hidden) -->
+            <div id="create-habit-form" class="create-habit-form hidden">
+                <h3>Create New Habit</h3>
+                <div class="form-group">
+                    <label for="habit-name-input">Habit Name:</label>
+                    <input type="text" id="habit-name-input" class="neumorphic-input" placeholder="e.g., Evening Wind Down">
+                </div>
+                <div class="form-group">
+                    <label for="habit-description-input">Description:</label>
+                    <input type="text" id="habit-description-input" class="neumorphic-input" placeholder="e.g., Relax and prepare for sleep">
+                </div>
+                <div class="form-group">
+                    <label>Select Tasks from Parking Lot:</label>
+                    <div id="habit-task-selection" class="habit-task-selection">
+                        <!-- Tasks rendered by JS -->
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button id="save-habit-btn" class="neumorphic-btn">💾 Save Habit</button>
+                    <button id="cancel-habit-btn" class="neumorphic-btn">Cancel</button>
+                </div>
+            </div>
+
+            <div id="habits-list" class="habits-grid">
+                <!-- Rendered by JS -->
+            </div>
+
+            <div class="habits-footer">
+                <button id="create-habit-btn" class="neumorphic-btn">➕ Create Habit</button>
+                <p class="habits-hint">💡 Tip: Select tasks from your Parking Lot to create a new habit.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Undo Toast -->
+    <div id="undo-toast" class="hidden" role="status" aria-live="polite">
+        <span id="undo-toast-message"></span>
+        <button id="undo-action-btn" class="undo-link">Undo</button>
+        <button id="undo-dismiss-btn" class="undo-dismiss">✕</button>
     </div>
 
     <script src="task_utils.js"></script>
