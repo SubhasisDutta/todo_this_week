@@ -53,12 +53,23 @@ Tasks are stored in `chrome.storage.local` under the `tasks` key as an array of 
   type: string,            // 'home' | 'work'
   displayOrder: number,    // Sort order within priority group
   schedule: ScheduleItem[],// Weekly schedule assignments
-  energy: string,          // 'low' | 'high'
+  energy: string,          // 'TBD' | 'Low' | 'Medium' | 'High' (migrated from 'low'/'high')
   notes: string,           // Optional notes/description (default: '')
   completedAt: string|null,// ISO timestamp when task was completed (default: null)
   recurrence: string|null, // null | 'daily' | 'weekly' | 'monthly'
   lastModified: string,    // ISO timestamp when task was last modified (auto-set on create/update)
-  colorCode: string|null   // Custom color: null | 'red' | 'blue' | 'green' | 'purple' | 'orange'
+  colorCode: string|null,  // Custom color: null | 'red' | 'blue' | 'green' | 'purple' | 'orange'
+  // --- New Attribute Fields (v1.7.0) ---
+  status: string,          // 'inbox' | 'breakdown' | 'stretch' | 'ready' | 'next-action' | 'blocked' | 'in-progress' | 'influence' | 'monitor' | 'delegate' | 'done' | 'archive'
+  why: string,             // Optional "why" description (default: '')
+  projects: string,        // Optional project name (default: '')
+  impact: string,          // 'TBD' | 'LOW' | 'Medium' | 'High'
+  value: string,           // 'TBD' | 'BUILD' | 'LEARN'
+  complexity: string,      // 'TBD' | 'JUST DO IT' | 'Trivial' | 'Simple & Clear' | 'Multiple Steps' | 'Dependent/Risk' | 'Unknown/Broad'
+  action: string,          // 'TBD' | 'Question' | 'Mandate' | 'Delete' | 'Simplify' | 'Accelerate' | 'Automate'
+  estimates: string,       // 'Unknown' | '0 HR' | '1 Hr' | '2 Hr' | '4 HR' | '8 Hr - 1 Day' | ... | '224 Hr - 1 Month'
+  sprint: string,          // Optional sprint name (default: '')
+  interval: object|null    // { startDate: string|null, endDate: string|null } or null
 }
 ```
 
@@ -77,7 +88,23 @@ Tasks are stored in `chrome.storage.local` under the `tasks` key as an array of 
   notionDatabaseId: string,
   googleSheetsUrl: string,
   gapFillerTasks: Array<{title, priority, energy, type}>,  // Magic Fill quick tasks
-  focusModeEnabled: boolean  // Focus mode preference
+  focusModeEnabled: boolean,  // Focus mode preference
+  enabledAttributes: {       // Toggle visibility of task attributes (v1.8.0)
+    priority: boolean,       // Default: true (can be disabled)
+    type: boolean,           // Default: true (Location, can be disabled)
+    status: boolean,
+    why: boolean,
+    projects: boolean,
+    impact: boolean,
+    value: boolean,
+    complexity: boolean,
+    energy: boolean,         // Default: true (v1.8.0)
+    energy: boolean,
+    action: boolean,
+    estimates: boolean,
+    sprint: boolean,
+    interval: boolean
+  }
 }
 
 'timeBlocks': Array<{id, label, time, limit, colorClass}>  // Optional; falls back to DEFAULT_TIME_BLOCKS
@@ -120,12 +147,12 @@ Defined in `task_utils.js` as `DEFAULT_TIME_BLOCKS`. A `TIME_BLOCKS` alias is ke
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `Task` | `new Task(id, title, url, priority, completed, deadline, type, displayOrder, schedule, energy, notes, completedAt, recurrence, notionPageId, lastModified)` | Constructor with defaults. Auto-generates ID if null. Auto-sets `lastModified` to current timestamp if null. |
-| `getTasks` | `getTasks(callback)` | Reads tasks from storage. Backfills missing fields including `notes`, `completedAt`, `recurrence`, `lastModified`. |
+| `Task` | `new Task(id, title, url, priority, completed, deadline, type, displayOrder, schedule, energy, notes, completedAt, recurrence, notionPageId, lastModified, colorCode, status, why, projects, impact, value, complexity, action, estimates, sprint, interval)` | Constructor with defaults. Auto-generates ID if null. Auto-sets `lastModified` to current timestamp if null. Includes 10 new attribute fields (v1.7.0). |
+| `getTasks` | `getTasks(callback)` | Reads tasks from storage. Backfills missing fields including `notes`, `completedAt`, `recurrence`, `lastModified`, and all 10 new attribute fields. Migrates energy from 'low'/'high' to 'Low'/'High'. |
 | `getTasksAsync` | `getTasksAsync()` → Promise | Promise wrapper for `getTasks`. |
 | `saveTasks` | `saveTasks(tasks, callback)` | Serializes to plain objects and saves. Updates `_lastSaveTimestamp` for sync guard. |
 | `saveTasksAsync` | `saveTasksAsync(tasks)` → Promise | Promise wrapper for `saveTasks`. Rejects on failure. |
-| `addNewTask` | `addNewTask(title, url, priority, deadline, type, energy, notes, recurrence)` → Promise | Creates task with computed `displayOrder`. |
+| `addNewTask` | `addNewTask(title, url, priority, deadline, type, energy, notes, recurrence, extraAttrs)` → Promise | Creates task with computed `displayOrder`. `extraAttrs` object supports: status, why, projects, impact, value, complexity, action, estimates, sprint, interval. |
 | `getTaskById` | `getTaskById(taskId)` → Promise | Returns single task or `undefined`. |
 | `updateTask` | `updateTask(updatedTask)` → Promise | Finds task, calls `updateTaskCompletion`, sets `completedAt`, updates `lastModified`, auto-creates recurring instance on completion. Returns boolean. |
 | `updateTaskCompletion` | `updateTaskCompletion(task)` | If all `schedule[].completed === true`, sets `task.completed = true`. |
@@ -149,6 +176,29 @@ Defined in `task_utils.js` as `DEFAULT_TIME_BLOCKS`. A `TIME_BLOCKS` alias is ke
 | `debounce` | `debounce(fn, delay)` → Function | Generic debounce utility. Used for auto-save (1500ms) and sync. |
 | `setupStorageSync` | `setupStorageSync(renderCallback)` | Listens to `chrome.storage.onChanged`. Ignores self-triggered changes within 500ms of last save. |
 
+## New Constants (v1.7.0)
+
+### ATTRIBUTE_OPTIONS
+
+Defined in `task_utils.js`. Contains configuration for all task attribute dropdowns including:
+- `status`: Grouped options (To-do, In Progress, Complete) with 12 status values
+- `impact`: 'TBD', 'LOW', 'Medium', 'High'
+- `value`: 'TBD', 'BUILD', 'LEARN'
+- `complexity`: 7 complexity levels from 'TBD' to 'Unknown/Broad'
+- `energy`: 'TBD', 'Low', 'Medium', 'High'
+- `action`: 'TBD', 'Question', 'Mandate', 'Delete', 'Simplify', 'Accelerate', 'Automate'
+- `estimates`: 12 time estimate options from 'Unknown' to '224 Hr - 1 Month'
+
+Each attribute has `options`, `default`, and optionally `labels`/`groups` properties.
+
+### DEFAULT_ENABLED_ATTRIBUTES
+
+Default visibility settings for task attributes (v1.8.0 - all now toggleable):
+- `priority`: true by default (can be disabled)
+- `type`: true by default (Location, can be disabled)
+- `energy`: true by default (v1.8.0)
+- All other attributes: false by default
+
 ## Key Features Implementation
 
 ### Priority System
@@ -157,8 +207,8 @@ Defined in `task_utils.js` as `DEFAULT_TIME_BLOCKS`. A `TIME_BLOCKS` alias is ke
 - Display shows days remaining/overdue for CRITICAL tasks
 
 ### Categories and Energy Levels
-- Type: `home` or `work` — filtered in LOCATION tab
-- Energy: `low` or `high` — visual indicator via CSS classes `energy-low-incomplete` / `energy-high-incomplete`
+- Type: `home` or `work` — grouped in Groups tab drill-down
+- Energy: `TBD` | `Low` | `Medium` | `High` — visual indicator via CSS classes `energy-low-incomplete` / `energy-medium-incomplete` / `energy-high-incomplete`
 
 ### Weekly Scheduling
 - Tasks have a `schedule` array of `{ day, blockId, completed }` items
@@ -208,17 +258,39 @@ Tab switching is handled by `setupImportExportTabs()` in settings.js. Uses `.imp
 - `formatTimeInput()` converts 24-hour time input (e.g., "13:00") to display format (e.g., "1PM")
 
 ### Help Modal FAQ
-- Help modal has 8 tabs: Overview, Quick Start, Schedule, Priority, Location, Settings, Import/Export, FAQ
+- Help modal has tabs: Overview, Quick Start, Schedule, Groups, Settings, Import/Export, FAQ
 - FAQ section addresses common user questions about task scheduling, completion, and recurring tasks
 - Uses `.faq-item`, `.faq-question`, `.faq-answer` CSS classes for consistent styling
 
-### Completed Tasks Disclosure (Priority & Location tabs)
-- Completed tasks are displayed in collapsible disclosure sections (`<details>`) instead of checkbox toggles
-- Each priority column (Critical, Important, Someday) and location column (Home, Work) has its own disclosure
-- Disclosure shows count badge (`.completed-count`) with number of completed tasks
-- Disclosure is hidden (`.hidden` class) when no completed tasks exist
-- Uses native HTML `<details>`/`<summary>` elements with custom styling for disclosure triangle
-- Search filter applies to both active and completed task lists
+### Groups Tab (v1.7.0, updated v1.8.0)
+
+Replaces the Priority and Location tabs with a unified, attribute-based grouping view.
+
+#### Bento Grid View
+- Main view displays enabled attributes as clickable bento boxes in responsive grid
+- Each box shows: attribute name, task count, mini donut chart showing distribution
+- Grid uses `auto-fit` with `minmax(220px, 1fr)` for responsive layout
+- CSS: `.groups-bento-grid`, `.groups-bento-box`, `.bento-box-header`, `.bento-box-chart`
+- JS: `renderGroupsTab()`, `calculateAttributeDistribution(tasks, attrKey)`, `createBentoBox(attr, distribution)`, `renderMiniDonutChart(counts, total, attrKey)`
+
+#### Drill-Down View (v1.8.0 animation updates)
+- Click any bento box to enter drill-down view for that attribute
+- Drill-down maximizes to fill the full Groups tab space
+- Smooth slide animation transitions (bento fades out, drill-down slides in from right)
+- Displays tasks grouped by attribute value in horizontal scroll columns
+- Breadcrumb navigation shows current attribute with back button
+- Search bar filters tasks within the drill-down view
+- **Double-click any task to open Task Details modal** (v1.8.0)
+- Inline edit/delete buttons removed for consistent task interaction
+- CSS: `.groups-drilldown-columns`, `.groups-drilldown-column`, `.groups-breadcrumb`, `.fade-out`, `.fade-in`, `.slide-in`, `.slide-out`
+- JS: `openGroupsDrilldown(attrKey)`, `renderGroupsDrilldownColumns(attrKey, tasks)`, `closeGroupsDrilldown()`, `setupGroupsDrilldownSearch()`, `setupGroupsDrilldownTaskListeners()`
+
+#### Attribute Toggle Integration (v1.8.0 updates)
+- All 13 attributes are now toggleable in Settings (including Priority and Type)
+- Priority, Type, and Energy are enabled by default
+- Attributes controlled via Settings modal toggle switches with auto-save
+- `getEnabledAttributes()` returns map of enabled attribute names
+- Only enabled attributes appear in bento grid and Add/Edit Task forms
 
 ### Archive Tab
 - Displays all completed tasks grouped by completion date (Today, Yesterday, This Week, Older)
@@ -274,12 +346,16 @@ Tab switching is handled by `setupImportExportTabs()` in settings.js. Uses `.imp
 - CSS: `.task-context-menu`, `.context-menu-item`, `.color-submenu`, `.color-option`
 - JS: `createContextMenu()`, `showContextMenu()`, `hideContextMenu()`, `handleContextMenuAction()`, `handleDuplicateTask()`, `handleSetColorCode()`, `handleSplitTask()`, `setupContextMenuListeners()`
 
-#### Task Details Modal
-- Double-click tasks in Parking Lot or Assigned sidebar to open details modal
-- Displays: title, priority, type, energy, deadline, recurrence, notes, URL, schedule
-- Edit and Delete buttons
-- HTML: `#task-details-modal`
-- JS: `openTaskDetailsModal()`, `closeTaskDetailsModal()`, `populateTaskDetailsModal()`, `setupTaskDetailsModalListeners()`
+#### Task Details Modal (v1.8.0 updates)
+- **Consistent task interaction**: Double-click tasks anywhere (Parking Lot, Assigned sidebar, Groups drill-down) to open details modal
+- All task attributes shown as colorful tag/pill badges (only enabled attributes displayed)
+- Tag colors: priority-based gradients (red/orange/blue), type (green/purple), energy (green/yellow/orange), impact/status variants
+- Displays: title, attribute tags, URL, Why, notes, schedule
+- Edit button opens the Add/Edit Task modal for inline editing
+- Delete button with confirmation
+- HTML: `#task-details-modal`, `.details-tags-container`, `.details-tag`
+- CSS: `.details-tag`, `.priority-CRITICAL`, `.priority-IMPORTANT`, `.priority-SOMEDAY`, `.type-home`, `.type-work`, `.energy-*`, etc.
+- JS: `openTaskDetailsModal()`, `closeTaskDetailsModal()`, `populateTaskDetailsModal()`, `setupTaskDetailsModalListeners()`, `openAddTaskModalForEdit(taskId)`
 
 #### Magic Fill
 - One-click auto-fill empty time blocks with quick tasks (Check email, Stretch, etc.)
@@ -433,14 +509,14 @@ This makes all listed symbols available as globals in the test scope.
 
 The `loadScript` regex also handles `async function` DOMContentLoaded handlers (needed because manager.js and popup.js DOMContentLoaded handlers are now `async`).
 
-### Test Suites (~420 total)
-- **task_utils.test.js (~95):** Task class (new fields including lastModified, colorCode), getTasks backfill, CRUD, settings CRUD, time blocks, undo/redo stacks, createRecurringInstance, seedSampleTasks, toast notifications (showInfoMessage), validateTask, debounce, withTaskLock, parseTimeRange, validateTimeBlockOverlap
+### Test Suites (~416 total)
+- **task_utils.test.js (~95):** Task class (new fields including lastModified, colorCode, and 10 v1.7.0 attributes), getTasks backfill (including energy migration 'low'→'Low'), CRUD, settings CRUD, time blocks, undo/redo stacks, createRecurringInstance, seedSampleTasks, toast notifications (showInfoMessage), validateTask, debounce, withTaskLock, parseTimeRange, validateTimeBlockOverlap, ATTRIBUTE_OPTIONS, DEFAULT_ENABLED_ATTRIBUTES
 - **popup.test.js (~17):** createTaskItem (notes, recurrence), renderTasks, renderAllTabs, tab switching, add-task validation, open-manager button
-- **manager.test.js (~122):** generateDayHeaders/generatePlannerGrid (now async), createTaskElement (notes/recurrence badges), renderSidebarLists, renderPriorityLists, renderHomeWorkLists, renderArchiveTab (with lastModified sorting), renderStatsTab, applySearchFilter, setupTabSwitching, renderPage, highlightCurrentDay, setupAddTaskModalListeners, header tooltips, FAQ tab, completed tasks disclosure, collapsible parking lot, drag guide lines, hover popover, current time indicator
-- **integration.test.js (~25):** Task lifecycle, schedule management, cascade completion, ordering, import/merge, validation, cross-tab sync, recurring tasks (auto-instance creation), undo/redo lifecycle
-- **settings.test.js (~35):** applySettings (theme, font-family, font-size CSS vars), initSettings (first-run seeding), populateSettingsForm, openSettingsModal/closeSettingsModal, FONT_FAMILY_MAP/FONT_SIZE_MAP constants, formatTimeInput, updateTimeBlockLabel, addTimeBlock overlap validation, renderTimeBlocksTable, settings auto-save
+- **manager.test.js (~122):** generateDayHeaders/generatePlannerGrid (now async), createTaskElement (notes/recurrence badges), renderSidebarLists, Groups tab (calculateAttributeDistribution, createBentoBox, renderGroupsTab), renderArchiveTab (with lastModified sorting), renderStatsTab, applySearchFilter, setupTabSwitching, renderPage, highlightCurrentDay, setupAddTaskModalListeners, header tooltips, FAQ tab, collapsible parking lot, drag guide lines, hover popover, current time indicator
+- **integration.test.js (~18):** Task lifecycle (with energy capitalization), schedule management, cascade completion, ordering, import/merge, validation, cross-tab sync, recurring tasks (auto-instance creation), undo/redo lifecycle
+- **settings.test.js (~35):** applySettings (theme, font-family, font-size CSS vars), initSettings (first-run seeding), populateSettingsForm, openSettingsModal/closeSettingsModal, FONT_FAMILY_MAP/FONT_SIZE_MAP constants, formatTimeInput, updateTimeBlockLabel, addTimeBlock overlap validation, renderTimeBlocksTable, settings auto-save, getEnabledAttributes
 - **features.test.js (~35):** Notes field (CRUD, backfill), completedAt (set on complete, clear on uncomplete, backfill), lastModified field (auto-set, update on modify, backfill), undo/redo cycle, createRecurringInstance (daily/weekly/monthly deadline shift, fresh lastModified), recurring auto-instance via updateTask, archive date grouping
-- **search.test.js (~17):** applySearchFilter (hide non-matching, show all for empty query, case insensitive, multi-container, partial match, grid cell filtering), setupScheduleSearch, setupPrioritySearch, setupLocationSearch, setupArchiveSearch
+- **search.test.js (~17):** applySearchFilter (hide non-matching, show all for empty query, case insensitive, multi-container, partial match, grid cell filtering), setupScheduleSearch, setupArchiveSearch, setupGroupsDrilldownSearch
 - **schedule-features.test.js (~91):** v1.5.0 schedule enhancements: context menu (creation, actions, visibility), task actions (duplicate, color code, split), magic fill (gap detection, today only), buffer zones (back-to-back detection), focus mode (toggle, highlight current), fluid resizing (handle creation, span blocks), time tracking (start/stop, deviation calculation), task details modal (open/close, populate)
 
 ### Known Limitation

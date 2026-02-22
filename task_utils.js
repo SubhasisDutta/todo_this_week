@@ -49,13 +49,157 @@ const DEFAULT_SETTINGS = {
     notionSyncEnabled: false,
     // Magic Fill filler tasks
     gapFillerTasks: [
-        { title: 'Check email', priority: 'SOMEDAY', energy: 'low', type: 'work' },
-        { title: 'Stretch break', priority: 'SOMEDAY', energy: 'low', type: 'home' },
-        { title: 'Quick review', priority: 'SOMEDAY', energy: 'low', type: 'work' },
-        { title: 'Water break', priority: 'SOMEDAY', energy: 'low', type: 'home' }
+        { title: 'Check email', priority: 'SOMEDAY', energy: 'Low', type: 'work' },
+        { title: 'Stretch break', priority: 'SOMEDAY', energy: 'Low', type: 'home' },
+        { title: 'Quick review', priority: 'SOMEDAY', energy: 'Low', type: 'work' },
+        { title: 'Water break', priority: 'SOMEDAY', energy: 'Low', type: 'home' }
     ],
     // Focus mode preference
-    focusModeEnabled: false
+    focusModeEnabled: false,
+    // Enabled task attributes (for Groups tab and forms)
+    // Note: priority and type can now be disabled by user, but default to enabled
+    enabledAttributes: {
+        priority: true,     // Default enabled (can be disabled)
+        type: true,         // Default enabled (Location, can be disabled)
+        status: false,
+        why: false,
+        projects: false,
+        impact: false,
+        value: false,
+        complexity: false,
+        energy: true,       // Default enabled
+        action: false,
+        estimates: false,
+        sprint: false,
+        interval: false
+    }
+};
+
+// --- Task Attribute Options ---
+const ATTRIBUTE_OPTIONS = {
+    status: {
+        groups: {
+            'To-do': ['inbox', 'breakdown', 'stretch', 'ready', 'next-action', 'blocked'],
+            'In Progress': ['in-progress', 'influence', 'monitor', 'delegate'],
+            'Complete': ['done', 'archive']
+        },
+        flatOptions: [
+            'inbox', 'breakdown', 'stretch', 'ready', 'next-action', 'blocked',
+            'in-progress', 'influence', 'monitor', 'delegate',
+            'done', 'archive'
+        ],
+        default: 'inbox',
+        labels: {
+            'inbox': 'Inbox',
+            'breakdown': 'Breakdown',
+            'stretch': 'Stretch',
+            'ready': 'Ready',
+            'next-action': 'Next Action',
+            'blocked': 'Blocked',
+            'in-progress': 'In Progress',
+            'influence': 'Influence',
+            'monitor': 'Monitor',
+            'delegate': 'Delegate',
+            'done': 'Done',
+            'archive': 'Archive'
+        },
+        icons: {
+            'inbox': '📥',
+            'breakdown': '📝',
+            'stretch': '🎯',
+            'ready': '✅',
+            'next-action': '▶️',
+            'blocked': '🚫',
+            'in-progress': '⏳',
+            'influence': '🤝',
+            'monitor': '👁️',
+            'delegate': '📤',
+            'done': '✓',
+            'archive': '🗄️'
+        }
+    },
+    impact: {
+        options: ['TBD', 'LOW', 'Medium', 'High'],
+        default: 'TBD',
+        icons: { 'TBD': '❓', 'LOW': '🔵', 'Medium': '🟡', 'High': '🔴' }
+    },
+    value: {
+        options: ['TBD', 'BUILD', 'LEARN'],
+        default: 'TBD',
+        icons: { 'TBD': '❓', 'BUILD': '🔨', 'LEARN': '📚' }
+    },
+    complexity: {
+        options: ['TBD', 'JUST DO IT', 'Trivial', 'Simple & Clear', 'Multiple Steps', 'Dependent/Risk', 'Unknown/Broad'],
+        default: 'TBD',
+        icons: {
+            'TBD': '⏳',
+            'JUST DO IT': '⚡',
+            'Trivial': '🟢',
+            'Simple & Clear': '📘',
+            'Multiple Steps': '🟡',
+            'Dependent/Risk': '⚠️',
+            'Unknown/Broad': '❓'
+        }
+    },
+    energy: {
+        options: ['TBD', 'Low', 'Medium', 'High'],
+        default: 'TBD',
+        icons: { 'TBD': '❓', 'Low': '🍃', 'Medium': '⚡', 'High': '🔋' }
+    },
+    action: {
+        options: ['TBD', 'Question', 'Mandate', 'Delete', 'Simplify', 'Accelerate', 'Automate'],
+        default: 'TBD',
+        icons: {
+            'TBD': '⏳',
+            'Question': '❓',
+            'Mandate': '✅',
+            'Delete': '🗑️',
+            'Simplify': '✂️',
+            'Accelerate': '⏩',
+            'Automate': '🤖'
+        }
+    },
+    estimates: {
+        options: [
+            'Unknown', '0 HR', '1 Hr', '2 Hr', '4 HR',
+            '8 Hr - 1 Day', '16 Hr - 2 Day', '24 Hr - 3 Day', '40 Hr - 5 Day',
+            '56 Hr - 1 Week', '112 Hr - 2 Week', '224 Hr - 1 Month'
+        ],
+        default: 'Unknown',
+        icons: {
+            'Unknown': '❓',
+            '0 HR': '⏱️',
+            '1 Hr': '⏱️',
+            '2 Hr': '⏱️',
+            '4 HR': '⏱️',
+            '8 Hr - 1 Day': '📅',
+            '16 Hr - 2 Day': '📅',
+            '24 Hr - 3 Day': '📅',
+            '40 Hr - 5 Day': '📅',
+            '56 Hr - 1 Week': '📆',
+            '112 Hr - 2 Week': '📆',
+            '224 Hr - 1 Month': '🗓️'
+        }
+    }
+};
+
+// Default enabled attributes constant (for reference)
+// Default enabled attributes constant (for reference)
+// Note: priority and type can be disabled by user but default to enabled
+const DEFAULT_ENABLED_ATTRIBUTES = {
+    priority: true,
+    type: true,
+    status: false,
+    why: false,
+    projects: false,
+    impact: false,
+    value: false,
+    complexity: false,
+    energy: true,       // Default enabled
+    action: false,
+    estimates: false,
+    sprint: false,
+    interval: false
 };
 
 // --- Task Data Structure and Storage ---
@@ -69,13 +213,24 @@ class Task {
         type = 'home',
         displayOrder = 0,
         schedule = [],
-        energy = 'low',
+        energy = 'TBD',
         notes = '',
         completedAt = null,
         recurrence = null,
         notionPageId = null,
         lastModified = null,
-        colorCode = null
+        colorCode = null,
+        // --- New attribute fields ---
+        status = 'inbox',
+        why = '',
+        projects = '',
+        impact = 'TBD',
+        value = 'TBD',
+        complexity = 'TBD',
+        action = 'TBD',
+        estimates = 'Unknown',
+        sprint = '',
+        interval = null  // { startDate: string|null, endDate: string|null }
     ) {
         this.id = id || `task_${new Date().getTime()}_${Math.random().toString(36).substr(2, 9)}`;
         this.title = title;
@@ -93,6 +248,17 @@ class Task {
         this.notionPageId = notionPageId;
         this.lastModified = lastModified || new Date().toISOString();
         this.colorCode = colorCode; // Custom color: null | 'red' | 'blue' | 'green' | 'purple' | 'orange'
+        // --- New attribute assignments ---
+        this.status = status;
+        this.why = why;
+        this.projects = projects;
+        this.impact = impact;
+        this.value = value;
+        this.complexity = complexity;
+        this.action = action;
+        this.estimates = estimates;
+        this.sprint = sprint;
+        this.interval = interval;
     }
 }
 
@@ -123,11 +289,18 @@ function getTasks(callback) {
                         }
                     });
                 }
+                // Energy field migration: 'low'/'high' -> 'Low'/'High'/'Medium'/'TBD'
                 if (typeof taskInstance.energy === 'undefined') {
-                    taskInstance.energy = 'low';
+                    taskInstance.energy = 'TBD';
+                    needsSave = true;
+                } else if (taskInstance.energy === 'low') {
+                    taskInstance.energy = 'Low';
+                    needsSave = true;
+                } else if (taskInstance.energy === 'high') {
+                    taskInstance.energy = 'High';
                     needsSave = true;
                 }
-                // New fields backfill
+                // Existing fields backfill
                 if (typeof taskInstance.notes === 'undefined') {
                     taskInstance.notes = '';
                     needsSave = true;
@@ -150,6 +323,47 @@ function getTasks(callback) {
                 }
                 if (typeof taskInstance.colorCode === 'undefined') {
                     taskInstance.colorCode = null;
+                    needsSave = true;
+                }
+                // --- New attribute fields backfill ---
+                if (typeof taskInstance.status === 'undefined') {
+                    taskInstance.status = 'inbox';
+                    needsSave = true;
+                }
+                if (typeof taskInstance.why === 'undefined') {
+                    taskInstance.why = '';
+                    needsSave = true;
+                }
+                if (typeof taskInstance.projects === 'undefined') {
+                    taskInstance.projects = '';
+                    needsSave = true;
+                }
+                if (typeof taskInstance.impact === 'undefined') {
+                    taskInstance.impact = 'TBD';
+                    needsSave = true;
+                }
+                if (typeof taskInstance.value === 'undefined') {
+                    taskInstance.value = 'TBD';
+                    needsSave = true;
+                }
+                if (typeof taskInstance.complexity === 'undefined') {
+                    taskInstance.complexity = 'TBD';
+                    needsSave = true;
+                }
+                if (typeof taskInstance.action === 'undefined') {
+                    taskInstance.action = 'TBD';
+                    needsSave = true;
+                }
+                if (typeof taskInstance.estimates === 'undefined') {
+                    taskInstance.estimates = 'Unknown';
+                    needsSave = true;
+                }
+                if (typeof taskInstance.sprint === 'undefined') {
+                    taskInstance.sprint = '';
+                    needsSave = true;
+                }
+                if (typeof taskInstance.interval === 'undefined') {
+                    taskInstance.interval = null;
                     needsSave = true;
                 }
                 // Backfill schedule item fields for new features
@@ -198,7 +412,7 @@ function saveTasks(tasks, callback) {
 }
 
 // Function to add a new task
-async function addNewTask(title, url, priority, deadline, type, energy = 'low', notes = '', recurrence = null) {
+async function addNewTask(title, url, priority, deadline, type, energy = 'TBD', notes = '', recurrence = null, extraAttrs = {}) {
     return new Promise((resolve) => {
         getTasks(tasks => {
             const tasksInSamePriorityGroup = tasks.filter(task => task.priority === priority && !task.completed);
@@ -210,7 +424,25 @@ async function addNewTask(title, url, priority, deadline, type, energy = 'low', 
                 newDisplayOrder = allDisplayOrders.length > 0 ? Math.max(...allDisplayOrders) + 1 : 0;
             }
 
-            const newTask = new Task(null, title, url, priority, false, deadline, type, newDisplayOrder, [], energy, notes, null, recurrence || null);
+            // Extract new attribute fields from extraAttrs with defaults
+            const {
+                status = 'inbox',
+                why = '',
+                projects = '',
+                impact = 'TBD',
+                value = 'TBD',
+                complexity = 'TBD',
+                action = 'TBD',
+                estimates = 'Unknown',
+                sprint = '',
+                interval = null
+            } = extraAttrs;
+
+            const newTask = new Task(
+                null, title, url, priority, false, deadline, type, newDisplayOrder, [],
+                energy, notes, null, recurrence || null, null, null, null,
+                status, why, projects, impact, value, complexity, action, estimates, sprint, interval
+            );
             tasks.push(newTask);
 
             saveTasks(tasks, (success) => {
@@ -257,6 +489,20 @@ function createRecurringInstance(task) {
         newDeadline = d.toISOString().split('T')[0]; // YYYY-MM-DD
     }
 
+    // For interval, shift dates if both are set
+    let newInterval = null;
+    if (task.interval && task.interval.startDate && task.interval.endDate) {
+        const startD = new Date(task.interval.startDate);
+        const endD = new Date(task.interval.endDate);
+        const daysOffset = task.recurrence === 'daily' ? 1 : task.recurrence === 'weekly' ? 7 : 30;
+        startD.setDate(startD.getDate() + daysOffset);
+        endD.setDate(endD.getDate() + daysOffset);
+        newInterval = {
+            startDate: startD.toISOString().split('T')[0],
+            endDate: endD.toISOString().split('T')[0]
+        };
+    }
+
     return new Task(
         null, // new id
         task.title,
@@ -272,7 +518,19 @@ function createRecurringInstance(task) {
         null,        // completedAt = null
         task.recurrence,
         null,        // notionPageId = null (recurring instances are not linked to Notion)
-        null         // lastModified = null (will be auto-set by constructor)
+        null,        // lastModified = null (will be auto-set by constructor)
+        null,        // colorCode
+        // --- Copy new attribute fields ---
+        task.status || 'inbox',
+        task.why || '',
+        task.projects || '',
+        task.impact || 'TBD',
+        task.value || 'TBD',
+        task.complexity || 'TBD',
+        task.action || 'TBD',
+        task.estimates || 'Unknown',
+        task.sprint || '',
+        newInterval
     );
 }
 
@@ -529,16 +787,16 @@ async function seedSampleTasks() {
     const deadlineStr = inThreeDays.toISOString().split('T')[0];
 
     const sampleTasks = [
-        new Task(null, 'Review project proposal', 'https://example.com/proposal', 'CRITICAL', false, deadlineStr, 'work', 0, [], 'high',
+        new Task(null, 'Review project proposal', 'https://example.com/proposal', 'CRITICAL', false, deadlineStr, 'work', 0, [], 'High',
             'Check budget estimates and timeline. Get sign-off from stakeholders.', null, null),
-        new Task(null, 'Set up weekly planning routine', '', 'IMPORTANT', false, null, 'work', 1, [], 'high',
+        new Task(null, 'Set up weekly planning routine', '', 'IMPORTANT', false, null, 'work', 1, [], 'High',
             'Use this planner every Monday morning. Assign tasks to time blocks for the week.', null, 'weekly'),
-        new Task(null, 'Read "Deep Work" by Cal Newport', 'https://www.goodreads.com/book/show/25744928', 'IMPORTANT', false, null, 'home', 2, [], 'low',
+        new Task(null, 'Read "Deep Work" by Cal Newport', 'https://www.goodreads.com/book/show/25744928', 'IMPORTANT', false, null, 'home', 2, [], 'Low',
             'Focus on chapters 1-3 this week. Take notes on the time-blocking strategy.', null, null),
-        new Task(null, 'Grocery shopping', '', 'SOMEDAY', false, null, 'home', 3, [], 'low', '', null, 'weekly'),
-        new Task(null, 'Learn keyboard shortcuts for VS Code', '', 'SOMEDAY', false, null, 'work', 4, [], 'low',
+        new Task(null, 'Grocery shopping', '', 'SOMEDAY', false, null, 'home', 3, [], 'Low', '', null, 'weekly'),
+        new Task(null, 'Learn keyboard shortcuts for VS Code', '', 'SOMEDAY', false, null, 'work', 4, [], 'Low',
             'Focus on multi-cursor editing and quick file navigation shortcuts.', null, null),
-        new Task(null, 'Morning workout routine', '', 'IMPORTANT', false, null, 'home', 5, [], 'high', '', null, 'daily'),
+        new Task(null, 'Morning workout routine', '', 'IMPORTANT', false, null, 'home', 5, [], 'High', '', null, 'daily'),
     ];
 
     return new Promise((resolve) => {
@@ -596,7 +854,18 @@ function duplicateTask(task) {
         task.recurrence,
         null, // notionPageId
         null, // lastModified (auto-set)
-        task.colorCode
+        task.colorCode,
+        // --- Copy new attribute fields ---
+        task.status || 'inbox',
+        task.why || '',
+        task.projects || '',
+        task.impact || 'TBD',
+        task.value || 'TBD',
+        task.complexity || 'TBD',
+        task.action || 'TBD',
+        task.estimates || 'Unknown',
+        task.sprint || '',
+        task.interval ? { ...task.interval } : null
     );
     return newTask;
 }

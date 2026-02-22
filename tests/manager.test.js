@@ -5,6 +5,7 @@ const path = require('path');
 // Load task_utils first (dependency)
 loadScript(path.join(__dirname, '..', 'task_utils.js'), [
     'DEFAULT_TIME_BLOCKS', 'TIME_BLOCKS', 'DEFAULT_SETTINGS',
+    'ATTRIBUTE_OPTIONS', 'DEFAULT_ENABLED_ATTRIBUTES',
     'Task', 'getTasks', 'saveTasks', 'addNewTask', 'getTaskById',
     'updateTaskCompletion', 'updateTask', 'deleteTask', 'showInfoMessage',
     'getTasksAsync', 'saveTasksAsync', 'withTaskLock', 'validateTask', 'isValidUrl',
@@ -20,7 +21,8 @@ loadScript(path.join(__dirname, '..', 'task_utils.js'), [
 loadScript(path.join(__dirname, '..', 'settings.js'), [
     'initSettings', 'applySettings',
     'openSettingsModal', 'closeSettingsModal',
-    'setupSettingsModalListeners'
+    'setupSettingsModalListeners',
+    'getEnabledAttributes'
 ]);
 
 // Setup manager HTML before loading manager.js
@@ -48,8 +50,7 @@ function setupManagerDOM() {
 
             <div class="tabs" role="tablist">
                 <button class="tab-link active" data-tab="weekly-schedule" role="tab" aria-selected="true">SCHEDULE</button>
-                <button class="tab-link" data-tab="task-lists" role="tab" aria-selected="false">PRIORITY</button>
-                <button class="tab-link" data-tab="all-tasks" role="tab" aria-selected="false">LOCATION</button>
+                <button class="tab-link" data-tab="groups-tab" role="tab" aria-selected="false">GROUPS</button>
                 <button class="tab-link" data-tab="archive-tab" role="tab" aria-selected="false">ARCHIVE</button>
                 <button class="tab-link" data-tab="stats-tab" role="tab" aria-selected="false">STATS</button>
             </div>
@@ -85,76 +86,18 @@ function setupManagerDOM() {
                     </div>
                 </div>
 
-                <div id="task-lists" class="tab-content" role="tabpanel">
-                    <div class="search-bar-container">
-                        <input type="search" id="priority-search-input" class="neumorphic-input" placeholder="Search tasks...">
-                        <button id="priority-search-clear" class="neumorphic-btn">Clear</button>
-                    </div>
-                    <div class="tasks-display-area">
-                        <div class="priority-column">
-                            <h3>Critical</h3>
-                            <div id="critical-tasks-list" class="task-list neumorphic-inset-card"></div>
-                            <details class="completed-disclosure" id="critical-completed-disclosure">
-                                <summary class="completed-disclosure-summary">
-                                    <span class="disclosure-label">Completed</span>
-                                    <span class="completed-count" id="critical-completed-count">0</span>
-                                </summary>
-                                <div id="critical-completed-list" class="completed-tasks-list"></div>
-                            </details>
+                <div id="groups-tab" class="tab-content" role="tabpanel">
+                    <nav id="groups-breadcrumb" class="groups-breadcrumb hidden">
+                        <button id="groups-back-btn" class="neumorphic-btn">← Groups</button>
+                        <span>/</span>
+                        <span id="breadcrumb-attribute-name"></span>
+                    </nav>
+                    <div id="groups-bento-view" class="groups-bento-grid"></div>
+                    <div id="groups-drilldown-view" class="hidden">
+                        <div class="drilldown-header">
+                            <input type="search" id="groups-drilldown-search" class="neumorphic-input" placeholder="Search tasks...">
                         </div>
-                        <div class="priority-column">
-                            <h3>Important</h3>
-                            <div id="important-tasks-list" class="task-list neumorphic-inset-card"></div>
-                            <details class="completed-disclosure" id="important-completed-disclosure">
-                                <summary class="completed-disclosure-summary">
-                                    <span class="disclosure-label">Completed</span>
-                                    <span class="completed-count" id="important-completed-count">0</span>
-                                </summary>
-                                <div id="important-completed-list" class="completed-tasks-list"></div>
-                            </details>
-                        </div>
-                        <div class="priority-column">
-                            <h3>Someday</h3>
-                            <div id="someday-tasks-list" class="task-list neumorphic-inset-card"></div>
-                            <details class="completed-disclosure" id="someday-completed-disclosure">
-                                <summary class="completed-disclosure-summary">
-                                    <span class="disclosure-label">Completed</span>
-                                    <span class="completed-count" id="someday-completed-count">0</span>
-                                </summary>
-                                <div id="someday-completed-list" class="completed-tasks-list"></div>
-                            </details>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="all-tasks" class="tab-content" role="tabpanel">
-                    <div class="search-bar-container">
-                        <input type="search" id="location-search-input" class="neumorphic-input" placeholder="Search tasks...">
-                        <button id="location-search-clear" class="neumorphic-btn">Clear</button>
-                    </div>
-                    <div class="tasks-display-area">
-                        <div class="priority-column">
-                            <h3>Home</h3>
-                            <div id="home-tasks-list" class="task-list neumorphic-inset-card"></div>
-                            <details class="completed-disclosure" id="home-completed-disclosure">
-                                <summary class="completed-disclosure-summary">
-                                    <span class="disclosure-label">Completed</span>
-                                    <span class="completed-count" id="home-completed-count">0</span>
-                                </summary>
-                                <div id="home-completed-list" class="completed-tasks-list"></div>
-                            </details>
-                        </div>
-                        <div class="priority-column">
-                            <h3>Work</h3>
-                            <div id="work-tasks-list" class="task-list neumorphic-inset-card"></div>
-                            <details class="completed-disclosure" id="work-completed-disclosure">
-                                <summary class="completed-disclosure-summary">
-                                    <span class="disclosure-label">Completed</span>
-                                    <span class="completed-count" id="work-completed-count">0</span>
-                                </summary>
-                                <div id="work-completed-list" class="completed-tasks-list"></div>
-                            </details>
-                        </div>
+                        <div id="groups-drilldown-columns" class="groups-drilldown-columns"></div>
                     </div>
                 </div>
 
@@ -280,8 +223,10 @@ function setupManagerDOM() {
                         </div>
                         <input type="radio" id="manager-type-home" name="manager-type" value="home" checked>
                         <input type="radio" id="manager-type-work" name="manager-type" value="work">
-                        <input type="radio" id="manager-energy-low" name="manager-energy" value="low" checked>
-                        <input type="radio" id="manager-energy-high" name="manager-energy" value="high">
+                        <input type="radio" id="manager-energy-tbd" name="manager-energy" value="TBD" checked>
+                        <input type="radio" id="manager-energy-low" name="manager-energy" value="Low">
+                        <input type="radio" id="manager-energy-medium" name="manager-energy" value="Medium">
+                        <input type="radio" id="manager-energy-high" name="manager-energy" value="High">
                         <select id="manager-task-recurrence" class="neumorphic-select">
                             <option value="">None</option>
                             <option value="daily">Daily</option>
@@ -311,13 +256,13 @@ const MANAGER_EXPORTS = [
     'DAYS', 'currentDays', 'renderPage', 'generateDayHeaders', 'generatePlannerGrid',
     'setupSettingsListeners', 'setupHelpListeners', 'setupAddTaskModalListeners', 'highlightCurrentDay',
     'setupSchedulingListeners', 'setupArchiveListeners',
-    'clearPlannerTasks', 'clearPriorityLists', 'clearHomeWorkLists',
-    'renderSidebarLists', 'renderTasksOnGrid', 'renderPriorityLists', 'renderHomeWorkLists',
+    'clearPlannerTasks',
+    'renderSidebarLists', 'renderTasksOnGrid',
     'createTaskElement', 'setupTabSwitching', 'setupCoreFeatureListeners',
     'setupDragAndDropListeners', 'setupTaskManagementListeners', 'setupAllListeners',
     'renderArchiveTab', 'renderStatsTab',
     'getCompletedInRange', 'calculateStreak', 'getPeakHours', 'getFocusDistribution', 'getBlockDistribution', 'getStaleTasks',
-    'applySearchFilter', 'setupScheduleSearch', 'setupPrioritySearch', 'setupLocationSearch', 'setupArchiveSearch',
+    'applySearchFilter', 'setupScheduleSearch', 'setupArchiveSearch',
     'showUndoToast', 'setupUndoKeyboardListeners',
     // Schedule Tab Enhancements
     'setupCollapsibleSidebar', 'updateUnassignedCount',
@@ -325,7 +270,12 @@ const MANAGER_EXPORTS = [
     'createHoverPopover', 'showTaskPopover', 'positionPopover', 'hideTaskPopover', 'setupHoverPopover',
     'escapeHtml', 'truncateUrl', 'formatPopoverDeadline', 'hoverPopover', 'hoverTimeout', 'HOVER_DELAY',
     'getCurrentTimeBlockInfo', 'formatCurrentTime', 'updateCurrentTimeIndicator',
-    'startTimeIndicatorUpdates', 'stopTimeIndicatorUpdates', 'timeIndicatorInterval'
+    'startTimeIndicatorUpdates', 'stopTimeIndicatorUpdates', 'timeIndicatorInterval',
+    // Groups Tab
+    'renderGroupsTab', 'calculateAttributeDistribution', 'createBentoBox', 'renderMiniPieChart',
+    'openGroupsDrilldown', 'closeGroupsDrilldown', 'renderGroupsDrilldownColumns',
+    // Stats helpers
+    'renderStatusDistributionBars', 'renderAttributeDistributionBars'
 ];
 
 beforeEach(() => {
@@ -395,117 +345,118 @@ describe('generatePlannerGrid', () => {
 
 describe('createTaskElement', () => {
     test('creates element with priority class', () => {
-        const task = { id: 't1', title: 'Test', priority: 'CRITICAL', completed: false, type: 'home', energy: 'low', schedule: [], notes: '', recurrence: null };
+        const task = { id: 't1', title: 'Test', priority: 'CRITICAL', completed: false, type: 'home', energy: 'Low', schedule: [], notes: '', recurrence: null };
         const el = createTaskElement(task);
         expect(el.classList.contains('priority-CRITICAL')).toBe(true);
     });
 
     test('adds completed class', () => {
-        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'low', schedule: [], notes: '', recurrence: null };
+        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'Low', schedule: [], notes: '', recurrence: null };
         const el = createTaskElement(task);
         expect(el.classList.contains('task-completed')).toBe(true);
     });
 
     test('adds energy class for incomplete tasks', () => {
-        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'high', schedule: [], notes: '', recurrence: null };
+        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'High', schedule: [], notes: '', recurrence: null };
         const el = createTaskElement(task);
         expect(el.classList.contains('energy-high-incomplete')).toBe(true);
     });
 
     test('renders checkbox in management context', () => {
-        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', schedule: [], notes: '', recurrence: null };
+        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], notes: '', recurrence: null };
         const el = createTaskElement(task, { context: 'management', index: 0, total: 1 });
         expect(el.querySelector('.task-complete-checkbox')).not.toBeNull();
     });
 
-    test('renders edit and delete buttons in management context', () => {
-        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', schedule: [], notes: '', recurrence: null };
+    test('does not render inline edit/delete buttons in management context (use Task Details modal instead)', () => {
+        // Edit/Delete buttons were removed from management context - use Task Details modal via double-click instead
+        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], notes: '', recurrence: null };
         const el = createTaskElement(task, { context: 'management', index: 0, total: 1 });
-        expect(el.querySelector('.edit-task-btn-list')).not.toBeNull();
-        expect(el.querySelector('.delete-task-btn-list')).not.toBeNull();
+        expect(el.querySelector('.edit-task-btn-list')).toBeNull();
+        expect(el.querySelector('.delete-task-btn-list')).toBeNull();
     });
 
     test('renders move up button when not first', () => {
-        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', schedule: [], notes: '', recurrence: null };
+        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], notes: '', recurrence: null };
         const el = createTaskElement(task, { context: 'management', index: 1, total: 3 });
         expect(el.querySelector('.move-task-up-btn')).not.toBeNull();
     });
 
     test('does not render move up button for first item', () => {
-        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', schedule: [], notes: '', recurrence: null };
+        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], notes: '', recurrence: null };
         const el = createTaskElement(task, { context: 'management', index: 0, total: 3 });
         expect(el.querySelector('.move-task-up-btn')).toBeNull();
     });
 
     test('renders move down button when not last', () => {
-        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', schedule: [], notes: '', recurrence: null };
+        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], notes: '', recurrence: null };
         const el = createTaskElement(task, { context: 'management', index: 0, total: 3 });
         expect(el.querySelector('.move-task-down-btn')).not.toBeNull();
     });
 
     test('does not render move down button for last item', () => {
-        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', schedule: [], notes: '', recurrence: null };
+        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], notes: '', recurrence: null };
         const el = createTaskElement(task, { context: 'management', index: 2, total: 3 });
         expect(el.querySelector('.move-task-down-btn')).toBeNull();
     });
 
     test('sidebar context makes items draggable', () => {
-        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', schedule: [], notes: '', recurrence: null };
+        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], notes: '', recurrence: null };
         const el = createTaskElement(task, { context: 'sidebar' });
         expect(el.getAttribute('draggable')).toBe('true');
     });
 
     test('grid context makes items draggable', () => {
-        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', schedule: [], notes: '', recurrence: null };
+        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], notes: '', recurrence: null };
         const el = createTaskElement(task, { context: 'grid' });
         expect(el.getAttribute('draggable')).toBe('true');
     });
 
     test('management context does not make items draggable', () => {
-        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', schedule: [], notes: '', recurrence: null };
+        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], notes: '', recurrence: null };
         const el = createTaskElement(task, { context: 'management', index: 0, total: 1 });
         expect(el.getAttribute('draggable')).toBeNull();
     });
 
     test('shows type icon', () => {
-        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'work', energy: 'low', schedule: [], notes: '', recurrence: null };
+        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'work', energy: 'Low', schedule: [], notes: '', recurrence: null };
         const el = createTaskElement(task, { context: 'sidebar' });
         const icon = el.querySelector('.task-type-icon');
         expect(icon).not.toBeNull();
     });
 
     test('sidebar assigned shows toggle button', () => {
-        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', schedule: [{ day: 'monday', blockId: 'ai-study', completed: false }], notes: '', recurrence: null };
+        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [{ day: 'monday', blockId: 'ai-study', completed: false }], notes: '', recurrence: null };
         const el = createTaskElement(task, { context: 'sidebar', isAssigned: true });
         expect(el.querySelector('.toggle-schedule-btn')).not.toBeNull();
     });
 
     test('sidebar shows schedule button', () => {
-        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', schedule: [], notes: '', recurrence: null };
+        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], notes: '', recurrence: null };
         const el = createTaskElement(task, { context: 'sidebar' });
         expect(el.querySelector('.schedule-task-btn')).not.toBeNull();
     });
 
     test('shows recurrence badge when task has recurrence', () => {
-        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', schedule: [], notes: '', recurrence: 'weekly' };
+        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], notes: '', recurrence: 'weekly' };
         const el = createTaskElement(task);
         expect(el.querySelector('.recurrence-badge')).not.toBeNull();
     });
 
     test('no recurrence badge when recurrence is null', () => {
-        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', schedule: [], notes: '', recurrence: null };
+        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], notes: '', recurrence: null };
         const el = createTaskElement(task);
         expect(el.querySelector('.recurrence-badge')).toBeNull();
     });
 
     test('shows notes toggle when task has notes', () => {
-        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', schedule: [], notes: 'Some notes here', recurrence: null };
+        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], notes: 'Some notes here', recurrence: null };
         const el = createTaskElement(task);
         expect(el.querySelector('.task-notes-toggle')).not.toBeNull();
     });
 
     test('no notes toggle when notes is empty', () => {
-        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', schedule: [], notes: '', recurrence: null };
+        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], notes: '', recurrence: null };
         const el = createTaskElement(task);
         expect(el.querySelector('.task-notes-toggle')).toBeNull();
     });
@@ -514,7 +465,7 @@ describe('createTaskElement', () => {
 describe('renderSidebarLists', () => {
     test('renders unassigned tasks', () => {
         const unassigned = [
-            { id: 't1', title: 'Task 1', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', schedule: [], notes: '', recurrence: null },
+            { id: 't1', title: 'Task 1', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], notes: '', recurrence: null },
         ];
         renderSidebarLists(unassigned, []);
         const list = document.getElementById('unassigned-tasks-list');
@@ -529,7 +480,7 @@ describe('renderSidebarLists', () => {
 
     test('renders assigned tasks', () => {
         const assigned = [
-            { id: 't1', title: 'Task 1', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', schedule: [{ day: 'monday', blockId: 'ai-study', completed: false }], displayOrder: 0, notes: '', recurrence: null },
+            { id: 't1', title: 'Task 1', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [{ day: 'monday', blockId: 'ai-study', completed: false }], displayOrder: 0, notes: '', recurrence: null },
         ];
         renderSidebarLists([], assigned);
         const list = document.getElementById('assigned-tasks-list');
@@ -543,157 +494,80 @@ describe('renderSidebarLists', () => {
     });
 });
 
-describe('renderPriorityLists', () => {
-    test('sorts tasks into priority columns', () => {
+describe('Groups Tab - calculateAttributeDistribution', () => {
+    test('calculates distribution for priority attribute', () => {
         const tasks = [
-            { id: 't1', title: 'Critical', priority: 'CRITICAL', completed: false, type: 'home', energy: 'low', displayOrder: 0, schedule: [], deadline: '2025-12-01', notes: '', recurrence: null },
-            { id: 't2', title: 'Important', priority: 'IMPORTANT', completed: false, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null },
-            { id: 't3', title: 'Someday', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null },
+            { id: 't1', title: 'Task 1', priority: 'CRITICAL', completed: false },
+            { id: 't2', title: 'Task 2', priority: 'CRITICAL', completed: false },
+            { id: 't3', title: 'Task 3', priority: 'IMPORTANT', completed: false },
+            { id: 't4', title: 'Task 4', priority: 'SOMEDAY', completed: false },
         ];
-        renderPriorityLists(tasks);
-        expect(document.getElementById('critical-tasks-list').querySelectorAll('.task-item').length).toBe(1);
-        expect(document.getElementById('important-tasks-list').querySelectorAll('.task-item').length).toBe(1);
-        expect(document.getElementById('someday-tasks-list').querySelectorAll('.task-item').length).toBe(1);
+        const distribution = calculateAttributeDistribution(tasks, 'priority');
+        expect(distribution.counts['CRITICAL']).toBe(2);
+        expect(distribution.counts['IMPORTANT']).toBe(1);
+        expect(distribution.counts['SOMEDAY']).toBe(1);
+        expect(distribution.total).toBe(4);
     });
 
-    test('shows empty message for empty columns', () => {
-        renderPriorityLists([]);
-        expect(document.getElementById('critical-tasks-list').innerHTML).toContain('No tasks in this category');
-        expect(document.getElementById('important-tasks-list').innerHTML).toContain('No tasks in this category');
-        expect(document.getElementById('someday-tasks-list').innerHTML).toContain('No tasks in this category');
+    test('calculates distribution for type attribute', () => {
+        const tasks = [
+            { id: 't1', title: 'Task 1', type: 'home', completed: false },
+            { id: 't2', title: 'Task 2', type: 'work', completed: false },
+            { id: 't3', title: 'Task 3', type: 'work', completed: false },
+        ];
+        const distribution = calculateAttributeDistribution(tasks, 'type');
+        expect(distribution.counts['home']).toBe(1);
+        expect(distribution.counts['work']).toBe(2);
+        expect(distribution.total).toBe(3);
     });
 
-    test('sorts within priority by displayOrder', () => {
-        const tasks = [
-            { id: 't1', title: 'Second', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', displayOrder: 1, schedule: [], notes: '', recurrence: null },
-            { id: 't2', title: 'First', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null },
-        ];
-        renderPriorityLists(tasks);
-        const items = document.getElementById('someday-tasks-list').querySelectorAll('.task-item');
-        expect(items[0].dataset.taskId).toBe('t2');
-        expect(items[1].dataset.taskId).toBe('t1');
+    test('handles empty tasks array', () => {
+        const distribution = calculateAttributeDistribution([], 'priority');
+        expect(distribution.total).toBe(0);
+        expect(Object.keys(distribution.counts).length).toBe(0);
     });
 });
 
-describe('renderHomeWorkLists', () => {
-    test('separates home and work tasks', () => {
-        const tasks = [
-            { id: 't1', title: 'Home', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null },
-            { id: 't2', title: 'Work', priority: 'SOMEDAY', completed: false, type: 'work', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null },
-        ];
-        renderHomeWorkLists(tasks);
-        expect(document.getElementById('home-tasks-list').querySelectorAll('.task-item').length).toBe(1);
-        expect(document.getElementById('work-tasks-list').querySelectorAll('.task-item').length).toBe(1);
+describe('Groups Tab - renderMiniPieChart', () => {
+    test('generates SVG with correct segments', () => {
+        const counts = { 'CRITICAL': 2, 'IMPORTANT': 1, 'SOMEDAY': 1 };
+        const svg = renderMiniPieChart(counts, 'priority');
+        expect(svg).toContain('<svg');
+        expect(svg).toContain('</svg>');
     });
 
-    test('sorts by priority then displayOrder', () => {
-        const tasks = [
-            { id: 't1', title: 'Someday', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null },
-            { id: 't2', title: 'Critical', priority: 'CRITICAL', completed: false, type: 'home', energy: 'low', displayOrder: 0, schedule: [], deadline: '2025-12-01', notes: '', recurrence: null },
-        ];
-        renderHomeWorkLists(tasks);
-        const items = document.getElementById('home-tasks-list').querySelectorAll('.task-item');
-        expect(items[0].dataset.taskId).toBe('t2');
-        expect(items[1].dataset.taskId).toBe('t1');
-    });
-
-    test('shows empty message for empty columns', () => {
-        renderHomeWorkLists([]);
-        expect(document.getElementById('home-tasks-list').innerHTML).toContain('No tasks in this category');
-        expect(document.getElementById('work-tasks-list').innerHTML).toContain('No tasks in this category');
+    test('handles single value', () => {
+        const counts = { 'CRITICAL': 5 };
+        const svg = renderMiniPieChart(counts, 'priority');
+        expect(svg).toContain('<svg');
     });
 });
 
-describe('Completed Tasks Disclosure - Priority Tab', () => {
-    test('renders completed tasks in disclosure sections', () => {
-        const tasks = [
-            { id: 't1', title: 'Active Critical', priority: 'CRITICAL', completed: false, type: 'home', energy: 'low', displayOrder: 0, schedule: [], deadline: '2025-12-01', notes: '', recurrence: null },
-            { id: 't2', title: 'Completed Critical', priority: 'CRITICAL', completed: true, type: 'home', energy: 'low', displayOrder: 0, schedule: [], deadline: '2025-12-01', notes: '', recurrence: null, completedAt: '2025-01-01' },
-            { id: 't3', title: 'Completed Important', priority: 'IMPORTANT', completed: true, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: '2025-01-01' },
-        ];
-        renderPriorityLists(tasks);
-
-        // Active task in main list
-        expect(document.getElementById('critical-tasks-list').querySelectorAll('.task-item').length).toBe(1);
-
-        // Completed tasks in disclosure lists
-        expect(document.getElementById('critical-completed-list').querySelectorAll('.task-item').length).toBe(1);
-        expect(document.getElementById('important-completed-list').querySelectorAll('.task-item').length).toBe(1);
-    });
-
-    test('updates completed count badges', () => {
-        const tasks = [
-            { id: 't1', title: 'Done 1', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: '2025-01-01' },
-            { id: 't2', title: 'Done 2', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'low', displayOrder: 1, schedule: [], notes: '', recurrence: null, completedAt: '2025-01-01' },
-        ];
-        renderPriorityLists(tasks);
-
-        expect(document.getElementById('someday-completed-count').textContent).toBe('2');
-    });
-
-    test('hides disclosure when no completed tasks', () => {
-        const tasks = [
-            { id: 't1', title: 'Active', priority: 'CRITICAL', completed: false, type: 'home', energy: 'low', displayOrder: 0, schedule: [], deadline: '2025-12-01', notes: '', recurrence: null },
-        ];
-        renderPriorityLists(tasks);
-
-        expect(document.getElementById('critical-completed-disclosure').classList.contains('hidden')).toBe(true);
-    });
-
-    test('shows disclosure when has completed tasks', () => {
-        const tasks = [
-            { id: 't1', title: 'Done', priority: 'IMPORTANT', completed: true, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: '2025-01-01' },
-        ];
-        renderPriorityLists(tasks);
-
-        expect(document.getElementById('important-completed-disclosure').classList.contains('hidden')).toBe(false);
+describe('Groups Tab - createBentoBox', () => {
+    test('creates bento box element', () => {
+        const distribution = { counts: { 'CRITICAL': 2, 'IMPORTANT': 1 }, total: 3 };
+        const meta = { label: 'Priority', icon: '⭐' };
+        const box = createBentoBox('priority', meta, distribution);
+        expect(box.classList.contains('groups-bento-box')).toBe(true);
+        expect(box.outerHTML).toContain('Priority');
+        expect(box.outerHTML).toContain('⭐');
     });
 });
 
-describe('Completed Tasks Disclosure - Location Tab', () => {
-    test('renders completed tasks in disclosure sections', () => {
-        const tasks = [
-            { id: 't1', title: 'Active Home', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null },
-            { id: 't2', title: 'Completed Home', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: '2025-01-01' },
-            { id: 't3', title: 'Completed Work', priority: 'SOMEDAY', completed: true, type: 'work', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: '2025-01-01' },
-        ];
-        renderHomeWorkLists(tasks);
+describe('Groups Tab - closeGroupsDrilldown', () => {
+    test('hides drilldown view and shows bento view', async () => {
+        document.getElementById('groups-drilldown-view').classList.remove('hidden');
+        document.getElementById('groups-bento-view').classList.add('hidden');
+        document.getElementById('groups-breadcrumb').classList.remove('hidden');
 
-        // Active task in main list
-        expect(document.getElementById('home-tasks-list').querySelectorAll('.task-item').length).toBe(1);
+        // closeGroupsDrilldown is now async with animation delay
+        await closeGroupsDrilldown();
+        // Wait for animation to complete
+        await new Promise(resolve => setTimeout(resolve, 200));
 
-        // Completed tasks in disclosure lists
-        expect(document.getElementById('home-completed-list').querySelectorAll('.task-item').length).toBe(1);
-        expect(document.getElementById('work-completed-list').querySelectorAll('.task-item').length).toBe(1);
-    });
-
-    test('updates completed count badges', () => {
-        const tasks = [
-            { id: 't1', title: 'Done 1', priority: 'SOMEDAY', completed: true, type: 'work', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: '2025-01-01' },
-            { id: 't2', title: 'Done 2', priority: 'IMPORTANT', completed: true, type: 'work', energy: 'low', displayOrder: 1, schedule: [], notes: '', recurrence: null, completedAt: '2025-01-01' },
-            { id: 't3', title: 'Done 3', priority: 'CRITICAL', completed: true, type: 'work', energy: 'low', displayOrder: 2, schedule: [], deadline: '2025-12-01', notes: '', recurrence: null, completedAt: '2025-01-01' },
-        ];
-        renderHomeWorkLists(tasks);
-
-        expect(document.getElementById('work-completed-count').textContent).toBe('3');
-    });
-
-    test('hides disclosure when no completed tasks', () => {
-        const tasks = [
-            { id: 't1', title: 'Active', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null },
-        ];
-        renderHomeWorkLists(tasks);
-
-        expect(document.getElementById('home-completed-disclosure').classList.contains('hidden')).toBe(true);
-    });
-
-    test('shows disclosure when has completed tasks', () => {
-        const tasks = [
-            { id: 't1', title: 'Done', priority: 'SOMEDAY', completed: true, type: 'work', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: '2025-01-01' },
-        ];
-        renderHomeWorkLists(tasks);
-
-        expect(document.getElementById('work-completed-disclosure').classList.contains('hidden')).toBe(false);
+        expect(document.getElementById('groups-drilldown-view').classList.contains('hidden')).toBe(true);
+        expect(document.getElementById('groups-bento-view').classList.contains('hidden')).toBe(false);
+        expect(document.getElementById('groups-breadcrumb').classList.contains('hidden')).toBe(true);
     });
 });
 
@@ -703,7 +577,7 @@ describe('renderTasksOnGrid', () => {
         const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
         const todayName = dayNames[new Date().getDay()];
         const tasks = [{
-            id: 't1', title: 'Grid Task', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low',
+            id: 't1', title: 'Grid Task', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low',
             schedule: [{ day: todayName, blockId: 'ai-study', completed: false }],
             notes: '', recurrence: null
         }];
@@ -734,42 +608,21 @@ describe('clearPlannerTasks', () => {
     });
 });
 
-describe('clearPriorityLists', () => {
-    test('clears all priority lists', () => {
-        document.getElementById('critical-tasks-list').innerHTML = '<div>task</div>';
-        document.getElementById('important-tasks-list').innerHTML = '<div>task</div>';
-        document.getElementById('someday-tasks-list').innerHTML = '<div>task</div>';
-        clearPriorityLists();
-        expect(document.getElementById('critical-tasks-list').innerHTML).toBe('');
-        expect(document.getElementById('important-tasks-list').innerHTML).toBe('');
-        expect(document.getElementById('someday-tasks-list').innerHTML).toBe('');
-    });
-});
-
-describe('clearHomeWorkLists', () => {
-    test('clears home and work lists', () => {
-        document.getElementById('home-tasks-list').innerHTML = '<div>task</div>';
-        document.getElementById('work-tasks-list').innerHTML = '<div>task</div>';
-        clearHomeWorkLists();
-        expect(document.getElementById('home-tasks-list').innerHTML).toBe('');
-        expect(document.getElementById('work-tasks-list').innerHTML).toBe('');
-    });
-});
 
 describe('Tab switching', () => {
     test('tab click activates correct tab and content', () => {
         setupTabSwitching();
         const tabs = document.querySelectorAll('.tab-link');
-        const priorityTab = tabs[1];
-        priorityTab.click();
+        const groupsTab = tabs[1]; // Now GROUPS tab instead of PRIORITY
+        groupsTab.click();
 
-        expect(priorityTab.classList.contains('active')).toBe(true);
-        expect(priorityTab.getAttribute('aria-selected')).toBe('true');
+        expect(groupsTab.classList.contains('active')).toBe(true);
+        expect(groupsTab.getAttribute('aria-selected')).toBe('true');
         expect(tabs[0].classList.contains('active')).toBe(false);
         expect(tabs[0].getAttribute('aria-selected')).toBe('false');
 
-        const taskListsContent = document.getElementById('task-lists');
-        expect(taskListsContent.classList.contains('active')).toBe(true);
+        const groupsContent = document.getElementById('groups-tab');
+        expect(groupsContent.classList.contains('active')).toBe(true);
     });
 });
 
@@ -780,20 +633,19 @@ describe('renderPage', () => {
         const todayName = dayNames[new Date().getDay()];
 
         seedTasks([
-            { id: 't1', title: 'Unassigned', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null },
-            { id: 't2', title: 'Assigned', priority: 'IMPORTANT', completed: false, type: 'work', energy: 'high', displayOrder: 0, schedule: [{ day: todayName, blockId: 'ai-study', completed: false }], notes: '', recurrence: null },
+            { id: 't1', title: 'Unassigned', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', displayOrder: 0, schedule: [], notes: '', recurrence: null },
+            { id: 't2', title: 'Assigned', priority: 'IMPORTANT', completed: false, type: 'work', energy: 'High', displayOrder: 0, schedule: [{ day: todayName, blockId: 'ai-study', completed: false }], notes: '', recurrence: null },
         ]);
 
         await renderPage();
 
+        // Check unassigned tasks rendered in sidebar
         const unassigned = document.getElementById('unassigned-tasks-list').querySelectorAll('.task-item');
         expect(unassigned.length).toBe(1);
 
-        const importantList = document.getElementById('important-tasks-list').querySelectorAll('.task-item');
-        expect(importantList.length).toBe(1);
-
-        const homeList = document.getElementById('home-tasks-list').querySelectorAll('.task-item');
-        expect(homeList.length).toBe(1);
+        // Check assigned tasks rendered in sidebar
+        const assigned = document.getElementById('assigned-tasks-list').querySelectorAll('.task-item');
+        expect(assigned.length).toBe(1);
     });
 });
 
@@ -817,7 +669,7 @@ describe('highlightCurrentDay', () => {
 describe('renderArchiveTab', () => {
     test('shows empty message when no completed tasks', async () => {
         seedTasks([
-            { id: 't1', title: 'Active', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: null }
+            { id: 't1', title: 'Active', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: null }
         ]);
         await renderArchiveTab();
         const archiveList = document.getElementById('archive-list');
@@ -826,7 +678,7 @@ describe('renderArchiveTab', () => {
 
     test('renders completed tasks grouped by date', async () => {
         seedTasks([
-            { id: 't1', title: 'Done Task', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: '2025-06-01T10:00:00.000Z' }
+            { id: 't1', title: 'Done Task', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'Low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: '2025-06-01T10:00:00.000Z' }
         ]);
         await renderArchiveTab();
         const archiveList = document.getElementById('archive-list');
@@ -837,9 +689,9 @@ describe('renderArchiveTab', () => {
         const now = new Date();
         const todayStr = now.toISOString();
         seedTasks([
-            { id: 't1', title: 'Old Task', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: todayStr, lastModified: '2025-01-01T08:00:00.000Z' },
-            { id: 't2', title: 'New Task', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'low', displayOrder: 1, schedule: [], notes: '', recurrence: null, completedAt: todayStr, lastModified: '2025-01-01T12:00:00.000Z' },
-            { id: 't3', title: 'Mid Task', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'low', displayOrder: 2, schedule: [], notes: '', recurrence: null, completedAt: todayStr, lastModified: '2025-01-01T10:00:00.000Z' }
+            { id: 't1', title: 'Old Task', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'Low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: todayStr, lastModified: '2025-01-01T08:00:00.000Z' },
+            { id: 't2', title: 'New Task', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'Low', displayOrder: 1, schedule: [], notes: '', recurrence: null, completedAt: todayStr, lastModified: '2025-01-01T12:00:00.000Z' },
+            { id: 't3', title: 'Mid Task', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'Low', displayOrder: 2, schedule: [], notes: '', recurrence: null, completedAt: todayStr, lastModified: '2025-01-01T10:00:00.000Z' }
         ]);
         await renderArchiveTab();
         const archiveList = document.getElementById('archive-list');
@@ -854,8 +706,8 @@ describe('renderArchiveTab', () => {
 describe('renderStatsTab', () => {
     test('renders stats content with bento grid', async () => {
         seedTasks([
-            { id: 't1', title: 'Done', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: new Date().toISOString() },
-            { id: 't2', title: 'Active', priority: 'IMPORTANT', completed: false, type: 'work', energy: 'high', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: null }
+            { id: 't1', title: 'Done', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'Low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: new Date().toISOString() },
+            { id: 't2', title: 'Active', priority: 'IMPORTANT', completed: false, type: 'work', energy: 'High', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: null }
         ]);
         await renderStatsTab();
         const statsContent = document.getElementById('stats-content');
@@ -866,7 +718,7 @@ describe('renderStatsTab', () => {
 
     test('renders hero progress ring', async () => {
         seedTasks([
-            { id: 't1', title: 'Task 1', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: new Date().toISOString() }
+            { id: 't1', title: 'Task 1', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'Low', displayOrder: 0, schedule: [], notes: '', recurrence: null, completedAt: new Date().toISOString() }
         ]);
         await renderStatsTab();
         const statsContent = document.getElementById('stats-content');
@@ -1031,7 +883,7 @@ describe('getStaleTasks', () => {
 
 describe('applySearchFilter', () => {
     test('hides non-matching task items', () => {
-        const container = document.getElementById('someday-tasks-list');
+        const container = document.getElementById('archive-list');
         container.innerHTML = `
             <div class="task-item"><span class="task-title">Buy groceries</span></div>
             <div class="task-item"><span class="task-title">Read book</span></div>
@@ -1043,7 +895,7 @@ describe('applySearchFilter', () => {
     });
 
     test('shows all items when query is empty', () => {
-        const container = document.getElementById('someday-tasks-list');
+        const container = document.getElementById('archive-list');
         container.innerHTML = `
             <div class="task-item" style="display:none;"><span class="task-title">Buy groceries</span></div>
         `;
@@ -1053,7 +905,7 @@ describe('applySearchFilter', () => {
     });
 
     test('is case insensitive', () => {
-        const container = document.getElementById('someday-tasks-list');
+        const container = document.getElementById('archive-list');
         container.innerHTML = `
             <div class="task-item"><span class="task-title">Buy GROCERIES</span></div>
         `;
@@ -1076,12 +928,14 @@ describe('Add Task Modal', () => {
         expect(modal.classList.contains('hidden')).toBe(true);
     });
 
-    test('clicking add task button opens modal', () => {
+    test('clicking add task button opens modal', async () => {
         setupAddTaskModalListeners();
         const addTaskBtn = document.getElementById('add-task-modal-btn');
         const modal = document.getElementById('add-task-modal');
 
         addTaskBtn.click();
+        // Wait for async click handler to complete
+        await new Promise(resolve => setTimeout(resolve, 10));
         expect(modal.classList.contains('hidden')).toBe(false);
     });
 

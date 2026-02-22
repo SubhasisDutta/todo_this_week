@@ -81,13 +81,13 @@ beforeEach(() => {
 
 describe('createTaskItem', () => {
     test('renders task with title text', () => {
-        const task = { id: 'task1', title: 'My Task', priority: 'SOMEDAY', completed: false, energy: 'low', schedule: [] };
+        const task = { id: 'task1', title: 'My Task', priority: 'SOMEDAY', completed: false, energy: 'Low', schedule: [] };
         const el = createTaskItem(task);
         expect(el.querySelector('.task-title').textContent).toBe('My Task');
     });
 
     test('renders task with URL as link', () => {
-        const task = { id: 'task1', title: 'Link Task', url: 'https://example.com', priority: 'SOMEDAY', completed: false, energy: 'low', schedule: [] };
+        const task = { id: 'task1', title: 'Link Task', url: 'https://example.com', priority: 'SOMEDAY', completed: false, energy: 'Low', schedule: [] };
         const el = createTaskItem(task);
         const link = el.querySelector('.task-title a');
         expect(link).not.toBeNull();
@@ -97,32 +97,32 @@ describe('createTaskItem', () => {
     });
 
     test('applies priority class', () => {
-        const task = { id: 'task1', title: 'Critical Task', priority: 'CRITICAL', completed: false, energy: 'low', schedule: [] };
+        const task = { id: 'task1', title: 'Critical Task', priority: 'CRITICAL', completed: false, energy: 'Low', schedule: [] };
         const el = createTaskItem(task);
         expect(el.classList.contains('priority-CRITICAL')).toBe(true);
     });
 
     test('applies completed styling', () => {
-        const task = { id: 'task1', title: 'Done Task', priority: 'SOMEDAY', completed: true, energy: 'low', schedule: [] };
+        const task = { id: 'task1', title: 'Done Task', priority: 'SOMEDAY', completed: true, energy: 'Low', schedule: [] };
         const el = createTaskItem(task);
         expect(el.classList.contains('task-completed')).toBe(true);
     });
 
     test('applies energy-low class for incomplete tasks', () => {
-        const task = { id: 'task1', title: 'Low Energy', priority: 'SOMEDAY', completed: false, energy: 'low', schedule: [] };
+        const task = { id: 'task1', title: 'Low Energy', priority: 'SOMEDAY', completed: false, energy: 'Low', schedule: [] };
         const el = createTaskItem(task);
         expect(el.classList.contains('energy-low-incomplete')).toBe(true);
     });
 
     test('applies energy-high class for incomplete tasks', () => {
-        const task = { id: 'task1', title: 'High Energy', priority: 'SOMEDAY', completed: false, energy: 'high', schedule: [] };
+        const task = { id: 'task1', title: 'High Energy', priority: 'SOMEDAY', completed: false, energy: 'High', schedule: [] };
         const el = createTaskItem(task);
         expect(el.classList.contains('energy-high-incomplete')).toBe(true);
     });
 
     test('renders assignment with schedule data attributes', () => {
         const item = {
-            id: 'task1', title: 'Assigned', priority: 'SOMEDAY', completed: false, energy: 'low', schedule: [],
+            id: 'task1', title: 'Assigned', priority: 'SOMEDAY', completed: false, energy: 'Low', schedule: [],
             scheduleItem: { day: 'monday', blockId: 'ai-study', completed: false }
         };
         const el = createTaskItem(item, { isAssignment: true });
@@ -132,13 +132,13 @@ describe('createTaskItem', () => {
     });
 
     test('renders master checkbox for non-assignment', () => {
-        const task = { id: 'task1', title: 'Task', priority: 'SOMEDAY', completed: false, energy: 'low', schedule: [] };
+        const task = { id: 'task1', title: 'Task', priority: 'SOMEDAY', completed: false, energy: 'Low', schedule: [] };
         const el = createTaskItem(task);
         expect(el.querySelector('.task-complete-checkbox')).not.toBeNull();
     });
 
     test('sets data-task-id attribute', () => {
-        const task = { id: 'unique-id-123', title: 'Task', priority: 'SOMEDAY', completed: false, energy: 'low', schedule: [] };
+        const task = { id: 'unique-id-123', title: 'Task', priority: 'SOMEDAY', completed: false, energy: 'Low', schedule: [] };
         const el = createTaskItem(task);
         expect(el.dataset.taskId).toBe('unique-id-123');
     });
@@ -147,9 +147,9 @@ describe('createTaskItem', () => {
 describe('renderTasks', () => {
     test('display tab shows active tasks sorted by priority', (done) => {
         seedTasks([
-            { id: 't1', title: 'Someday Task', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' },
-            { id: 't2', title: 'Critical Task', priority: 'CRITICAL', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low', deadline: '2025-12-01' },
-            { id: 't3', title: 'Completed Task', priority: 'IMPORTANT', completed: true, type: 'home', displayOrder: 0, schedule: [], energy: 'low' },
+            { id: 't1', title: 'Someday Task', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' },
+            { id: 't2', title: 'Critical Task', priority: 'CRITICAL', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low', deadline: '2025-12-01' },
+            { id: 't3', title: 'Completed Task', priority: 'IMPORTANT', completed: true, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' },
         ]);
         renderTasks('display');
         setTimeout(() => {
@@ -174,7 +174,7 @@ describe('renderTasks', () => {
 
     test('today tab shows empty message when no tasks for today', (done) => {
         seedTasks([
-            { id: 't1', title: 'Task', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [{ day: 'nevermore', blockId: 'ai-study', completed: false }], energy: 'low' },
+            { id: 't1', title: 'Task', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [{ day: 'nevermore', blockId: 'ai-study', completed: false }], energy: 'Low' },
         ]);
         renderTasks('today');
         setTimeout(() => {
@@ -188,8 +188,8 @@ describe('renderTasks', () => {
         const dayMapping = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
         const todayName = dayMapping[new Date().getDay()];
         seedTasks([
-            { id: 't1', title: 'Morning Task', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [{ day: todayName, blockId: 'ai-study', completed: false }], energy: 'low' },
-            { id: 't2', title: 'Night Task', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [{ day: todayName, blockId: 'night-build', completed: false }], energy: 'low' },
+            { id: 't1', title: 'Morning Task', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [{ day: todayName, blockId: 'ai-study', completed: false }], energy: 'Low' },
+            { id: 't2', title: 'Night Task', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [{ day: todayName, blockId: 'night-build', completed: false }], energy: 'Low' },
         ]);
         renderTasks('today');
         setTimeout(() => {

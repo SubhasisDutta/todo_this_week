@@ -5,6 +5,7 @@ const path = require('path');
 // Load task_utils.js into global scope
 loadScript(path.join(__dirname, '..', 'task_utils.js'), [
     'DEFAULT_TIME_BLOCKS', 'TIME_BLOCKS', 'DEFAULT_SETTINGS',
+    'ATTRIBUTE_OPTIONS', 'DEFAULT_ENABLED_ATTRIBUTES',
     'Task', 'getTasks', 'saveTasks', 'addNewTask', 'getTaskById',
     'updateTaskCompletion', 'updateTask', 'deleteTask', 'showInfoMessage',
     'getOrCreateToastContainer',
@@ -31,9 +32,13 @@ describe('Task class', () => {
         expect(task.type).toBe('home');
         expect(task.displayOrder).toBe(0);
         expect(task.schedule).toEqual([]);
-        expect(task.energy).toBe('low');
+        expect(task.energy).toBe('TBD');
         expect(task.url).toBe('');
         expect(task.deadline).toBeNull();
+        // New attributes should have defaults
+        expect(task.status).toBe('inbox');
+        expect(task.impact).toBe('TBD');
+        expect(task.complexity).toBe('TBD');
     });
 
     test('generates unique ID when none provided', () => {
@@ -48,8 +53,8 @@ describe('Task class', () => {
         expect(task.id).toBe('custom-id');
     });
 
-    test('accepts all constructor parameters', () => {
-        const task = new Task('id1', 'Title', 'https://example.com', 'CRITICAL', true, '2025-01-01', 'work', 5, [{ day: 'monday', blockId: 'ai-study', completed: false }], 'high');
+    test('accepts all constructor parameters including new attributes', () => {
+        const task = new Task('id1', 'Title', 'https://example.com', 'CRITICAL', true, '2025-01-01', 'work', 5, [{ day: 'monday', blockId: 'ai-study', completed: false }], 'High');
         expect(task.url).toBe('https://example.com');
         expect(task.priority).toBe('CRITICAL');
         expect(task.completed).toBe(true);
@@ -57,7 +62,26 @@ describe('Task class', () => {
         expect(task.type).toBe('work');
         expect(task.displayOrder).toBe(5);
         expect(task.schedule).toHaveLength(1);
-        expect(task.energy).toBe('high');
+        expect(task.energy).toBe('High');
+    });
+
+    test('accepts new attribute parameters', () => {
+        // Parameters: id, title, url, priority, completed, deadline, type, displayOrder, schedule, energy,
+        // notes, completedAt, recurrence, notionPageId, lastModified, colorCode,
+        // status, why, projects, impact, value, complexity, action, estimates, sprint, interval
+        const task = new Task('id1', 'Title', '', 'SOMEDAY', false, null, 'home', 0, [], 'Medium',
+            'notes', null, null, null, null, null,
+            'in-progress', 'Strategic goal', 'Project X', 'High', 'BUILD', 'Simple & Clear', 'Accelerate', '2 Hr', 'Sprint 1', { start: '2025-01-01', end: '2025-01-07' });
+        expect(task.status).toBe('in-progress');
+        expect(task.why).toBe('Strategic goal');
+        expect(task.projects).toBe('Project X');
+        expect(task.impact).toBe('High');
+        expect(task.value).toBe('BUILD');
+        expect(task.complexity).toBe('Simple & Clear');
+        expect(task.action).toBe('Accelerate');
+        expect(task.estimates).toBe('2 Hr');
+        expect(task.sprint).toBe('Sprint 1');
+        expect(task.interval).toEqual({ start: '2025-01-01', end: '2025-01-07' });
     });
 });
 
@@ -70,7 +94,7 @@ describe('getTasks', () => {
     });
 
     test('returns stored tasks', (done) => {
-        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' }]);
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' }]);
         getTasks(tasks => {
             expect(tasks).toHaveLength(1);
             expect(tasks[0].title).toBe('Test');
@@ -79,7 +103,7 @@ describe('getTasks', () => {
     });
 
     test('backfills missing displayOrder', (done) => {
-        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', schedule: [], energy: 'low' }]);
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', schedule: [], energy: 'Low' }]);
         getTasks(tasks => {
             expect(tasks[0].displayOrder).toBe(0);
             done();
@@ -87,7 +111,7 @@ describe('getTasks', () => {
     });
 
     test('backfills missing schedule', (done) => {
-        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, energy: 'low' }]);
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, energy: 'Low' }]);
         getTasks(tasks => {
             expect(tasks[0].schedule).toEqual([]);
             done();
@@ -95,17 +119,44 @@ describe('getTasks', () => {
     });
 
     test('backfills missing schedule.completed', (done) => {
-        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [{ day: 'monday', blockId: 'ai-study' }], energy: 'low' }]);
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [{ day: 'monday', blockId: 'ai-study' }], energy: 'Low' }]);
         getTasks(tasks => {
             expect(tasks[0].schedule[0].completed).toBe(false);
             done();
         });
     });
 
-    test('backfills missing energy', (done) => {
+    test('backfills missing energy to TBD', (done) => {
         seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [] }]);
         getTasks(tasks => {
-            expect(tasks[0].energy).toBe('low');
+            expect(tasks[0].energy).toBe('TBD');
+            done();
+        });
+    });
+
+    test('migrates legacy energy values low to Low', (done) => {
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' }]);
+        getTasks(tasks => {
+            expect(tasks[0].energy).toBe('Low');
+            done();
+        });
+    });
+
+    test('migrates legacy energy values high to High', (done) => {
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'High' }]);
+        getTasks(tasks => {
+            expect(tasks[0].energy).toBe('High');
+            done();
+        });
+    });
+
+    test('backfills missing new attributes', (done) => {
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Medium' }]);
+        getTasks(tasks => {
+            expect(tasks[0].status).toBe('inbox');
+            expect(tasks[0].impact).toBe('TBD');
+            expect(tasks[0].complexity).toBe('TBD');
+            expect(tasks[0].estimates).toBe('Unknown');
             done();
         });
     });
@@ -157,16 +208,16 @@ describe('saveTasks', () => {
 
 describe('addNewTask', () => {
     test('creates task with correct displayOrder', async () => {
-        seedTasks([{ id: 'existing', title: 'Existing', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' }]);
-        const result = await addNewTask('New Task', '', 'SOMEDAY', null, 'home', 'low');
+        seedTasks([{ id: 'existing', title: 'Existing', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' }]);
+        const result = await addNewTask('New Task', '', 'SOMEDAY', null, 'home', 'Low');
         expect(result).not.toBeNull();
         expect(result.title).toBe('New Task');
         expect(result.displayOrder).toBe(1);
     });
 
     test('creates task in empty priority group', async () => {
-        seedTasks([{ id: 'existing', title: 'Existing', priority: 'CRITICAL', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low', deadline: '2025-01-01' }]);
-        const result = await addNewTask('New Someday', '', 'SOMEDAY', null, 'home', 'low');
+        seedTasks([{ id: 'existing', title: 'Existing', priority: 'CRITICAL', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low', deadline: '2025-01-01' }]);
+        const result = await addNewTask('New Someday', '', 'SOMEDAY', null, 'home', 'Low');
         expect(result).not.toBeNull();
         expect(result.priority).toBe('SOMEDAY');
     });
@@ -185,15 +236,15 @@ describe('addNewTask', () => {
 describe('getTaskById', () => {
     test('returns correct task', async () => {
         seedTasks([
-            { id: 'task1', title: 'Task 1', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' },
-            { id: 'task2', title: 'Task 2', priority: 'IMPORTANT', completed: false, type: 'work', displayOrder: 0, schedule: [], energy: 'high' },
+            { id: 'task1', title: 'Task 1', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' },
+            { id: 'task2', title: 'Task 2', priority: 'IMPORTANT', completed: false, type: 'work', displayOrder: 0, schedule: [], energy: 'High' },
         ]);
         const task = await getTaskById('task2');
         expect(task.title).toBe('Task 2');
     });
 
     test('returns undefined for non-existent ID', async () => {
-        seedTasks([{ id: 'task1', title: 'Task 1', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' }]);
+        seedTasks([{ id: 'task1', title: 'Task 1', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' }]);
         const task = await getTaskById('nonexistent');
         expect(task).toBeUndefined();
     });
@@ -227,8 +278,8 @@ describe('updateTaskCompletion', () => {
 
 describe('updateTask', () => {
     test('updates existing task', async () => {
-        seedTasks([{ id: 'task1', title: 'Old Title', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' }]);
-        const result = await updateTask({ id: 'task1', title: 'New Title', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' });
+        seedTasks([{ id: 'task1', title: 'Old Title', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' }]);
+        const result = await updateTask({ id: 'task1', title: 'New Title', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' });
         expect(result).toBe(true);
     });
 
@@ -239,18 +290,18 @@ describe('updateTask', () => {
     });
 
     test('calls updateTaskCompletion before saving', async () => {
-        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [{ day: 'monday', blockId: 'ai-study', completed: true }], energy: 'low' }]);
-        const result = await updateTask({ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [{ day: 'monday', blockId: 'ai-study', completed: true }], energy: 'low' });
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [{ day: 'monday', blockId: 'ai-study', completed: true }], energy: 'Low' }]);
+        const result = await updateTask({ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [{ day: 'monday', blockId: 'ai-study', completed: true }], energy: 'Low' });
         expect(result).toBe(true);
         // The task should be marked completed since all schedule items are completed
     });
 
     test('updates lastModified timestamp', async () => {
         const oldTime = '2025-01-01T00:00:00.000Z';
-        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low', lastModified: oldTime }]);
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low', lastModified: oldTime }]);
 
         const before = new Date().toISOString();
-        await updateTask({ id: 'task1', title: 'Updated', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low', lastModified: oldTime });
+        await updateTask({ id: 'task1', title: 'Updated', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low', lastModified: oldTime });
         const after = new Date().toISOString();
 
         const updated = await getTaskById('task1');
@@ -263,15 +314,15 @@ describe('updateTask', () => {
 describe('deleteTask', () => {
     test('removes task by ID', async () => {
         seedTasks([
-            { id: 'task1', title: 'Task 1', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' },
-            { id: 'task2', title: 'Task 2', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 1, schedule: [], energy: 'low' },
+            { id: 'task1', title: 'Task 1', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' },
+            { id: 'task2', title: 'Task 2', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 1, schedule: [], energy: 'Low' },
         ]);
         const result = await deleteTask('task1');
         expect(result).toBe(true);
     });
 
     test('returns false for non-existent ID', async () => {
-        seedTasks([{ id: 'task1', title: 'Task 1', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' }]);
+        seedTasks([{ id: 'task1', title: 'Task 1', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' }]);
         const result = await deleteTask('nonexistent');
         expect(result).toBe(false);
     });
@@ -402,7 +453,7 @@ describe('isValidUrl', () => {
 
 describe('getTasksAsync', () => {
     test('returns tasks as Promise', async () => {
-        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' }]);
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' }]);
         const tasks = await getTasksAsync();
         expect(tasks).toHaveLength(1);
         expect(tasks[0].title).toBe('Test');
@@ -491,7 +542,7 @@ describe('Task new fields', () => {
 
 describe('getTasks backfill for new fields', () => {
     test('backfills missing notes', (done) => {
-        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' }]);
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' }]);
         getTasks(tasks => {
             expect(tasks[0].notes).toBe('');
             done();
@@ -499,7 +550,7 @@ describe('getTasks backfill for new fields', () => {
     });
 
     test('backfills missing completedAt', (done) => {
-        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' }]);
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' }]);
         getTasks(tasks => {
             expect(tasks[0].completedAt).toBeNull();
             done();
@@ -507,7 +558,7 @@ describe('getTasks backfill for new fields', () => {
     });
 
     test('backfills missing recurrence', (done) => {
-        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' }]);
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' }]);
         getTasks(tasks => {
             expect(tasks[0].recurrence).toBeNull();
             done();
@@ -515,7 +566,7 @@ describe('getTasks backfill for new fields', () => {
     });
 
     test('backfills missing lastModified', (done) => {
-        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' }]);
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' }]);
         getTasks(tasks => {
             expect(tasks[0].lastModified).toBeDefined();
             expect(new Date(tasks[0].lastModified).getTime()).not.toBeNaN();
@@ -618,11 +669,11 @@ describe('createRecurringInstance', () => {
 
 describe('pushUndoState / undo / redo', () => {
     test('undo restores previous state', async () => {
-        const task1 = await addNewTask('Task A', '', 'SOMEDAY', null, 'home', 'low');
+        const task1 = await addNewTask('Task A', '', 'SOMEDAY', null, 'home', 'Low');
         const tasksBefore = await getTasksAsync();
         pushUndoState(tasksBefore);
 
-        await addNewTask('Task B', '', 'SOMEDAY', null, 'home', 'low');
+        await addNewTask('Task B', '', 'SOMEDAY', null, 'home', 'Low');
         const tasksAfterAdd = await getTasksAsync();
         expect(tasksAfterAdd).toHaveLength(2);
 
@@ -633,7 +684,7 @@ describe('pushUndoState / undo / redo', () => {
     });
 
     test('redo re-applies undone state', async () => {
-        await addNewTask('Task A', '', 'SOMEDAY', null, 'home', 'low');
+        await addNewTask('Task A', '', 'SOMEDAY', null, 'home', 'Low');
         const tasksBeforeDelete = await getTasksAsync();
         pushUndoState(tasksBeforeDelete);
 

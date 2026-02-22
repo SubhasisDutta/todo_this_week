@@ -55,13 +55,11 @@ async function renderPage() {
     const assignedGridTasks = tasks.filter(t => t.schedule && t.schedule.length > 0);
     renderTasksOnGrid(assignedGridTasks);
 
-    // --- Render Task Lists Tab (all tasks) ---
-    clearPriorityLists();
-    renderPriorityLists(tasks);
-
-    // --- Render All Tasks Tab (all tasks) ---
-    clearHomeWorkLists();
-    renderHomeWorkLists(tasks);
+    // --- Render Groups Tab (if active) ---
+    const groupsTab = document.getElementById('groups-tab');
+    if (groupsTab && groupsTab.classList.contains('active')) {
+        await renderGroupsTab();
+    }
 
     // --- Render Archive Tab (if active) ---
     const archiveTab = document.getElementById('archive-tab');
@@ -469,6 +467,456 @@ function renderHomeWorkLists(tasks) {
         document.getElementById('work-completed-disclosure'));
 }
 
+// --- GROUPS TAB ---
+
+// Attribute metadata for bento boxes
+const ATTRIBUTE_META = {
+    priority: { label: 'Priority', icon: '⭐', options: ['CRITICAL', 'IMPORTANT', 'SOMEDAY'] },
+    type: { label: 'Location', icon: '📍', options: ['home', 'work'] },
+    status: { label: 'Status', icon: '🚥', options: null }, // Uses ATTRIBUTE_OPTIONS.status.flatOptions
+    impact: { label: 'Impact', icon: '💥', options: null },
+    value: { label: 'Value', icon: '💎', options: null },
+    complexity: { label: 'Complexity', icon: '🧩', options: null },
+    energy: { label: 'Energy', icon: '🔋', options: null },
+    action: { label: 'Action', icon: '🎬', options: null },
+    estimates: { label: 'Estimates', icon: '⏱️', options: null },
+    projects: { label: 'Projects', icon: '📁', options: null }, // Text field - uses unique values
+    sprint: { label: 'Sprint', icon: '🏃', options: null }      // Text field - uses unique values
+};
+
+// Chart colors for pie charts
+const CHART_COLORS = ['#4299e1', '#48bb78', '#ed8936', '#e53e3e', '#805ad5', '#38b2ac', '#d69e2e', '#718096', '#667eea', '#f56565', '#68d391', '#fbd38d'];
+
+async function renderGroupsTab() {
+    const bentoView = document.getElementById('groups-bento-view');
+    const drilldownView = document.getElementById('groups-drilldown-view');
+    const breadcrumb = document.getElementById('groups-breadcrumb');
+
+    if (!bentoView) return;
+
+    // Reset to bento view
+    bentoView.classList.remove('hidden');
+    drilldownView?.classList.add('hidden');
+    breadcrumb?.classList.add('hidden');
+
+    const settings = await getSettings();
+    const enabledAttrs = settings.enabledAttributes || { priority: true, type: true, energy: true };
+    const tasks = await getTasksAsync();
+    const activeTasks = tasks.filter(t => !t.completed);
+
+    bentoView.innerHTML = '';
+
+    // Attributes that have select-type options (shown in bento grid)
+    const selectTypeAttributes = ['priority', 'type', 'status', 'impact', 'value', 'complexity', 'energy', 'action', 'estimates', 'projects', 'sprint'];
+
+    // Build list of attributes to display (only enabled select-type attributes)
+    const attributesToShow = [];
+    selectTypeAttributes.forEach(attr => {
+        // Check if attribute is enabled (with defaults for priority, type, energy)
+        const isEnabled = enabledAttrs[attr] !== undefined ? enabledAttrs[attr] :
+                          ['priority', 'type', 'energy'].includes(attr);
+        if (isEnabled) {
+            attributesToShow.push(attr);
+        }
+    });
+
+    attributesToShow.forEach(attrKey => {
+        const meta = ATTRIBUTE_META[attrKey];
+        if (!meta) return;
+
+        const distribution = calculateAttributeDistribution(activeTasks, attrKey);
+        const bentoBox = createBentoBox(attrKey, meta, distribution);
+        bentoView.appendChild(bentoBox);
+    });
+
+    // Setup back button listener
+    setupGroupsBackButton();
+}
+
+function calculateAttributeDistribution(tasks, attributeKey) {
+    const counts = {};
+    let total = 0;
+
+    tasks.forEach(task => {
+        let value = task[attributeKey];
+
+        // Handle empty/undefined values
+        if (value === undefined || value === null || value === '') {
+            value = 'TBD';
+        }
+
+        counts[value] = (counts[value] || 0) + 1;
+        total++;
+    });
+
+    return { counts, total };
+}
+
+function createBentoBox(attrKey, meta, distribution) {
+    const box = document.createElement('div');
+    box.classList.add('groups-bento-box');
+    box.dataset.attribute = attrKey;
+
+    const chartHtml = distribution.total > 0
+        ? renderMiniPieChart(distribution.counts, attrKey)
+        : '<span class="empty-chart-msg">No tasks</span>';
+
+    const legendHtml = distribution.total > 0
+        ? renderChartLegend(distribution.counts, attrKey)
+        : '';
+
+    box.innerHTML = `
+        <div class="bento-box-header">
+            <span class="bento-box-title">
+                <span class="bento-icon">${meta.icon}</span>
+                ${meta.label}
+            </span>
+            <span class="bento-box-count">${distribution.total} tasks</span>
+        </div>
+        <div class="bento-box-chart">
+            ${chartHtml}
+        </div>
+        ${legendHtml}
+        <span class="bento-box-arrow">→</span>
+    `;
+
+    box.addEventListener('click', () => openGroupsDrilldown(attrKey, meta.label, meta.icon));
+    return box;
+}
+
+function renderMiniPieChart(counts, attrKey) {
+    const entries = Object.entries(counts).filter(([k, v]) => v > 0);
+    if (entries.length === 0) return '<span class="empty-chart-msg">No data</span>';
+
+    const total = entries.reduce((sum, [_, count]) => sum + count, 0);
+    const size = 100;
+    const center = size / 2;
+    const radius = 40;
+    const innerRadius = 25; // For donut effect
+
+    let paths = '';
+    let startAngle = -90; // Start from top
+
+    entries.forEach(([value, count], i) => {
+        const percent = count / total;
+        const angle = percent * 360;
+        const endAngle = startAngle + angle;
+
+        // Calculate arc path
+        const startRad = (startAngle * Math.PI) / 180;
+        const endRad = (endAngle * Math.PI) / 180;
+
+        const x1 = center + radius * Math.cos(startRad);
+        const y1 = center + radius * Math.sin(startRad);
+        const x2 = center + radius * Math.cos(endRad);
+        const y2 = center + radius * Math.sin(endRad);
+
+        const x1Inner = center + innerRadius * Math.cos(endRad);
+        const y1Inner = center + innerRadius * Math.sin(endRad);
+        const x2Inner = center + innerRadius * Math.cos(startRad);
+        const y2Inner = center + innerRadius * Math.sin(startRad);
+
+        const largeArc = angle > 180 ? 1 : 0;
+        const color = CHART_COLORS[i % CHART_COLORS.length];
+
+        if (entries.length === 1) {
+            // Full donut for single value
+            paths += `<circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="${color}" stroke-width="${radius - innerRadius}"/>`;
+        } else {
+            paths += `<path d="M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} L ${x1Inner} ${y1Inner} A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${x2Inner} ${y2Inner} Z" fill="${color}"/>`;
+        }
+
+        startAngle = endAngle;
+    });
+
+    return `<svg class="bento-pie-svg" viewBox="0 0 ${size} ${size}">${paths}</svg>`;
+}
+
+function renderChartLegend(counts, attrKey) {
+    const entries = Object.entries(counts).filter(([k, v]) => v > 0);
+    if (entries.length === 0) return '';
+
+    // Limit to 4 items in legend
+    const displayEntries = entries.slice(0, 4);
+    const remaining = entries.length - 4;
+
+    let legendItems = displayEntries.map(([value, count], i) => {
+        const color = CHART_COLORS[i % CHART_COLORS.length];
+        const label = getAttributeLabel(attrKey, value);
+        return `<span class="legend-item"><span class="legend-dot" style="background:${color}"></span>${label} (${count})</span>`;
+    }).join('');
+
+    if (remaining > 0) {
+        legendItems += `<span class="legend-item">+${remaining} more</span>`;
+    }
+
+    return `<div class="bento-chart-legend">${legendItems}</div>`;
+}
+
+function getAttributeLabel(attrKey, value) {
+    // Get human-readable label for attribute value
+    if (attrKey === 'status' && typeof ATTRIBUTE_OPTIONS !== 'undefined' && ATTRIBUTE_OPTIONS.status?.labels) {
+        return ATTRIBUTE_OPTIONS.status.labels[value] || value;
+    }
+    if (attrKey === 'type') {
+        return value === 'home' ? 'Home' : value === 'work' ? 'Work' : value;
+    }
+    return value;
+}
+
+function getAttributeOptions(attrKey) {
+    // Get list of possible values for an attribute
+    const meta = ATTRIBUTE_META[attrKey];
+    if (meta?.options) return meta.options;
+
+    if (typeof ATTRIBUTE_OPTIONS !== 'undefined' && ATTRIBUTE_OPTIONS[attrKey]) {
+        return ATTRIBUTE_OPTIONS[attrKey].flatOptions || ATTRIBUTE_OPTIONS[attrKey].options || [];
+    }
+
+    return [];
+}
+
+async function openGroupsDrilldown(attrKey, label, icon) {
+    const bentoView = document.getElementById('groups-bento-view');
+    const drilldownView = document.getElementById('groups-drilldown-view');
+    const breadcrumb = document.getElementById('groups-breadcrumb');
+    const breadcrumbName = document.getElementById('breadcrumb-attribute-name');
+    const drilldownTitle = document.getElementById('drilldown-title');
+
+    // Animate transition: fade out bento, slide in drilldown
+    bentoView.classList.add('fade-out');
+    await new Promise(resolve => setTimeout(resolve, 150));
+    bentoView.classList.add('hidden');
+    bentoView.classList.remove('fade-out');
+
+    drilldownView.classList.remove('hidden');
+    drilldownView.classList.add('slide-in');
+    breadcrumb.classList.remove('hidden');
+
+    // Remove animation class after transition
+    setTimeout(() => drilldownView.classList.remove('slide-in'), 200);
+
+    breadcrumbName.textContent = label;
+    drilldownTitle.innerHTML = `<span>${icon}</span> ${label}`;
+
+    await renderGroupsDrilldownColumns(attrKey);
+
+    // Setup search for drill-down
+    setupGroupsDrilldownSearch(attrKey);
+
+    // Setup double-click handler for tasks
+    setupGroupsDrilldownTaskListeners();
+}
+
+function setupGroupsDrilldownTaskListeners() {
+    const container = document.getElementById('groups-drilldown-columns');
+    if (!container) return;
+
+    // Remove existing listener to prevent duplicates
+    const newContainer = container.cloneNode(true);
+    container.parentNode.replaceChild(newContainer, container);
+
+    // Add double-click listener for opening task details
+    newContainer.addEventListener('dblclick', (e) => {
+        const taskItem = e.target.closest('.task-item');
+        if (taskItem) {
+            const taskId = taskItem.dataset.taskId;
+            if (taskId) openTaskDetailsModal(taskId);
+        }
+    });
+
+    // Add click listener for checkbox completion
+    newContainer.addEventListener('click', async (e) => {
+        const target = e.target;
+
+        if (target.matches('.task-complete-checkbox')) {
+            const taskItem = target.closest('.task-item');
+            const taskId = taskItem?.dataset.taskId;
+            if (!taskId) return;
+
+            const isCompleted = target.checked;
+            withTaskLock(async () => {
+                const tasks = await getTasksAsync();
+                pushUndoState(tasks);
+                const task = await getTaskById(taskId);
+                if (task) {
+                    task.completed = isCompleted;
+                    if (task.schedule && task.schedule.length > 0) {
+                        task.schedule.forEach(item => item.completed = isCompleted);
+                    }
+                    await updateTask(task);
+                    renderPage();
+                }
+            });
+        }
+    });
+}
+
+async function renderGroupsDrilldownColumns(attrKey) {
+    const container = document.getElementById('groups-drilldown-columns');
+    if (!container) return;
+
+    const tasks = await getTasksAsync();
+    const activeTasks = tasks.filter(t => !t.completed);
+
+    container.innerHTML = '';
+
+    // Get options for this attribute
+    let options = getAttributeOptions(attrKey);
+
+    // For text fields (projects, sprint), extract unique values from tasks
+    if (options.length === 0 && (attrKey === 'projects' || attrKey === 'sprint')) {
+        const uniqueValues = new Set();
+        uniqueValues.add(''); // Empty/unset
+        activeTasks.forEach(t => {
+            const val = t[attrKey];
+            if (val) uniqueValues.add(val);
+        });
+        options = Array.from(uniqueValues);
+    }
+
+    // If still no options, show TBD
+    if (options.length === 0) {
+        options = ['TBD'];
+    }
+
+    options.forEach(optionValue => {
+        const filteredTasks = activeTasks.filter(t => {
+            const taskValue = t[attrKey];
+            if (optionValue === '' || optionValue === 'TBD') {
+                return !taskValue || taskValue === '' || taskValue === 'TBD';
+            }
+            return taskValue === optionValue;
+        });
+
+        const column = createDrilldownColumn(attrKey, optionValue, filteredTasks);
+        container.appendChild(column);
+    });
+}
+
+function createDrilldownColumn(attrKey, optionValue, tasks) {
+    const column = document.createElement('div');
+    column.classList.add('groups-drilldown-column');
+    column.dataset.optionValue = optionValue;
+
+    const label = getAttributeLabel(attrKey, optionValue) || optionValue || 'Unset';
+    const icon = getAttributeIcon(attrKey, optionValue);
+
+    column.innerHTML = `
+        <div class="drilldown-column-header">
+            <span class="drilldown-column-title">${icon} ${label}</span>
+            <span class="drilldown-column-count">${tasks.length}</span>
+        </div>
+        <div class="drilldown-task-list" data-option="${optionValue}">
+            ${tasks.length === 0 ? '<p class="drilldown-empty">No tasks</p>' : ''}
+        </div>
+    `;
+
+    const taskList = column.querySelector('.drilldown-task-list');
+
+    // Sort tasks by priority then displayOrder
+    const sortedTasks = [...tasks].sort((a, b) => {
+        const priorityOrder = { 'CRITICAL': 1, 'IMPORTANT': 2, 'SOMEDAY': 3 };
+        const pA = priorityOrder[a.priority] || 3;
+        const pB = priorityOrder[b.priority] || 3;
+        if (pA !== pB) return pA - pB;
+        return (a.displayOrder || 0) - (b.displayOrder || 0);
+    });
+
+    sortedTasks.forEach(task => {
+        const taskEl = createTaskElement(task, { context: 'management' });
+        taskList.appendChild(taskEl);
+    });
+
+    return column;
+}
+
+function getAttributeIcon(attrKey, value) {
+    // Get icon for specific attribute value
+    if (typeof ATTRIBUTE_OPTIONS !== 'undefined' && ATTRIBUTE_OPTIONS[attrKey]?.icons) {
+        return ATTRIBUTE_OPTIONS[attrKey].icons[value] || '';
+    }
+    if (attrKey === 'priority') {
+        return value === 'CRITICAL' ? '🔥' : value === 'IMPORTANT' ? '⭐' : '🗓️';
+    }
+    if (attrKey === 'type') {
+        return value === 'home' ? '🏠' : '💼';
+    }
+    return '';
+}
+
+async function closeGroupsDrilldown() {
+    const bentoView = document.getElementById('groups-bento-view');
+    const drilldownView = document.getElementById('groups-drilldown-view');
+    const breadcrumb = document.getElementById('groups-breadcrumb');
+
+    // Animate transition: slide out drilldown, fade in bento
+    drilldownView.classList.add('slide-out');
+    await new Promise(resolve => setTimeout(resolve, 150));
+    drilldownView.classList.add('hidden');
+    drilldownView.classList.remove('slide-out');
+    breadcrumb.classList.add('hidden');
+
+    bentoView.classList.remove('hidden');
+    bentoView.classList.add('fade-in');
+    setTimeout(() => bentoView.classList.remove('fade-in'), 200);
+}
+
+function setupGroupsBackButton() {
+    const backBtn = document.getElementById('groups-back-btn');
+    if (backBtn) {
+        // Remove existing listeners
+        const newBtn = backBtn.cloneNode(true);
+        backBtn.parentNode.replaceChild(newBtn, backBtn);
+
+        newBtn.addEventListener('click', closeGroupsDrilldown);
+    }
+}
+
+function setupGroupsDrilldownSearch(attrKey) {
+    const searchInput = document.getElementById('groups-drilldown-search');
+    const clearBtn = document.getElementById('groups-drilldown-search-clear');
+
+    if (!searchInput) return;
+
+    // Remove existing listeners
+    const newInput = searchInput.cloneNode(true);
+    searchInput.parentNode.replaceChild(newInput, searchInput);
+
+    newInput.addEventListener('input', () => {
+        const query = newInput.value.toLowerCase().trim();
+        applyGroupsDrilldownFilter(query);
+    });
+
+    const newClearBtn = clearBtn?.cloneNode(true);
+    if (clearBtn && newClearBtn) {
+        clearBtn.parentNode.replaceChild(newClearBtn, clearBtn);
+        newClearBtn.addEventListener('click', () => {
+            newInput.value = '';
+            applyGroupsDrilldownFilter('');
+        });
+    }
+}
+
+function applyGroupsDrilldownFilter(query) {
+    const columns = document.querySelectorAll('.groups-drilldown-column');
+    columns.forEach(column => {
+        const taskItems = column.querySelectorAll('.task-item');
+        let visibleCount = 0;
+
+        taskItems.forEach(item => {
+            const title = item.querySelector('.task-title, .editable-title')?.textContent?.toLowerCase() || '';
+            const matches = !query || title.includes(query);
+            item.style.display = matches ? '' : 'none';
+            if (matches) visibleCount++;
+        });
+
+        // Update column count
+        const countEl = column.querySelector('.drilldown-column-count');
+        if (countEl) countEl.textContent = visibleCount;
+    });
+}
+
 // --- ARCHIVE TAB ---
 async function renderArchiveTab() {
     const container = document.getElementById('archive-list');
@@ -572,6 +1020,15 @@ function setupArchiveListeners() {
                     await renderPage();
                     await renderArchiveTab();
                 }
+            }
+        });
+
+        // Double-click on archive tasks to open task details modal
+        archiveList.addEventListener('dblclick', (e) => {
+            const taskItem = e.target.closest('.task-item');
+            if (taskItem) {
+                const taskId = taskItem.dataset.taskId;
+                if (taskId) openTaskDetailsModal(taskId);
             }
         });
     }
@@ -717,6 +1174,68 @@ function getStaleTasks(tasks) {
     }).sort((a, b) => b.daysOld - a.daysOld).slice(0, 5);
 }
 
+// Helper function to render status distribution bars with group labels
+function renderStatusDistributionBars(counts, total) {
+    const statusGroups = ATTRIBUTE_OPTIONS.status.groups;
+    const labels = ATTRIBUTE_OPTIONS.status.labels;
+    const icons = ATTRIBUTE_OPTIONS.status.icons;
+
+    let html = '';
+    const barColors = ['bar-blue', 'bar-important', 'bar-someday', 'bar-critical', 'bar-muted'];
+
+    // Group counts by status group
+    let colorIndex = 0;
+    Object.entries(statusGroups).forEach(([groupName, statuses]) => {
+        const groupTotal = statuses.reduce((sum, s) => sum + (counts[s] || 0), 0);
+        if (groupTotal > 0) {
+            html += `<div class="stats-group-label">${groupName}</div>`;
+            statuses.forEach(status => {
+                const count = counts[status] || 0;
+                if (count > 0) {
+                    const icon = icons[status] || '';
+                    const label = labels[status] || status;
+                    html += `
+                        <div class="stats-priority-row">
+                            <span class="stats-priority-label">${icon} ${label}</span>
+                            <div class="stats-priority-bar-track">
+                                <div class="stats-priority-bar-fill ${barColors[colorIndex % barColors.length]}" style="width:${total > 0 ? (count/total*100) : 0}%"></div>
+                            </div>
+                            <span class="stats-priority-count">${count}</span>
+                        </div>
+                    `;
+                }
+            });
+            colorIndex++;
+        }
+    });
+
+    return html || '<p class="stats-empty-text">No status data available</p>';
+}
+
+// Helper function to render attribute distribution bars
+function renderAttributeDistributionBars(counts, total, attrConfig) {
+    const options = attrConfig.options || [];
+    const icons = attrConfig.icons || {};
+    const barColors = ['bar-muted', 'bar-someday', 'bar-important', 'bar-critical', 'bar-blue', 'bar-purple'];
+
+    let html = '';
+    options.forEach((option, idx) => {
+        const count = counts[option] || 0;
+        const icon = icons[option] || '';
+        html += `
+            <div class="stats-priority-row">
+                <span class="stats-priority-label">${icon} ${option}</span>
+                <div class="stats-priority-bar-track">
+                    <div class="stats-priority-bar-fill ${barColors[idx % barColors.length]}" style="width:${total > 0 ? (count/total*100) : 0}%"></div>
+                </div>
+                <span class="stats-priority-count">${count}</span>
+            </div>
+        `;
+    });
+
+    return html || '<p class="stats-empty-text">No data available</p>';
+}
+
 async function renderStatsTab() {
     const container = document.getElementById('stats-content');
     if (!container) return;
@@ -769,9 +1288,47 @@ async function renderStatsTab() {
     const importantCount = tasks.filter(t => t.priority === 'IMPORTANT').length;
     const somedayCount = tasks.filter(t => t.priority === 'SOMEDAY').length;
 
-    // Energy counts
-    const lowEnergyCount = tasks.filter(t => t.energy === 'low').length;
-    const highEnergyCount = tasks.filter(t => t.energy === 'high').length;
+    // Energy counts (now with TBD, Low, Medium, High)
+    const energyTbdCount = tasks.filter(t => t.energy === 'TBD' || !t.energy).length;
+    const lowEnergyCount = tasks.filter(t => t.energy === 'Low').length;
+    const mediumEnergyCount = tasks.filter(t => t.energy === 'Medium').length;
+    const highEnergyCount = tasks.filter(t => t.energy === 'High').length;
+
+    // Get enabled attributes for conditional rendering
+    const enabledAttrs = await getEnabledAttributes();
+
+    // New attribute distributions (only calculate if enabled)
+    let statusCounts = {};
+    if (enabledAttrs.status) {
+        tasks.forEach(t => {
+            const status = t.status || 'inbox';
+            statusCounts[status] = (statusCounts[status] || 0) + 1;
+        });
+    }
+
+    let impactCounts = {};
+    if (enabledAttrs.impact) {
+        tasks.forEach(t => {
+            const impact = t.impact || 'TBD';
+            impactCounts[impact] = (impactCounts[impact] || 0) + 1;
+        });
+    }
+
+    let complexityCounts = {};
+    if (enabledAttrs.complexity) {
+        tasks.forEach(t => {
+            const complexity = t.complexity || 'TBD';
+            complexityCounts[complexity] = (complexityCounts[complexity] || 0) + 1;
+        });
+    }
+
+    let estimatesCounts = {};
+    if (enabledAttrs.estimates) {
+        tasks.forEach(t => {
+            const estimates = t.estimates || 'Unknown';
+            estimatesCounts[estimates] = (estimatesCounts[estimates] || 0) + 1;
+        });
+    }
 
     // Home/Work counts
     const homeCount = tasks.filter(t => t.type === 'home').length;
@@ -1033,11 +1590,25 @@ async function renderStatsTab() {
                     <span class="stats-section-title">Energy</span>
                 </div>
                 <div class="stats-priority-row">
+                    <span class="stats-priority-label">❓ TBD</span>
+                    <div class="stats-priority-bar-track">
+                        <div class="stats-priority-bar-fill bar-muted" style="width:${total > 0 ? (energyTbdCount/total*100) : 0}%"></div>
+                    </div>
+                    <span class="stats-priority-count">${energyTbdCount}</span>
+                </div>
+                <div class="stats-priority-row">
                     <span class="stats-priority-label">🍃 Low</span>
                     <div class="stats-priority-bar-track">
                         <div class="stats-priority-bar-fill bar-someday" style="width:${total > 0 ? (lowEnergyCount/total*100) : 0}%"></div>
                     </div>
                     <span class="stats-priority-count">${lowEnergyCount}</span>
+                </div>
+                <div class="stats-priority-row">
+                    <span class="stats-priority-label">🌀 Medium</span>
+                    <div class="stats-priority-bar-track">
+                        <div class="stats-priority-bar-fill bar-important" style="width:${total > 0 ? (mediumEnergyCount/total*100) : 0}%"></div>
+                    </div>
+                    <span class="stats-priority-count">${mediumEnergyCount}</span>
                 </div>
                 <div class="stats-priority-row">
                     <span class="stats-priority-label">⚡ High</span>
@@ -1069,6 +1640,50 @@ async function renderStatsTab() {
                     <span class="stats-priority-count">${workCount}</span>
                 </div>
             </div>
+
+            ${enabledAttrs.status ? `
+            <!-- Status Distribution -->
+            <div class="stats-glass-card stats-card-md">
+                <div class="stats-section-header">
+                    <span class="stats-section-icon">📋</span>
+                    <span class="stats-section-title">Status</span>
+                </div>
+                ${renderStatusDistributionBars(statusCounts, total)}
+            </div>
+            ` : ''}
+
+            ${enabledAttrs.impact ? `
+            <!-- Impact Distribution -->
+            <div class="stats-glass-card stats-card-md">
+                <div class="stats-section-header">
+                    <span class="stats-section-icon">💥</span>
+                    <span class="stats-section-title">Impact</span>
+                </div>
+                ${renderAttributeDistributionBars(impactCounts, total, ATTRIBUTE_OPTIONS.impact)}
+            </div>
+            ` : ''}
+
+            ${enabledAttrs.complexity ? `
+            <!-- Complexity Distribution -->
+            <div class="stats-glass-card stats-card-lg">
+                <div class="stats-section-header">
+                    <span class="stats-section-icon">🧩</span>
+                    <span class="stats-section-title">Complexity</span>
+                </div>
+                ${renderAttributeDistributionBars(complexityCounts, total, ATTRIBUTE_OPTIONS.complexity)}
+            </div>
+            ` : ''}
+
+            ${enabledAttrs.estimates ? `
+            <!-- Estimates Distribution -->
+            <div class="stats-glass-card stats-card-full">
+                <div class="stats-section-header">
+                    <span class="stats-section-icon">⏱️</span>
+                    <span class="stats-section-title">Time Estimates</span>
+                </div>
+                ${renderAttributeDistributionBars(estimatesCounts, total, ATTRIBUTE_OPTIONS.estimates)}
+            </div>
+            ` : ''}
         </div>
     `;
 }
@@ -1328,7 +1943,9 @@ function setupAddTaskModalListeners() {
     const addTaskModal = document.getElementById('add-task-modal');
 
     if (addTaskBtn) {
-        addTaskBtn.addEventListener('click', () => {
+        addTaskBtn.addEventListener('click', async () => {
+            // Setup form visibility based on enabled attributes
+            await setupAddTaskFormVisibility();
             if (addTaskModal) addTaskModal.classList.remove('hidden');
         });
     }
@@ -1336,12 +1953,16 @@ function setupAddTaskModalListeners() {
     if (addTaskCloseBtn) {
         addTaskCloseBtn.addEventListener('click', () => {
             if (addTaskModal) addTaskModal.classList.add('hidden');
+            resetAddTaskModalToAddMode();
         });
     }
 
     if (addTaskModal) {
         addTaskModal.addEventListener('click', (e) => {
-            if (e.target === addTaskModal) addTaskModal.classList.add('hidden');
+            if (e.target === addTaskModal) {
+                addTaskModal.classList.add('hidden');
+                resetAddTaskModalToAddMode();
+            }
         });
     }
 
@@ -1364,8 +1985,9 @@ function createTaskElement(task, options = {}) {
     if (task.completed) {
         taskItem.classList.add('task-completed');
     } else {
-        if (task.energy === 'low') taskItem.classList.add('energy-low-incomplete');
-        else if (task.energy === 'high') taskItem.classList.add('energy-high-incomplete');
+        if (task.energy === 'Low') taskItem.classList.add('energy-low-incomplete');
+        else if (task.energy === 'Medium') taskItem.classList.add('energy-medium-incomplete');
+        else if (task.energy === 'High') taskItem.classList.add('energy-high-incomplete');
     }
     // Add color code indicator
     if (task.colorCode) {
@@ -1436,6 +2058,8 @@ function createTaskElement(task, options = {}) {
     }
 
     if (context === 'management') {
+        // Only show move up/down buttons for reordering
+        // Edit/Delete moved to Task Details modal (accessed via double-click)
         if (index > 0) {
             const moveUpBtn = document.createElement('button');
             moveUpBtn.innerHTML = '&uarr;';
@@ -1450,17 +2074,6 @@ function createTaskElement(task, options = {}) {
             moveDownBtn.setAttribute('data-task-id', task.id);
             actionsContainer.appendChild(moveDownBtn);
         }
-        const editBtn = document.createElement('button');
-        editBtn.textContent = 'Edit';
-        editBtn.classList.add('neumorphic-btn', 'edit-task-btn-list');
-        editBtn.setAttribute('data-task-id', task.id);
-        actionsContainer.appendChild(editBtn);
-
-        const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = 'Delete';
-        deleteBtn.classList.add('neumorphic-btn', 'delete-task-btn-list');
-        deleteBtn.setAttribute('data-task-id', task.id);
-        actionsContainer.appendChild(deleteBtn);
     }
 
     if (actionsContainer.hasChildNodes()) taskItem.appendChild(actionsContainer);
@@ -1545,8 +2158,10 @@ function setupTabSwitching() {
             const targetEl = document.getElementById(tab.getAttribute('data-tab'));
             if (targetEl) targetEl.classList.add('active');
 
-            // Render archive/stats on demand
-            if (tab.getAttribute('data-tab') === 'archive-tab') {
+            // Render tabs on demand
+            if (tab.getAttribute('data-tab') === 'groups-tab') {
+                await renderGroupsTab();
+            } else if (tab.getAttribute('data-tab') === 'archive-tab') {
                 await renderArchiveTab();
             } else if (tab.getAttribute('data-tab') === 'stats-tab') {
                 await renderStatsTab();
@@ -1724,34 +2339,396 @@ function setupTaskManagementListeners() {
             const url = document.getElementById('manager-task-url').value.trim();
             const priority = document.querySelector('input[name="manager-priority"]:checked').value;
             const type = document.querySelector('input[name="manager-type"]:checked').value;
-            const energy = document.querySelector('input[name="manager-energy"]:checked').value;
+            const energy = document.querySelector('input[name="manager-energy"]:checked')?.value || 'TBD';
             const notes = document.getElementById('manager-task-notes')?.value.trim() || '';
             const recurrenceEl = document.getElementById('manager-task-recurrence');
             const recurrence = recurrenceEl?.value || null;
             let deadline = document.getElementById('manager-task-deadline').value;
             if (priority !== 'CRITICAL' || !deadline) deadline = null;
 
-            await addNewTask(title, url, priority, deadline, type, energy, notes, recurrence || null);
+            // Collect new attribute fields
+            const extraAttrs = {
+                status: document.getElementById('manager-task-status')?.value || 'inbox',
+                why: document.getElementById('manager-task-why')?.value.trim() || '',
+                projects: document.getElementById('manager-task-projects')?.value.trim() || '',
+                impact: document.getElementById('manager-task-impact')?.value || 'TBD',
+                value: document.getElementById('manager-task-value')?.value || 'TBD',
+                complexity: document.getElementById('manager-task-complexity')?.value || 'TBD',
+                action: document.getElementById('manager-task-action')?.value || 'TBD',
+                estimates: document.getElementById('manager-task-estimates')?.value || 'Unknown',
+                sprint: document.getElementById('manager-task-sprint')?.value.trim() || '',
+                interval: null
+            };
 
-            // Clear form
-            titleInput.value = '';
-            document.getElementById('manager-task-url').value = '';
-            if (document.getElementById('manager-task-notes')) document.getElementById('manager-task-notes').value = '';
-            if (recurrenceEl) recurrenceEl.value = '';
-            document.getElementById('manager-priority-someday').checked = true;
-            document.getElementById('manager-type-home').checked = true;
-            document.getElementById('manager-energy-low').checked = true;
-            document.getElementById('manager-task-deadline').value = '';
-            document.getElementById('manager-task-deadline-group').style.display = 'none';
+            // Collect interval if set
+            const intervalStart = document.getElementById('manager-interval-start')?.value;
+            const intervalEnd = document.getElementById('manager-interval-end')?.value;
+            if (intervalStart || intervalEnd) {
+                extraAttrs.interval = {
+                    startDate: intervalStart || null,
+                    endDate: intervalEnd || null
+                };
+            }
 
-            // Close modal after adding task
+            // Check if we're editing or adding
+            if (_editingTaskId) {
+                // Edit mode - update existing task
+                const task = await getTaskById(_editingTaskId);
+                if (task) {
+                    const tasks = await getTasksAsync();
+                    pushUndoState(tasks);
+
+                    // Update task properties
+                    task.title = title;
+                    task.url = url;
+                    task.priority = priority;
+                    task.deadline = deadline;
+                    task.type = type;
+                    task.energy = energy;
+                    task.notes = notes;
+                    task.recurrence = recurrence || null;
+                    task.status = extraAttrs.status;
+                    task.why = extraAttrs.why;
+                    task.projects = extraAttrs.projects;
+                    task.impact = extraAttrs.impact;
+                    task.value = extraAttrs.value;
+                    task.complexity = extraAttrs.complexity;
+                    task.action = extraAttrs.action;
+                    task.estimates = extraAttrs.estimates;
+                    task.sprint = extraAttrs.sprint;
+                    task.interval = extraAttrs.interval;
+                    task.lastModified = new Date().toISOString();
+
+                    await updateTask(task);
+                    showInfoMessage("Task updated!", "success");
+                }
+                resetAddTaskModalToAddMode();
+            } else {
+                // Add mode - create new task
+                await addNewTask(title, url, priority, deadline, type, energy, notes, recurrence || null, extraAttrs);
+                clearAddTaskForm();
+                showInfoMessage("Task added!", "success");
+            }
+
+            // Close modal
             if (addTaskModal) addTaskModal.classList.add('hidden');
-
             renderPage();
-            showInfoMessage("Task added!", "success");
         });
     }
 
+    // Clear interval button
+    const clearIntervalBtn = document.getElementById('clear-interval-btn');
+    if (clearIntervalBtn) {
+        clearIntervalBtn.addEventListener('click', () => {
+            const startInput = document.getElementById('manager-interval-start');
+            const endInput = document.getElementById('manager-interval-end');
+            if (startInput) startInput.value = '';
+            if (endInput) endInput.value = '';
+        });
+    }
+}
+
+function clearAddTaskForm() {
+    document.getElementById('manager-task-title').value = '';
+    document.getElementById('manager-task-url').value = '';
+    const notesEl = document.getElementById('manager-task-notes');
+    if (notesEl) notesEl.value = '';
+    const recurrenceEl = document.getElementById('manager-task-recurrence');
+    if (recurrenceEl) recurrenceEl.value = '';
+
+    // Core attributes
+    const prioritySomeday = document.getElementById('manager-priority-someday');
+    if (prioritySomeday) prioritySomeday.checked = true;
+    const typeHome = document.getElementById('manager-type-home');
+    if (typeHome) typeHome.checked = true;
+    const energyTbd = document.getElementById('manager-energy-tbd');
+    if (energyTbd) energyTbd.checked = true;
+    document.getElementById('manager-task-deadline').value = '';
+    document.getElementById('manager-task-deadline-group').style.display = 'none';
+
+    // New attribute fields
+    const statusEl = document.getElementById('manager-task-status');
+    if (statusEl) statusEl.value = 'inbox';
+    const whyEl = document.getElementById('manager-task-why');
+    if (whyEl) whyEl.value = '';
+    const projectsEl = document.getElementById('manager-task-projects');
+    if (projectsEl) projectsEl.value = '';
+    const impactEl = document.getElementById('manager-task-impact');
+    if (impactEl) impactEl.value = 'TBD';
+    const valueEl = document.getElementById('manager-task-value');
+    if (valueEl) valueEl.value = 'TBD';
+    const complexityEl = document.getElementById('manager-task-complexity');
+    if (complexityEl) complexityEl.value = 'TBD';
+    const actionEl = document.getElementById('manager-task-action');
+    if (actionEl) actionEl.value = 'TBD';
+    const estimatesEl = document.getElementById('manager-task-estimates');
+    if (estimatesEl) estimatesEl.value = 'Unknown';
+    const sprintEl = document.getElementById('manager-task-sprint');
+    if (sprintEl) sprintEl.value = '';
+    const intervalStart = document.getElementById('manager-interval-start');
+    if (intervalStart) intervalStart.value = '';
+    const intervalEnd = document.getElementById('manager-interval-end');
+    if (intervalEnd) intervalEnd.value = '';
+}
+
+// Variable to track if we're editing a task
+let _editingTaskId = null;
+
+async function openAddTaskModalForEdit(taskId) {
+    const task = await getTaskById(taskId);
+    if (!task) {
+        showInfoMessage('Task not found', 'error');
+        return;
+    }
+
+    _editingTaskId = taskId;
+
+    // Update modal title and button
+    const modalTitle = document.getElementById('add-task-title');
+    const submitBtn = document.getElementById('manager-add-task-btn');
+    if (modalTitle) modalTitle.textContent = '✏️ Edit Task';
+    if (submitBtn) submitBtn.textContent = 'Save Changes';
+
+    // Populate form with task data
+    document.getElementById('manager-task-title').value = task.title || '';
+    document.getElementById('manager-task-url').value = task.url || '';
+    const notesEl = document.getElementById('manager-task-notes');
+    if (notesEl) notesEl.value = task.notes || '';
+    const recurrenceEl = document.getElementById('manager-task-recurrence');
+    if (recurrenceEl) recurrenceEl.value = task.recurrence || '';
+
+    // Priority
+    const priorityRadio = document.getElementById(`manager-priority-${task.priority.toLowerCase()}`);
+    if (priorityRadio) priorityRadio.checked = true;
+    document.getElementById('manager-task-deadline-group').style.display = task.priority === 'CRITICAL' ? 'block' : 'none';
+    document.getElementById('manager-task-deadline').value = task.deadline || '';
+
+    // Type
+    const typeRadio = document.getElementById(`manager-type-${task.type}`);
+    if (typeRadio) typeRadio.checked = true;
+
+    // Energy
+    const energyValue = task.energy?.toLowerCase() || 'tbd';
+    const energyRadio = document.getElementById(`manager-energy-${energyValue}`);
+    if (energyRadio) energyRadio.checked = true;
+
+    // New attributes
+    const statusEl = document.getElementById('manager-task-status');
+    if (statusEl) statusEl.value = task.status || 'inbox';
+    const whyEl = document.getElementById('manager-task-why');
+    if (whyEl) whyEl.value = task.why || '';
+    const projectsEl = document.getElementById('manager-task-projects');
+    if (projectsEl) projectsEl.value = task.projects || '';
+    const impactEl = document.getElementById('manager-task-impact');
+    if (impactEl) impactEl.value = task.impact || 'TBD';
+    const valueEl = document.getElementById('manager-task-value');
+    if (valueEl) valueEl.value = task.value || 'TBD';
+    const complexityEl = document.getElementById('manager-task-complexity');
+    if (complexityEl) complexityEl.value = task.complexity || 'TBD';
+    const actionEl = document.getElementById('manager-task-action');
+    if (actionEl) actionEl.value = task.action || 'TBD';
+    const estimatesEl = document.getElementById('manager-task-estimates');
+    if (estimatesEl) estimatesEl.value = task.estimates || 'Unknown';
+    const sprintEl = document.getElementById('manager-task-sprint');
+    if (sprintEl) sprintEl.value = task.sprint || '';
+
+    // Interval
+    const intervalStart = document.getElementById('manager-interval-start');
+    const intervalEnd = document.getElementById('manager-interval-end');
+    if (task.interval) {
+        if (intervalStart) intervalStart.value = task.interval.startDate || task.interval.start || '';
+        if (intervalEnd) intervalEnd.value = task.interval.endDate || task.interval.end || '';
+    } else {
+        if (intervalStart) intervalStart.value = '';
+        if (intervalEnd) intervalEnd.value = '';
+    }
+
+    // Setup form visibility and open modal
+    await setupAddTaskFormVisibility();
+    const addTaskModal = document.getElementById('add-task-modal');
+    if (addTaskModal) addTaskModal.classList.remove('hidden');
+
+    // Setup auto-save for edit mode
+    setupEditModeAutoSave();
+}
+
+// Auto-save debounce timer reference
+let _editAutoSaveTimer = null;
+
+// Setup auto-save listeners for edit mode
+function setupEditModeAutoSave() {
+    if (!_editingTaskId) return;
+
+    const form = document.getElementById('add-task-modal');
+    if (!form) return;
+
+    // Get all form inputs
+    const inputs = form.querySelectorAll('input, textarea, select');
+
+    // Remove any existing auto-save listeners (clean slate)
+    inputs.forEach(input => {
+        const newInput = input.cloneNode(true);
+        input.parentNode.replaceChild(newInput, input);
+    });
+
+    // Re-select inputs after clone
+    const freshInputs = form.querySelectorAll('input, textarea, select');
+
+    // Add auto-save listeners
+    freshInputs.forEach(input => {
+        const eventType = input.type === 'checkbox' || input.type === 'radio' || input.tagName === 'SELECT' ? 'change' : 'input';
+        input.addEventListener(eventType, () => {
+            if (!_editingTaskId) return;
+            triggerEditAutoSave();
+        });
+    });
+}
+
+// Trigger debounced auto-save
+function triggerEditAutoSave() {
+    // Show saving status
+    const submitBtn = document.getElementById('manager-add-task-btn');
+    if (submitBtn) {
+        submitBtn.textContent = 'Saving...';
+        submitBtn.disabled = true;
+    }
+
+    // Clear existing timer
+    if (_editAutoSaveTimer) {
+        clearTimeout(_editAutoSaveTimer);
+    }
+
+    // Debounce: save after 800ms of inactivity
+    _editAutoSaveTimer = setTimeout(async () => {
+        await performEditAutoSave();
+    }, 800);
+}
+
+// Perform the actual auto-save
+async function performEditAutoSave() {
+    if (!_editingTaskId) return;
+
+    const task = await getTaskById(_editingTaskId);
+    if (!task) return;
+
+    const titleInput = document.getElementById('manager-task-title');
+    const title = titleInput?.value.trim();
+    if (!title) {
+        // Don't save if title is empty
+        const submitBtn = document.getElementById('manager-add-task-btn');
+        if (submitBtn) {
+            submitBtn.textContent = 'Save Changes';
+            submitBtn.disabled = false;
+        }
+        return;
+    }
+
+    // Collect form values
+    const url = document.getElementById('manager-task-url')?.value.trim() || '';
+    const priority = document.querySelector('input[name="manager-priority"]:checked')?.value || 'SOMEDAY';
+    const type = document.querySelector('input[name="manager-type"]:checked')?.value || 'home';
+    const energy = document.querySelector('input[name="manager-energy"]:checked')?.value || 'TBD';
+    const notes = document.getElementById('manager-task-notes')?.value.trim() || '';
+    const recurrence = document.getElementById('manager-task-recurrence')?.value || null;
+    let deadline = document.getElementById('manager-task-deadline')?.value || null;
+    if (priority !== 'CRITICAL' || !deadline) deadline = null;
+
+    // New attributes
+    const status = document.getElementById('manager-task-status')?.value || 'inbox';
+    const why = document.getElementById('manager-task-why')?.value.trim() || '';
+    const projects = document.getElementById('manager-task-projects')?.value.trim() || '';
+    const impact = document.getElementById('manager-task-impact')?.value || 'TBD';
+    const value = document.getElementById('manager-task-value')?.value || 'TBD';
+    const complexity = document.getElementById('manager-task-complexity')?.value || 'TBD';
+    const action = document.getElementById('manager-task-action')?.value || 'TBD';
+    const estimates = document.getElementById('manager-task-estimates')?.value || 'Unknown';
+    const sprint = document.getElementById('manager-task-sprint')?.value.trim() || '';
+
+    // Interval
+    const intervalStart = document.getElementById('manager-interval-start')?.value || null;
+    const intervalEnd = document.getElementById('manager-interval-end')?.value || null;
+    const interval = (intervalStart || intervalEnd) ? { startDate: intervalStart, endDate: intervalEnd } : null;
+
+    // Update task
+    task.title = title;
+    task.url = url;
+    task.priority = priority;
+    task.deadline = deadline;
+    task.type = type;
+    task.energy = energy;
+    task.notes = notes;
+    task.recurrence = recurrence;
+    task.status = status;
+    task.why = why;
+    task.projects = projects;
+    task.impact = impact;
+    task.value = value;
+    task.complexity = complexity;
+    task.action = action;
+    task.estimates = estimates;
+    task.sprint = sprint;
+    task.interval = interval;
+    task.lastModified = new Date().toISOString();
+
+    await updateTask(task);
+
+    // Show saved status
+    const submitBtn = document.getElementById('manager-add-task-btn');
+    if (submitBtn) {
+        submitBtn.textContent = 'Saved ✓';
+        submitBtn.disabled = false;
+        // Reset button text after 1.5s
+        setTimeout(() => {
+            if (_editingTaskId && submitBtn) {
+                submitBtn.textContent = 'Save Changes';
+            }
+        }, 1500);
+    }
+
+    // Re-render page to update Groups tab and other views
+    await renderPage();
+}
+
+function resetAddTaskModalToAddMode() {
+    // Clear auto-save timer
+    if (_editAutoSaveTimer) {
+        clearTimeout(_editAutoSaveTimer);
+        _editAutoSaveTimer = null;
+    }
+    _editingTaskId = null;
+    const modalTitle = document.getElementById('add-task-title');
+    const submitBtn = document.getElementById('manager-add-task-btn');
+    if (modalTitle) modalTitle.textContent = '➕ Add New Task';
+    if (submitBtn) {
+        submitBtn.textContent = 'Add Task';
+        submitBtn.disabled = false;
+    }
+    clearAddTaskForm();
+}
+
+async function setupAddTaskFormVisibility() {
+    const settings = await getSettings();
+    const enabled = settings.enabledAttributes || { priority: true, type: true, energy: true };
+
+    // Hide/show individual form groups based on enabled attributes
+    document.querySelectorAll('[data-attribute-field]').forEach(el => {
+        const attr = el.dataset.attributeField;
+        // Default to showing if attribute not explicitly set in enabled map
+        const isEnabled = enabled[attr] !== undefined ? enabled[attr] : false;
+        el.style.display = isEnabled ? '' : 'none';
+    });
+
+    // Hide entire sections if all their fields are disabled
+    ['core-attrs-section', 'planning-attrs-section', 'time-attrs-section', 'org-attrs-section'].forEach(sectionId => {
+        const section = document.getElementById(sectionId);
+        if (!section) return;
+        const visibleFields = section.querySelectorAll('[data-attribute-field]:not([style*="display: none"])');
+        section.style.display = visibleFields.length > 0 ? '' : 'none';
+    });
+}
+
+// Legacy function for display areas (Priority/Location tabs removed, kept for potential Groups drill-down)
+function setupDisplayAreaListeners() {
     const tasksDisplayAreas = document.querySelectorAll('.tasks-display-area');
     if (tasksDisplayAreas.length === 0) return;
 
@@ -1860,8 +2837,10 @@ function setupTaskManagementListeners() {
                         <div class="form-group-inline">
                             <label>Energy:</label>
                             <div class="radio-group-modern horizontal edit-task-energy">
-                                <input type="radio" id="edit-energy-low-${safeId}" name="edit-energy-${safeId}" value="low" ${task.energy === 'low' ? 'checked' : ''}><label for="edit-energy-low-${safeId}">🍃 Low</label>
-                                <input type="radio" id="edit-energy-high-${safeId}" name="edit-energy-${safeId}" value="high" ${task.energy === 'high' ? 'checked' : ''}><label for="edit-energy-high-${safeId}">⚡ High</label>
+                                <input type="radio" id="edit-energy-tbd-${safeId}" name="edit-energy-${safeId}" value="TBD" ${task.energy === 'TBD' ? 'checked' : ''}><label for="edit-energy-tbd-${safeId}">❓ TBD</label>
+                                <input type="radio" id="edit-energy-low-${safeId}" name="edit-energy-${safeId}" value="Low" ${task.energy === 'Low' ? 'checked' : ''}><label for="edit-energy-low-${safeId}">🍃 Low</label>
+                                <input type="radio" id="edit-energy-medium-${safeId}" name="edit-energy-${safeId}" value="Medium" ${task.energy === 'Medium' ? 'checked' : ''}><label for="edit-energy-medium-${safeId}">🌀 Med</label>
+                                <input type="radio" id="edit-energy-high-${safeId}" name="edit-energy-${safeId}" value="High" ${task.energy === 'High' ? 'checked' : ''}><label for="edit-energy-high-${safeId}">⚡ High</label>
                             </div>
                         </div>
                         <div class="form-group-inline">
@@ -2130,7 +3109,7 @@ async function showTaskPopover(taskElement, taskId) {
         </div>
         <div class="popover-meta">
             <span class="popover-tag type-${task.type}">${task.type === 'home' ? '🏠 Home' : '💼 Work'}</span>
-            <span class="popover-tag energy-${task.energy}">${task.energy === 'high' ? '⚡ High Energy' : '🍃 Low Energy'}</span>
+            <span class="popover-tag energy-${task.energy}">${task.energy === 'High' ? '⚡ High' : task.energy === 'Medium' ? '🌀 Medium' : task.energy === 'Low' ? '🍃 Low' : '❓ TBD'}</span>
             ${task.recurrence ? `<span class="popover-tag">🔄 ${task.recurrence}</span>` : ''}
             ${task.deadline ? `<span class="popover-tag">📅 ${formatPopoverDeadline(task.deadline)}</span>` : ''}
         </div>
@@ -2605,26 +3584,106 @@ function closeTaskDetailsModal() {
 
 async function populateTaskDetailsModal(task) {
     const blocks = await getTimeBlocks();
+    const settings = await getSettings();
+    const enabled = settings.enabledAttributes || { priority: true, type: true, energy: true };
 
+    // Title
     document.getElementById('details-task-title').textContent = task.title;
 
-    const priorityBadge = document.getElementById('details-task-priority');
-    priorityBadge.textContent = task.priority;
-    priorityBadge.className = `priority-badge priority-${task.priority}`;
+    // Helper to show/hide and set tag content
+    const setTag = (id, content, visible = true, className = '') => {
+        const el = document.getElementById(id);
+        if (el) {
+            if (visible && content) {
+                el.textContent = content;
+                el.style.display = '';
+                if (className) el.className = `details-tag ${className}`;
+            } else {
+                el.style.display = 'none';
+            }
+        }
+    };
 
-    document.getElementById('details-task-type').textContent = task.type === 'home' ? '🏠 Home' : '💼 Work';
-    document.getElementById('details-task-energy').textContent = task.energy === 'high' ? '⚡ High Energy' : '🍃 Low Energy';
-    document.getElementById('details-task-deadline').textContent = task.deadline || 'None';
-    document.getElementById('details-task-recurrence').textContent = task.recurrence ? `🔄 ${task.recurrence}` : 'None';
-    document.getElementById('details-task-notes').textContent = task.notes || 'No notes';
+    // Priority tag
+    setTag('details-tag-priority', `⭐ ${task.priority}`, enabled.priority !== false, `tag-priority priority-${task.priority}`);
 
-    // URL
+    // Type/Location tag
+    const typeLabel = task.type === 'home' ? '🏠 Home' : '💼 Work';
+    setTag('details-tag-type', typeLabel, enabled.type !== false, `tag-type type-${task.type}`);
+
+    // Energy tag
+    const energyIcons = { 'TBD': '❓', 'Low': '🍃', 'Medium': '⚡', 'High': '🔋' };
+    const energyLabel = `${energyIcons[task.energy] || '❓'} ${task.energy || 'TBD'}`;
+    setTag('details-tag-energy', energyLabel, enabled.energy !== false, `tag-energy energy-${(task.energy || 'TBD').toLowerCase()}`);
+
+    // Status tag
+    const statusLabel = ATTRIBUTE_OPTIONS?.status?.labels?.[task.status] || task.status || 'Inbox';
+    const statusIcon = ATTRIBUTE_OPTIONS?.status?.icons?.[task.status] || '📥';
+    setTag('details-tag-status', `${statusIcon} ${statusLabel}`, enabled.status, `tag-status status-${task.status || 'inbox'}`);
+
+    // Impact tag
+    const impactIcons = { 'TBD': '❓', 'LOW': '🔵', 'Medium': '🟡', 'High': '🔴' };
+    setTag('details-tag-impact', `${impactIcons[task.impact] || '❓'} Impact: ${task.impact || 'TBD'}`, enabled.impact && task.impact && task.impact !== 'TBD', `tag-impact impact-${(task.impact || 'TBD').toLowerCase()}`);
+
+    // Value tag
+    const valueIcons = { 'TBD': '❓', 'BUILD': '🔨', 'LEARN': '📚' };
+    setTag('details-tag-value', `${valueIcons[task.value] || '❓'} ${task.value || 'TBD'}`, enabled.value && task.value && task.value !== 'TBD', `tag-value value-${(task.value || 'TBD').toLowerCase()}`);
+
+    // Complexity tag
+    const complexityIcons = { 'TBD': '⏳', 'JUST DO IT': '⚡', 'Trivial': '🟢', 'Simple & Clear': '📘', 'Multiple Steps': '🟡', 'Dependent/Risk': '⚠️', 'Unknown/Broad': '❓' };
+    setTag('details-tag-complexity', `${complexityIcons[task.complexity] || '⏳'} ${task.complexity || 'TBD'}`, enabled.complexity && task.complexity && task.complexity !== 'TBD', 'tag-complexity');
+
+    // Action tag
+    const actionIcons = { 'TBD': '⏳', 'Question': '❓', 'Mandate': '✅', 'Delete': '🗑️', 'Simplify': '✂️', 'Accelerate': '⏩', 'Automate': '🤖' };
+    setTag('details-tag-action', `${actionIcons[task.action] || '⏳'} ${task.action || 'TBD'}`, enabled.action && task.action && task.action !== 'TBD', 'tag-action');
+
+    // Estimates tag
+    setTag('details-tag-estimates', `⏱️ ${task.estimates || 'Unknown'}`, enabled.estimates && task.estimates && task.estimates !== 'Unknown', 'tag-estimates');
+
+    // Deadline tag
+    setTag('details-tag-deadline', task.deadline ? `📅 ${task.deadline}` : '', !!task.deadline, 'tag-deadline');
+
+    // Recurrence tag
+    setTag('details-tag-recurrence', task.recurrence ? `🔄 ${task.recurrence}` : '', !!task.recurrence, 'tag-recurrence');
+
+    // Interval tag
+    if (task.interval && (task.interval.start || task.interval.startDate)) {
+        const start = task.interval.start || task.interval.startDate;
+        const end = task.interval.end || task.interval.endDate;
+        setTag('details-tag-interval', `📆 ${start}${end ? ' → ' + end : ''}`, enabled.interval, 'tag-interval');
+    } else {
+        setTag('details-tag-interval', '', false);
+    }
+
+    // Projects tag
+    setTag('details-tag-projects', task.projects ? `📁 ${task.projects}` : '', enabled.projects && task.projects, 'tag-projects');
+
+    // Sprint tag
+    setTag('details-tag-sprint', task.sprint ? `🏃 ${task.sprint}` : '', enabled.sprint && task.sprint, 'tag-sprint');
+
+    // URL section
+    const urlRow = document.getElementById('details-url-row');
     const urlEl = document.getElementById('details-task-url');
     if (task.url) {
         urlEl.innerHTML = `<a href="${escapeHtml(task.url)}" target="_blank" rel="noopener">${truncateUrl(task.url, 50)}</a>`;
+        if (urlRow) urlRow.style.display = '';
     } else {
-        urlEl.textContent = 'None';
+        if (urlRow) urlRow.style.display = 'none';
     }
+
+    // Why section
+    const whySection = document.getElementById('details-why-section');
+    const whyEl = document.getElementById('details-task-why');
+    if (enabled.why && task.why) {
+        if (whyEl) whyEl.textContent = task.why;
+        if (whySection) whySection.style.display = '';
+    } else {
+        if (whySection) whySection.style.display = 'none';
+    }
+
+    // Notes
+    const notesEl = document.getElementById('details-task-notes');
+    if (notesEl) notesEl.textContent = task.notes || 'No notes';
 
     // Schedule
     const scheduleList = document.getElementById('details-schedule-list');
@@ -2667,26 +3726,8 @@ function setupTaskDetailsModalListeners() {
             const taskId = modal?.dataset.taskId;
             if (taskId) {
                 closeTaskDetailsModal();
-                // Switch to priority tab and trigger edit
-                const priorityTab = document.querySelector('[data-tab="task-lists"]');
-                if (priorityTab) priorityTab.click();
-                // Wait for tab switch and render, then find and click edit button
-                setTimeout(() => {
-                    const editTaskBtn = document.querySelector(`.edit-task-btn-list[data-task-id="${taskId}"]`);
-                    if (editTaskBtn) {
-                        editTaskBtn.click();
-                    } else {
-                        // Task might not be visible in priority tab (e.g., completed)
-                        // Check completed disclosures
-                        const disclosures = document.querySelectorAll('.completed-disclosure');
-                        disclosures.forEach(d => d.open = true);
-                        setTimeout(() => {
-                            const btn = document.querySelector(`.edit-task-btn-list[data-task-id="${taskId}"]`);
-                            if (btn) btn.click();
-                            else showInfoMessage('Could not find task for editing. Try from Priority tab.', 'info');
-                        }, 50);
-                    }
-                }, 150);
+                // Open the Add/Edit Task modal in edit mode
+                await openAddTaskModalForEdit(taskId);
             }
         });
     }

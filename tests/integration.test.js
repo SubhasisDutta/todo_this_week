@@ -22,7 +22,7 @@ beforeEach(() => {
 
 describe('End-to-end: Task lifecycle', () => {
     test('add task -> retrieve -> update -> verify', async () => {
-        const newTask = await addNewTask('Integration Test', 'https://example.com', 'IMPORTANT', null, 'work', 'high');
+        const newTask = await addNewTask('Integration Test', 'https://example.com', 'IMPORTANT', null, 'work', 'High');
         expect(newTask).not.toBeNull();
         expect(newTask.title).toBe('Integration Test');
         expect(newTask.priority).toBe('IMPORTANT');
@@ -31,7 +31,7 @@ describe('End-to-end: Task lifecycle', () => {
         expect(retrieved).toBeDefined();
         expect(retrieved.title).toBe('Integration Test');
         expect(retrieved.type).toBe('work');
-        expect(retrieved.energy).toBe('high');
+        expect(retrieved.energy).toBe('High');
 
         retrieved.title = 'Updated Title';
         retrieved.priority = 'CRITICAL';
@@ -162,7 +162,7 @@ describe('End-to-end: Import/merge logic', () => {
 
         const importedTasks = [
             { ...existing[0], title: 'Updated Existing' },
-            { id: 'new-imported', title: 'New Import', priority: 'IMPORTANT', completed: false, type: 'work', displayOrder: 0, schedule: [], energy: 'high' },
+            { id: 'new-imported', title: 'New Import', priority: 'IMPORTANT', completed: false, type: 'work', displayOrder: 0, schedule: [], energy: 'High' },
         ];
 
         const existingTasks = await getTasksAsync();

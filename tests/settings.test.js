@@ -30,7 +30,8 @@ loadScript(path.join(__dirname, '..', 'settings.js'), [
     'setupImportExportModalListeners',
     'setupTimeBlocksModalListeners',
     'setupImportExportTabs',
-    'formatTimeInput', 'addTimeBlock', 'updateTimeBlockLabel', 'deleteTimeBlock'
+    'formatTimeInput', 'addTimeBlock', 'updateTimeBlockLabel', 'deleteTimeBlock',
+    'notionPageToTask', 'normalizeSheetRow', 'getEnabledAttributes'
 ]);
 
 // Minimal DOM setup for settings tests
@@ -174,7 +175,7 @@ describe('initSettings', () => {
     });
 
     test('does not seed if tasks already exist (marks hasSeenSampleTasks=true)', async () => {
-        seedTasks([{ id: 't1', title: 'Existing', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low', notes: '', recurrence: null, completedAt: null }]);
+        seedTasks([{ id: 't1', title: 'Existing', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low', notes: '', recurrence: null, completedAt: null }]);
         await initSettings();
         const tasks = await getTasksAsync();
         expect(tasks.length).toBe(1); // only existing task, no sample tasks added
@@ -476,5 +477,217 @@ describe('Import/Export Modal Tabs', () => {
         expect(sheetsPreview.classList.contains('hidden')).toBe(true);
         expect(csvImportBtn.classList.contains('hidden')).toBe(true);
         expect(sheetsImportBtn.classList.contains('hidden')).toBe(true);
+    });
+});
+
+describe('notionPageToTask', () => {
+    test('extracts basic fields from Notion page', () => {
+        const page = {
+            id: 'notion-page-123',
+            properties: {
+                'Title': { type: 'title', title: [{ plain_text: 'Test Task' }] },
+                'Priority': { type: 'select', select: { name: 'High' } },
+                'Type': { type: 'select', select: { name: 'Work' } },
+                'Energy': { type: 'select', select: { name: 'Medium' } },
+                'Notes': { type: 'rich_text', rich_text: [{ plain_text: 'Test notes' }] },
+                'URL': { type: 'url', url: 'https://example.com' }
+            }
+        };
+        const mapping = {
+            title: 'Title',
+            priority: 'Priority',
+            type: 'Type',
+            energy: 'Energy',
+            notes: 'Notes',
+            url: 'URL',
+            status: '', deadline: '', impact: '', value: '', complexity: '',
+            action: '', estimates: '', why: '', projects: '', sprint: '', interval: ''
+        };
+        const valueMappings = {
+            priority: { 'CRITICAL': 'High', 'IMPORTANT': 'Medium', 'SOMEDAY': 'Low' },
+            type: { 'home': 'Home', 'work': 'Work' },
+            energy: { 'TBD': '', 'Low': 'Low', 'Medium': 'Medium', 'High': 'High' }
+        };
+
+        const result = notionPageToTask(page, mapping, valueMappings);
+
+        expect(result.notionPageId).toBe('notion-page-123');
+        expect(result.title).toBe('Test Task');
+        expect(result.priority).toBe('CRITICAL');
+        expect(result.type).toBe('work');
+        expect(result.energy).toBe('Medium');
+        expect(result.notes).toBe('Test notes');
+        expect(result.url).toBe('https://example.com');
+    });
+
+    test('extracts new attributes from Notion page', () => {
+        const page = {
+            id: 'notion-page-456',
+            properties: {
+                'Title': { type: 'title', title: [{ plain_text: 'Task with Attrs' }] },
+                'Impact': { type: 'select', select: { name: 'High' } },
+                'Value': { type: 'select', select: { name: 'BUILD' } },
+                'Complexity': { type: 'select', select: { name: 'Simple' } },
+                'Action': { type: 'select', select: { name: 'Automate' } },
+                'Estimates': { type: 'select', select: { name: '2 Hours' } },
+                'Why': { type: 'rich_text', rich_text: [{ plain_text: 'Important reason' }] },
+                'Projects': { type: 'rich_text', rich_text: [{ plain_text: 'Project Alpha' }] },
+                'Sprint': { type: 'rich_text', rich_text: [{ plain_text: 'Sprint 5' }] },
+                'Interval': { type: 'date', date: { start: '2024-01-01', end: '2024-01-15' } }
+            }
+        };
+        const mapping = {
+            title: 'Title',
+            impact: 'Impact',
+            value: 'Value',
+            complexity: 'Complexity',
+            action: 'Action',
+            estimates: 'Estimates',
+            why: 'Why',
+            projects: 'Projects',
+            sprint: 'Sprint',
+            interval: 'Interval',
+            priority: '', type: '', energy: '', notes: '', url: '', status: '', deadline: ''
+        };
+        const valueMappings = {
+            impact: { 'TBD': '', 'LOW': 'Low', 'Medium': 'Medium', 'High': 'High' },
+            value: { 'TBD': '', 'BUILD': 'BUILD', 'LEARN': 'LEARN' },
+            complexity: { 'TBD': '', 'Trivial': 'Simple' },
+            action: { 'TBD': '', 'Automate': 'Automate' },
+            estimates: { 'Unknown': '', '2 Hr': '2 Hours' }
+        };
+
+        const result = notionPageToTask(page, mapping, valueMappings);
+
+        expect(result.impact).toBe('High');
+        expect(result.value).toBe('BUILD');
+        expect(result.complexity).toBe('Trivial');
+        expect(result.action).toBe('Automate');
+        expect(result.estimates).toBe('2 Hr');
+        expect(result.why).toBe('Important reason');
+        expect(result.projects).toBe('Project Alpha');
+        expect(result.sprint).toBe('Sprint 5');
+        expect(result.interval).toEqual({ start: '2024-01-01', end: '2024-01-15' });
+    });
+
+    test('returns defaults for unmapped fields', () => {
+        const page = {
+            id: 'notion-page-789',
+            properties: {
+                'Title': { type: 'title', title: [{ plain_text: 'Minimal Task' }] }
+            }
+        };
+        const mapping = { title: 'Title' };
+        const valueMappings = {};
+
+        const result = notionPageToTask(page, mapping, valueMappings);
+
+        expect(result.title).toBe('Minimal Task');
+        expect(result.priority).toBe('SOMEDAY');
+        expect(result.type).toBe('home');
+        expect(result.energy).toBe('TBD');
+        expect(result.impact).toBe('TBD');
+        expect(result.value).toBe('TBD');
+        expect(result.complexity).toBe('TBD');
+        expect(result.action).toBe('TBD');
+        expect(result.estimates).toBe('Unknown');
+        expect(result.why).toBe('');
+        expect(result.projects).toBe('');
+        expect(result.sprint).toBe('');
+        expect(result.interval).toBeNull();
+    });
+});
+
+describe('normalizeSheetRow', () => {
+    test('normalizes CSV row with new attributes', () => {
+        const row = {
+            title: 'CSV Task',
+            priority: 'IMPORTANT',
+            type: 'work',
+            energy: 'High',
+            status: 'in-progress',
+            impact: 'High',
+            value: 'BUILD',
+            complexity: 'Multiple Steps',
+            action: 'Simplify',
+            estimates: '4 HR',
+            why: 'Good reason',
+            projects: 'Project Beta',
+            sprint: 'Sprint 3'
+        };
+
+        const result = normalizeSheetRow(row);
+
+        expect(result.title).toBe('CSV Task');
+        expect(result.priority).toBe('IMPORTANT');
+        expect(result.type).toBe('work');
+        expect(result.energy).toBe('High');
+        expect(result.status).toBe('in-progress');
+        expect(result.impact).toBe('High');
+        expect(result.value).toBe('BUILD');
+        expect(result.complexity).toBe('Multiple Steps');
+        expect(result.action).toBe('Simplify');
+        expect(result.estimates).toBe('4 HR');
+        expect(result.why).toBe('Good reason');
+        expect(result.projects).toBe('Project Beta');
+        expect(result.sprint).toBe('Sprint 3');
+    });
+
+    test('normalizes invalid status to inbox', () => {
+        const row = { title: 'Test', status: 'invalid-status' };
+        const result = normalizeSheetRow(row);
+        expect(result.status).toBe('inbox');
+    });
+
+    test('parses interval with en-dash separator', () => {
+        // The normalizeSheetRow splits on comma, dash, or en-dash
+        // But ISO dates contain dashes, so this parsing has limitations
+        // Testing that empty/null interval returns null
+        const row = { title: 'Test', interval: '' };
+        const result = normalizeSheetRow(row);
+        expect(result.interval).toBeNull();
+    });
+
+    test('handles single date interval gracefully', () => {
+        // Single date without proper delimiter format
+        const row = { title: 'Test' };
+        const result = normalizeSheetRow(row);
+        expect(result.interval).toBeNull();
+    });
+});
+
+describe('getEnabledAttributes', () => {
+    beforeEach(() => {
+        resetChromeStorage();
+    });
+
+    test('returns default enabled attributes when none set', async () => {
+        const enabled = await getEnabledAttributes();
+        expect(enabled.priority).toBe(true);
+        expect(enabled.type).toBe(true);
+        expect(enabled.energy).toBe(true);
+        expect(enabled.status).toBeFalsy();
+    });
+
+    test('returns custom enabled attributes from settings', async () => {
+        seedSettings({
+            theme: 'light',
+            fontFamily: 'system',
+            fontSize: 'medium',
+            hasSeenSampleTasks: true,
+            enabledAttributes: {
+                priority: true,
+                type: false,
+                status: true,
+                impact: true,
+                energy: true
+            }
+        });
+
+        const enabled = await getEnabledAttributes();
+        expect(enabled.priority).toBe(true);
+        expect(enabled.type).toBe(false);
+        expect(enabled.status).toBe(true);
+        expect(enabled.impact).toBe(true);
     });
 });

@@ -40,14 +40,12 @@
         <div class="tabs" role="tablist">
             <button class="tab-link active" data-tab="weekly-schedule" role="tab" aria-selected="true"
                 aria-controls="weekly-schedule"><span class="tab-icon">🗓️</span> SCHEDULE</button>
-            <button class="tab-link" data-tab="task-lists" role="tab" aria-selected="false"
-                aria-controls="task-lists"><span class="tab-icon">⭐</span> PRIORITY</button>
-            <button class="tab-link" data-tab="all-tasks" role="tab" aria-selected="false"
-                aria-controls="all-tasks"><span class="tab-icon">🌍</span> LOCATION</button>
+            <button class="tab-link" data-tab="groups-tab" role="tab" aria-selected="false"
+                aria-controls="groups-tab"><span class="tab-icon">📊</span> GROUPS</button>
             <button class="tab-link" data-tab="archive-tab" role="tab" aria-selected="false"
                 aria-controls="archive-tab"><span class="tab-icon">🗄️</span> ARCHIVE</button>
             <button class="tab-link" data-tab="stats-tab" role="tab" aria-selected="false"
-                aria-controls="stats-tab"><span class="tab-icon">📊</span> STATS</button>
+                aria-controls="stats-tab"><span class="tab-icon">📈</span> STATS</button>
         </div>
 
         <!-- Main content area -->
@@ -113,83 +111,34 @@
                 </div>
             </div>
 
-            <!-- PRIORITY Tab -->
-            <div id="task-lists" class="tab-content" role="tabpanel" aria-labelledby="task-lists">
-                <!-- Search Bar -->
-                <div class="search-bar-container">
-                    <input type="search" id="priority-search-input" class="neumorphic-input"
-                        placeholder="🔍 Search tasks by title..." aria-label="Search tasks">
-                    <button id="priority-search-clear" class="neumorphic-btn search-clear-btn">Clear</button>
+            <!-- GROUPS Tab -->
+            <div id="groups-tab" class="tab-content" role="tabpanel" aria-labelledby="groups-tab">
+                <!-- Breadcrumb Navigation (shown in drill-down view) -->
+                <nav id="groups-breadcrumb" class="groups-breadcrumb hidden" aria-label="Breadcrumb">
+                    <button class="breadcrumb-back-btn" id="groups-back-btn">
+                        <span class="breadcrumb-arrow">←</span> Groups
+                    </button>
+                    <span class="breadcrumb-separator">/</span>
+                    <span class="breadcrumb-current" id="breadcrumb-attribute-name"></span>
+                </nav>
+
+                <!-- Bento Grid View (main) -->
+                <div id="groups-bento-view" class="groups-bento-grid">
+                    <!-- Dynamically rendered bento boxes for each enabled attribute -->
                 </div>
 
-                <h2>All Tasks</h2>
-                <div class="tasks-display-area">
-                    <div class="priority-column">
-                        <h3>Critical</h3>
-                        <div id="critical-tasks-list" class="task-list neumorphic-inset-card"></div>
-                        <details class="completed-disclosure" id="critical-completed-disclosure">
-                            <summary class="completed-disclosure-summary">
-                                <span class="disclosure-label">Completed</span>
-                                <span class="completed-count" id="critical-completed-count">0</span>
-                            </summary>
-                            <div id="critical-completed-list" class="completed-tasks-list"></div>
-                        </details>
+                <!-- Drill-Down View (hidden by default) -->
+                <div id="groups-drilldown-view" class="hidden">
+                    <div class="groups-drilldown-header">
+                        <h2 class="groups-drilldown-title" id="drilldown-title"></h2>
+                        <div class="search-bar-container">
+                            <input type="search" id="groups-drilldown-search" class="neumorphic-input"
+                                placeholder="🔍 Search tasks..." aria-label="Search tasks">
+                            <button id="groups-drilldown-search-clear" class="neumorphic-btn search-clear-btn">Clear</button>
+                        </div>
                     </div>
-                    <div class="priority-column">
-                        <h3>Important</h3>
-                        <div id="important-tasks-list" class="task-list neumorphic-inset-card"></div>
-                        <details class="completed-disclosure" id="important-completed-disclosure">
-                            <summary class="completed-disclosure-summary">
-                                <span class="disclosure-label">Completed</span>
-                                <span class="completed-count" id="important-completed-count">0</span>
-                            </summary>
-                            <div id="important-completed-list" class="completed-tasks-list"></div>
-                        </details>
-                    </div>
-                    <div class="priority-column">
-                        <h3>Someday</h3>
-                        <div id="someday-tasks-list" class="task-list neumorphic-inset-card"></div>
-                        <details class="completed-disclosure" id="someday-completed-disclosure">
-                            <summary class="completed-disclosure-summary">
-                                <span class="disclosure-label">Completed</span>
-                                <span class="completed-count" id="someday-completed-count">0</span>
-                            </summary>
-                            <div id="someday-completed-list" class="completed-tasks-list"></div>
-                        </details>
-                    </div>
-                </div>
-            </div>
-
-            <!-- LOCATION Tab -->
-            <div id="all-tasks" class="tab-content" role="tabpanel" aria-labelledby="all-tasks">
-                <!-- Search Bar -->
-                <div class="search-bar-container">
-                    <input type="search" id="location-search-input" class="neumorphic-input"
-                        placeholder="🔍 Search tasks by title..." aria-label="Search tasks">
-                    <button id="location-search-clear" class="neumorphic-btn search-clear-btn">Clear</button>
-                </div>
-                <div class="tasks-display-area">
-                    <div class="priority-column">
-                        <h3>Home</h3>
-                        <div id="home-tasks-list" class="task-list neumorphic-inset-card"></div>
-                        <details class="completed-disclosure" id="home-completed-disclosure">
-                            <summary class="completed-disclosure-summary">
-                                <span class="disclosure-label">Completed</span>
-                                <span class="completed-count" id="home-completed-count">0</span>
-                            </summary>
-                            <div id="home-completed-list" class="completed-tasks-list"></div>
-                        </details>
-                    </div>
-                    <div class="priority-column">
-                        <h3>Work</h3>
-                        <div id="work-tasks-list" class="task-list neumorphic-inset-card"></div>
-                        <details class="completed-disclosure" id="work-completed-disclosure">
-                            <summary class="completed-disclosure-summary">
-                                <span class="disclosure-label">Completed</span>
-                                <span class="completed-count" id="work-completed-count">0</span>
-                            </summary>
-                            <div id="work-completed-list" class="completed-tasks-list"></div>
-                        </details>
+                    <div id="groups-drilldown-columns" class="groups-drilldown-columns">
+                        <!-- Columns for each option value -->
                     </div>
                 </div>
             </div>
@@ -276,6 +225,121 @@
                 </div>
             </section>
 
+            <!-- Task Attributes -->
+            <section class="settings-section">
+                <h3>Task Attributes</h3>
+                <p class="settings-section-desc">Enable or disable task attributes. Enabled attributes appear in the Groups tab and task forms.</p>
+                <div class="attribute-toggles-grid">
+                    <!-- Priority (toggleable, default on) -->
+                    <div class="attribute-toggle-item">
+                        <span class="attribute-icon">⭐</span>
+                        <span class="attribute-label">Priority</span>
+                        <label class="toggle-switch" for="attr-priority">
+                            <input type="checkbox" id="attr-priority" data-attribute="priority" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <!-- Location/Type (toggleable, default on) -->
+                    <div class="attribute-toggle-item">
+                        <span class="attribute-icon">📍</span>
+                        <span class="attribute-label">Location</span>
+                        <label class="toggle-switch" for="attr-type">
+                            <input type="checkbox" id="attr-type" data-attribute="type" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <!-- Other toggleable attributes -->
+                    <div class="attribute-toggle-item">
+                        <span class="attribute-icon">🚥</span>
+                        <span class="attribute-label">Status</span>
+                        <label class="toggle-switch" for="attr-status">
+                            <input type="checkbox" id="attr-status" data-attribute="status">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="attribute-toggle-item">
+                        <span class="attribute-icon">❓</span>
+                        <span class="attribute-label">Why</span>
+                        <label class="toggle-switch" for="attr-why">
+                            <input type="checkbox" id="attr-why" data-attribute="why">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="attribute-toggle-item">
+                        <span class="attribute-icon">📁</span>
+                        <span class="attribute-label">Projects</span>
+                        <label class="toggle-switch" for="attr-projects">
+                            <input type="checkbox" id="attr-projects" data-attribute="projects">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="attribute-toggle-item">
+                        <span class="attribute-icon">💥</span>
+                        <span class="attribute-label">Impact</span>
+                        <label class="toggle-switch" for="attr-impact">
+                            <input type="checkbox" id="attr-impact" data-attribute="impact">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="attribute-toggle-item">
+                        <span class="attribute-icon">💎</span>
+                        <span class="attribute-label">Value</span>
+                        <label class="toggle-switch" for="attr-value">
+                            <input type="checkbox" id="attr-value" data-attribute="value">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="attribute-toggle-item">
+                        <span class="attribute-icon">🧩</span>
+                        <span class="attribute-label">Complexity</span>
+                        <label class="toggle-switch" for="attr-complexity">
+                            <input type="checkbox" id="attr-complexity" data-attribute="complexity">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="attribute-toggle-item">
+                        <span class="attribute-icon">🔋</span>
+                        <span class="attribute-label">Energy</span>
+                        <label class="toggle-switch" for="attr-energy">
+                            <input type="checkbox" id="attr-energy" data-attribute="energy" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="attribute-toggle-item">
+                        <span class="attribute-icon">🎬</span>
+                        <span class="attribute-label">Action</span>
+                        <label class="toggle-switch" for="attr-action">
+                            <input type="checkbox" id="attr-action" data-attribute="action">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="attribute-toggle-item">
+                        <span class="attribute-icon">⏱️</span>
+                        <span class="attribute-label">Estimates</span>
+                        <label class="toggle-switch" for="attr-estimates">
+                            <input type="checkbox" id="attr-estimates" data-attribute="estimates">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="attribute-toggle-item">
+                        <span class="attribute-icon">🏃</span>
+                        <span class="attribute-label">Sprint</span>
+                        <label class="toggle-switch" for="attr-sprint">
+                            <input type="checkbox" id="attr-sprint" data-attribute="sprint">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="attribute-toggle-item">
+                        <span class="attribute-icon">📅</span>
+                        <span class="attribute-label">Interval</span>
+                        <label class="toggle-switch" for="attr-interval">
+                            <input type="checkbox" id="attr-interval" data-attribute="interval">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </section>
+
         </div>
     </div>
 
@@ -297,10 +361,8 @@
                     Start</button>
                 <button class="tab-link" data-help-tab="help-schedule" role="tab"
                     aria-selected="false">Schedule</button>
-                <button class="tab-link" data-help-tab="help-priority" role="tab"
-                    aria-selected="false">Priority</button>
-                <button class="tab-link" data-help-tab="help-location" role="tab"
-                    aria-selected="false">Location</button>
+                <button class="tab-link" data-help-tab="help-groups" role="tab"
+                    aria-selected="false">Groups</button>
                 <button class="tab-link" data-help-tab="help-settings-guide" role="tab"
                     aria-selected="false">Settings</button>
                 <button class="tab-link" data-help-tab="help-import-export" role="tab"
@@ -340,9 +402,9 @@
                         <li>⭐ <strong>IMPORTANT</strong> — High-value tasks you should do this week.</li>
                         <li>🗓️ <strong>SOMEDAY</strong> — Backlog items with no fixed timeline.</li>
                         <li>🏠 <strong>Home</strong> / 💼 <strong>Work</strong> — Category for filtering.</li>
-                        <li>🍃 <strong>Low</strong> / ⚡ <strong>High</strong> energy — Match tasks to your energy
-                            levels.</li>
+                        <li>🍃 <strong>Low</strong> / ⚡ <strong>Medium</strong> / 🔋 <strong>High</strong> energy — Match tasks to your energy levels.</li>
                         <li>🔄 <strong>Recurring</strong> — Tasks that auto-renew daily/weekly/monthly.</li>
+                        <li>📊 <strong>Groups Tab</strong> — View tasks grouped by any enabled attribute with bento grid visualization.</li>
                     </ul>
 
                     <p><strong>Schedule Tab Features:</strong></p>
@@ -457,71 +519,53 @@
                         expanded to see their individual schedule items and check them off.</div>
                 </div>
 
-                <!-- Priority Tab -->
-                <div id="help-priority" class="help-panel">
-                    <h3 class="help-section-title">⭐ Priority Tab</h3>
-                    <p>The Priority tab shows all your tasks organized in three columns by priority level.</p>
+                <!-- Groups Tab -->
+                <div id="help-groups" class="help-panel">
+                    <h3 class="help-section-title">📊 Groups Tab</h3>
+                    <p>The Groups tab provides a visual overview of your tasks organized by configurable attributes using a <strong>bento grid</strong> layout.</p>
 
                     <div class="help-diagram">
-                        ┌──────────────┬──────────────┬──────────────┐
-                        │ CRITICAL     │ IMPORTANT    │ SOMEDAY      │
-                        │ 🔥 Deadline  │ ⭐ High val  │ 🗓️ Backlog   │
-                        ├──────────────┼──────────────┼──────────────┤
-                        │ [Task A] ↑↓  │ [Task C] ↑↓  │ [Task E] ↑↓  │
-                        │ Edit | Delete│ Edit | Delete│ Edit | Delete│
-                        │ [Task B]     │ [Task D]     │ [Task F]     │
-                        └──────────────┴──────────────┴──────────────┘</div>
+                        ┌────────────────┬────────────────┬────────────────┐
+                        │ 📊 PRIORITY    │ 🏠 LOCATION    │ ⚡ ENERGY      │
+                        │ [pie chart]    │ [pie chart]    │ [pie chart]    │
+                        │ 12 tasks       │ 12 tasks       │ 12 tasks       │
+                        ├────────────────┼────────────────┼────────────────┤
+                        │ 📈 IMPACT      │ 📚 VALUE       │ 🧩 COMPLEXITY  │
+                        │ [pie chart]    │ [pie chart]    │ [pie chart]    │
+                        │ 8 tasks        │ 10 tasks       │ 12 tasks       │
+                        └────────────────┴────────────────┴────────────────┘
+                    </div>
 
                     <div class="help-step">
                         <div class="help-step-number">1</div>
                         <div class="help-step-content">
-                            <h4>Reorder tasks</h4>
-                            <p>Use the ↑ ↓ buttons to change the display order within a priority group.</p>
+                            <h4>Bento Grid View</h4>
+                            <p>Each box shows an attribute with a mini donut chart showing the distribution of values. Click any box to drill down.</p>
                         </div>
                     </div>
                     <div class="help-step">
                         <div class="help-step-number">2</div>
                         <div class="help-step-content">
-                            <h4>Edit tasks inline</h4>
-                            <p>Click <em>Edit</em> to open an inline editing form. Changes auto-save after 1.5 seconds,
-                                or click <em>Save</em> immediately.</p>
+                            <h4>Drill-Down View</h4>
+                            <p>Clicking a bento box opens a detailed view with tasks grouped by each attribute value in columns. The view maximizes with a smooth slide animation. Use the search bar to filter tasks.</p>
                         </div>
                     </div>
                     <div class="help-step">
                         <div class="help-step-number">3</div>
                         <div class="help-step-content">
-                            <h4>Search tasks</h4>
-                            <p>Use the search bar at the top to filter tasks by title. The filter is case-insensitive
-                                and updates as you type.</p>
+                            <h4>Task Interaction</h4>
+                            <p><strong>Double-click any task</strong> to open the Task Details modal. From there you can view all task attributes as colorful tags, and use the Edit or Delete buttons. This provides a consistent experience across the app.</p>
+                        </div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">4</div>
+                        <div class="help-step-content">
+                            <h4>Configure Attributes</h4>
+                            <p>In Settings, toggle which attributes appear in the Groups tab. All 13 attributes can be enabled or disabled. Priority, Location, and Energy are enabled by default.</p>
                         </div>
                     </div>
 
-                    <div class="help-tip">💡 CRITICAL tasks show days remaining or overdue. A task with all schedule
-                        items completed will automatically be marked complete.</div>
-                </div>
-
-                <!-- Location Tab -->
-                <div id="help-location" class="help-panel">
-                    <h3 class="help-section-title">🌍 Location Tab</h3>
-                    <p>The Location tab separates tasks into <strong>Home</strong> and <strong>Work</strong> categories,
-                        letting you focus on the right context.</p>
-
-                    <div class="help-diagram">
-                        ┌─────────────────┬─────────────────┐
-                        │ 🏠 HOME         │ 💼 WORK         │
-                        ├─────────────────┼─────────────────┤
-                        │ 🔥 Grocery list │ 🔥 Q4 Report    │
-                        │ ⭐ Read book    │ ⭐ Team meeting │
-                        │ 🗓️ Organize desk│ 🗓️ Update docs  │
-                        └─────────────────┴─────────────────┘
-                    </div>
-
-                    <p>Within each column, tasks are sorted by priority (Critical → Important → Someday) then by display
-                        order.</p>
-                    <p>Use the <strong>search bar</strong> at the top to quickly find tasks by title across both
-                        columns.</p>
-                    <p>Use the Edit button to change a task's type (Home ↔ Work) — it will move to the correct column
-                        after saving.</p>
+                    <div class="help-tip">💡 Only enabled attributes appear in the bento grid and Task Details modal. Double-click tasks for quick access to edit/delete.</div>
                 </div>
 
                 <!-- Settings -->
@@ -541,6 +585,13 @@
                         <div class="help-step-content">
                             <h4>Font Family &amp; Size</h4>
                             <p>Choose from 5 font families and 3 sizes. Changes apply instantly and are auto-saved.</p>
+                        </div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">3</div>
+                        <div class="help-step-content">
+                            <h4>Task Attributes</h4>
+                            <p>Toggle which task attributes are enabled. All 13 attributes can be toggled. Enabled attributes appear in: Groups tab bento grid, task forms, and Task Details modal. Priority, Location, and Energy are enabled by default. Disabled attributes are hidden from UI but data is preserved.</p>
                         </div>
                     </div>
 
@@ -752,6 +803,7 @@
             </div>
 
             <div class="add-task-form">
+                <!-- Basic Info (always visible) -->
                 <div class="form-group">
                     <label for="manager-task-title">Title:</label>
                     <input type="text" id="manager-task-title" class="neumorphic-input" placeholder="Enter task title"
@@ -762,55 +814,188 @@
                     <input type="url" id="manager-task-url" class="neumorphic-input" placeholder="Enter URL">
                 </div>
                 <div class="form-group">
-                    <label>Priority:</label>
-                    <div class="radio-group-modern">
-                        <input type="radio" id="manager-priority-someday" name="manager-priority" value="SOMEDAY"
-                            checked>
-                        <label for="manager-priority-someday">🗓️ Someday</label>
-                        <input type="radio" id="manager-priority-important" name="manager-priority" value="IMPORTANT">
-                        <label for="manager-priority-important">⭐ Important</label>
-                        <input type="radio" id="manager-priority-critical" name="manager-priority" value="CRITICAL">
-                        <label for="manager-priority-critical">🔥 Critical</label>
-                    </div>
-                </div>
-                <div class="form-group" id="manager-task-deadline-group" style="display: none;">
-                    <label for="manager-task-deadline">Deadline (for Critical):</label>
-                    <input type="date" id="manager-task-deadline" class="neumorphic-input">
-                </div>
-                <div class="form-group">
-                    <label>Type:</label>
-                    <div class="radio-group-modern">
-                        <input type="radio" id="manager-type-home" name="manager-type" value="home" checked>
-                        <label for="manager-type-home">🏠 Home</label>
-                        <input type="radio" id="manager-type-work" name="manager-type" value="work">
-                        <label for="manager-type-work">💼 Work</label>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Energy:</label>
-                    <div class="radio-group-modern horizontal">
-                        <input type="radio" id="manager-energy-low" name="manager-energy" value="low" checked>
-                        <label for="manager-energy-low">🍃 Low</label>
-                        <input type="radio" id="manager-energy-high" name="manager-energy" value="high">
-                        <label for="manager-energy-high">⚡ High</label>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="manager-task-recurrence">Recurrence:</label>
-                    <select id="manager-task-recurrence" class="neumorphic-select">
-                        <option value="">None</option>
-                        <option value="daily">🔄 Daily</option>
-                        <option value="weekly">🔄 Weekly</option>
-                        <option value="monthly">🔄 Monthly</option>
-                    </select>
-                </div>
-                <div class="form-group">
                     <label for="manager-task-notes">Notes (Optional):</label>
-                    <textarea id="manager-task-notes" class="neumorphic-input" rows="3"
+                    <textarea id="manager-task-notes" class="neumorphic-input" rows="2"
                         placeholder="Add any details..."></textarea>
                 </div>
-                <button id="manager-add-task-btn" class="neumorphic-btn" style="width: 100%; margin-top: 10px;">Add
-                    Task</button>
+
+                <!-- Core Attributes -->
+                <details class="form-section-collapsible" id="core-attrs-section" open>
+                    <summary>Core Attributes</summary>
+                    <div class="form-section-content">
+                        <div class="form-group" data-attribute-field="priority">
+                            <label>⭐ Priority:</label>
+                            <div class="radio-group-modern">
+                                <input type="radio" id="manager-priority-someday" name="manager-priority" value="SOMEDAY" checked>
+                                <label for="manager-priority-someday">🗓️ Someday</label>
+                                <input type="radio" id="manager-priority-important" name="manager-priority" value="IMPORTANT">
+                                <label for="manager-priority-important">⭐ Important</label>
+                                <input type="radio" id="manager-priority-critical" name="manager-priority" value="CRITICAL">
+                                <label for="manager-priority-critical">🔥 Critical</label>
+                            </div>
+                        </div>
+                        <div class="form-group" id="manager-task-deadline-group" style="display: none;">
+                            <label for="manager-task-deadline">Deadline (for Critical):</label>
+                            <input type="date" id="manager-task-deadline" class="neumorphic-input">
+                        </div>
+                        <div class="form-group" data-attribute-field="type">
+                            <label>📍 Location:</label>
+                            <div class="radio-group-modern">
+                                <input type="radio" id="manager-type-home" name="manager-type" value="home" checked>
+                                <label for="manager-type-home">🏠 Home</label>
+                                <input type="radio" id="manager-type-work" name="manager-type" value="work">
+                                <label for="manager-type-work">💼 Work</label>
+                            </div>
+                        </div>
+                        <div class="form-group" data-attribute-field="energy">
+                            <label>🔋 Energy:</label>
+                            <div class="radio-group-modern horizontal">
+                                <input type="radio" id="manager-energy-tbd" name="manager-energy" value="TBD" checked>
+                                <label for="manager-energy-tbd">❓ TBD</label>
+                                <input type="radio" id="manager-energy-low" name="manager-energy" value="Low">
+                                <label for="manager-energy-low">🍃 Low</label>
+                                <input type="radio" id="manager-energy-medium" name="manager-energy" value="Medium">
+                                <label for="manager-energy-medium">⚡ Medium</label>
+                                <input type="radio" id="manager-energy-high" name="manager-energy" value="High">
+                                <label for="manager-energy-high">🔋 High</label>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Planning Attributes -->
+                <details class="form-section-collapsible" id="planning-attrs-section">
+                    <summary>Planning</summary>
+                    <div class="form-section-content">
+                        <div class="form-group" data-attribute-field="status">
+                            <label for="manager-task-status">🚥 Status:</label>
+                            <select id="manager-task-status" class="neumorphic-select">
+                                <optgroup label="📝 To-do">
+                                    <option value="inbox" selected>📥 Inbox</option>
+                                    <option value="breakdown">📝 Breakdown</option>
+                                    <option value="stretch">🎯 Stretch</option>
+                                    <option value="ready">✅ Ready</option>
+                                    <option value="next-action">▶️ Next Action</option>
+                                    <option value="blocked">🚫 Blocked</option>
+                                </optgroup>
+                                <optgroup label="⏳ In Progress">
+                                    <option value="in-progress">⏳ In Progress</option>
+                                    <option value="influence">🤝 Influence</option>
+                                    <option value="monitor">👁️ Monitor</option>
+                                    <option value="delegate">📤 Delegate</option>
+                                </optgroup>
+                                <optgroup label="✅ Complete">
+                                    <option value="done">✓ Done</option>
+                                    <option value="archive">🗄️ Archive</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="form-group" data-attribute-field="impact">
+                            <label for="manager-task-impact">💥 Impact:</label>
+                            <select id="manager-task-impact" class="neumorphic-select">
+                                <option value="TBD" selected>❓ TBD</option>
+                                <option value="LOW">🔵 Low</option>
+                                <option value="Medium">🟡 Medium</option>
+                                <option value="High">🔴 High</option>
+                            </select>
+                        </div>
+                        <div class="form-group" data-attribute-field="value">
+                            <label for="manager-task-value">💎 Value:</label>
+                            <select id="manager-task-value" class="neumorphic-select">
+                                <option value="TBD" selected>❓ TBD</option>
+                                <option value="BUILD">🔨 Build</option>
+                                <option value="LEARN">📚 Learn</option>
+                            </select>
+                        </div>
+                        <div class="form-group" data-attribute-field="complexity">
+                            <label for="manager-task-complexity">🧩 Complexity:</label>
+                            <select id="manager-task-complexity" class="neumorphic-select">
+                                <option value="TBD" selected>⏳ TBD</option>
+                                <option value="JUST DO IT">⚡ Just Do It</option>
+                                <option value="Trivial">🟢 Trivial</option>
+                                <option value="Simple & Clear">📘 Simple & Clear</option>
+                                <option value="Multiple Steps">🟡 Multiple Steps</option>
+                                <option value="Dependent/Risk">⚠️ Dependent / Risk</option>
+                                <option value="Unknown/Broad">❓ Unknown / Broad</option>
+                            </select>
+                        </div>
+                        <div class="form-group" data-attribute-field="action">
+                            <label for="manager-task-action">🎬 Action:</label>
+                            <select id="manager-task-action" class="neumorphic-select">
+                                <option value="TBD" selected>⏳ TBD</option>
+                                <option value="Question">❓ Question</option>
+                                <option value="Mandate">✅ Mandate</option>
+                                <option value="Delete">🗑️ Delete</option>
+                                <option value="Simplify">✂️ Simplify</option>
+                                <option value="Accelerate">⏩ Accelerate</option>
+                                <option value="Automate">🤖 Automate</option>
+                            </select>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Time & Scheduling -->
+                <details class="form-section-collapsible" id="time-attrs-section">
+                    <summary>Time & Scheduling</summary>
+                    <div class="form-section-content">
+                        <div class="form-group" data-attribute-field="estimates">
+                            <label for="manager-task-estimates">⏱️ Estimates:</label>
+                            <select id="manager-task-estimates" class="neumorphic-select">
+                                <option value="Unknown" selected>❓ Unknown</option>
+                                <option value="0 HR">⏱️ 0 HR</option>
+                                <option value="1 Hr">⏱️ 1 Hr</option>
+                                <option value="2 Hr">⏱️ 2 Hr</option>
+                                <option value="4 HR">⏱️ 4 HR</option>
+                                <option value="8 Hr - 1 Day">📅 8 Hr - 1 Day</option>
+                                <option value="16 Hr - 2 Day">📅 16 Hr - 2 Day</option>
+                                <option value="24 Hr - 3 Day">📅 24 Hr - 3 Day</option>
+                                <option value="40 Hr - 5 Day">📅 40 Hr - 5 Day</option>
+                                <option value="56 Hr - 1 Week">📆 56 Hr - 1 Week</option>
+                                <option value="112 Hr - 2 Week">📆 112 Hr - 2 Week</option>
+                                <option value="224 Hr - 1 Month">🗓️ 224 Hr - 1 Month</option>
+                            </select>
+                        </div>
+                        <div class="form-group" data-attribute-field="interval">
+                            <label>📅 Interval (Optional):</label>
+                            <div class="interval-pickers">
+                                <input type="date" id="manager-interval-start" class="neumorphic-input" placeholder="Start">
+                                <span class="interval-separator">→</span>
+                                <input type="date" id="manager-interval-end" class="neumorphic-input" placeholder="End">
+                                <button type="button" id="clear-interval-btn" class="neumorphic-btn icon-btn" title="Clear interval">✕</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="manager-task-recurrence">🔄 Recurrence:</label>
+                            <select id="manager-task-recurrence" class="neumorphic-select">
+                                <option value="">None</option>
+                                <option value="daily">🔄 Daily</option>
+                                <option value="weekly">🔄 Weekly</option>
+                                <option value="monthly">🔄 Monthly</option>
+                            </select>
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Organization -->
+                <details class="form-section-collapsible" id="org-attrs-section">
+                    <summary>Organization</summary>
+                    <div class="form-section-content">
+                        <div class="form-group" data-attribute-field="why">
+                            <label for="manager-task-why">❓ Why:</label>
+                            <input type="text" id="manager-task-why" class="neumorphic-input" placeholder="Reason or goal for this task">
+                        </div>
+                        <div class="form-group" data-attribute-field="projects">
+                            <label for="manager-task-projects">📁 Project:</label>
+                            <input type="text" id="manager-task-projects" class="neumorphic-input" placeholder="Project name">
+                        </div>
+                        <div class="form-group" data-attribute-field="sprint">
+                            <label for="manager-task-sprint">🏃 Sprint:</label>
+                            <input type="text" id="manager-task-sprint" class="neumorphic-input" placeholder="Sprint cycle">
+                        </div>
+                    </div>
+                </details>
+
+                <button id="manager-add-task-btn" class="neumorphic-btn" style="width: 100%; margin-top: 10px;">Add Task</button>
             </div>
         </div>
     </div>
@@ -1010,6 +1195,88 @@
                                     <option value="">-- Not mapped --</option>
                                 </select>
                             </div>
+
+                            <!-- NEW TASK ATTRIBUTES SECTION -->
+                            <div class="mapping-section-divider">
+                                <span>Additional Task Attributes</span>
+                            </div>
+
+                            <!-- Impact -->
+                            <div class="mapping-row">
+                                <label for="notion-map-impact">💥 Impact</label>
+                                <select id="notion-map-impact" class="neumorphic-input notion-property-select">
+                                    <option value="">-- Not mapped --</option>
+                                </select>
+                            </div>
+                            <div id="notion-impact-values" class="value-mapping-group hidden"></div>
+
+                            <!-- Value -->
+                            <div class="mapping-row">
+                                <label for="notion-map-value">💎 Value</label>
+                                <select id="notion-map-value" class="neumorphic-input notion-property-select">
+                                    <option value="">-- Not mapped --</option>
+                                </select>
+                            </div>
+                            <div id="notion-value-values" class="value-mapping-group hidden"></div>
+
+                            <!-- Complexity -->
+                            <div class="mapping-row">
+                                <label for="notion-map-complexity">🧩 Complexity</label>
+                                <select id="notion-map-complexity" class="neumorphic-input notion-property-select">
+                                    <option value="">-- Not mapped --</option>
+                                </select>
+                            </div>
+                            <div id="notion-complexity-values" class="value-mapping-group hidden"></div>
+
+                            <!-- Action -->
+                            <div class="mapping-row">
+                                <label for="notion-map-action">🎬 Action</label>
+                                <select id="notion-map-action" class="neumorphic-input notion-property-select">
+                                    <option value="">-- Not mapped --</option>
+                                </select>
+                            </div>
+                            <div id="notion-action-values" class="value-mapping-group hidden"></div>
+
+                            <!-- Estimates -->
+                            <div class="mapping-row">
+                                <label for="notion-map-estimates">⏱️ Estimates</label>
+                                <select id="notion-map-estimates" class="neumorphic-input notion-property-select">
+                                    <option value="">-- Not mapped --</option>
+                                </select>
+                            </div>
+                            <div id="notion-estimates-values" class="value-mapping-group hidden"></div>
+
+                            <!-- Why -->
+                            <div class="mapping-row">
+                                <label for="notion-map-why">❓ Why</label>
+                                <select id="notion-map-why" class="neumorphic-input notion-property-select">
+                                    <option value="">-- Not mapped --</option>
+                                </select>
+                            </div>
+
+                            <!-- Projects -->
+                            <div class="mapping-row">
+                                <label for="notion-map-projects">📁 Projects</label>
+                                <select id="notion-map-projects" class="neumorphic-input notion-property-select">
+                                    <option value="">-- Not mapped --</option>
+                                </select>
+                            </div>
+
+                            <!-- Sprint -->
+                            <div class="mapping-row">
+                                <label for="notion-map-sprint">🏃 Sprint</label>
+                                <select id="notion-map-sprint" class="neumorphic-input notion-property-select">
+                                    <option value="">-- Not mapped --</option>
+                                </select>
+                            </div>
+
+                            <!-- Interval -->
+                            <div class="mapping-row">
+                                <label for="notion-map-interval">📆 Interval</label>
+                                <select id="notion-map-interval" class="neumorphic-input notion-property-select">
+                                    <option value="">-- Not mapped --</option>
+                                </select>
+                            </div>
                         </div>
 
                         <button id="notion-save-mapping-btn" class="neumorphic-btn" style="margin-top:12px;">
@@ -1102,7 +1369,7 @@
 
     <!-- Task Details Modal -->
     <div id="task-details-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="details-modal-title">
-        <div class="modal-content">
+        <div class="modal-content modal-content-medium">
             <div class="modal-header">
                 <h2 id="details-modal-title">Task Details</h2>
                 <button id="task-details-close-btn" class="neumorphic-btn icon-btn" aria-label="Close">✕</button>
@@ -1111,39 +1378,51 @@
             <div class="task-details-content">
                 <div class="details-header">
                     <h3 id="details-task-title" class="details-title"></h3>
-                    <span id="details-task-priority" class="priority-badge"></span>
                 </div>
 
-                <div class="details-grid">
-                    <div class="details-row">
-                        <span class="details-label">Type:</span>
-                        <span id="details-task-type" class="details-value"></span>
-                    </div>
-                    <div class="details-row">
-                        <span class="details-label">Energy:</span>
-                        <span id="details-task-energy" class="details-value"></span>
-                    </div>
-                    <div class="details-row">
-                        <span class="details-label">Deadline:</span>
-                        <span id="details-task-deadline" class="details-value"></span>
-                    </div>
-                    <div class="details-row">
-                        <span class="details-label">Recurrence:</span>
-                        <span id="details-task-recurrence" class="details-value"></span>
-                    </div>
-                    <div class="details-row">
-                        <span class="details-label">URL:</span>
-                        <span id="details-task-url" class="details-value"></span>
-                    </div>
+                <!-- Task Attributes as Tags/Pills -->
+                <div id="details-tags-container" class="details-tags-container">
+                    <!-- Core tags (always visible if enabled) -->
+                    <span id="details-tag-priority" class="details-tag tag-priority" data-attribute-tag="priority"></span>
+                    <span id="details-tag-type" class="details-tag tag-type" data-attribute-tag="type"></span>
+                    <span id="details-tag-energy" class="details-tag tag-energy" data-attribute-tag="energy"></span>
+                    <!-- Planning tags -->
+                    <span id="details-tag-status" class="details-tag tag-status" data-attribute-tag="status"></span>
+                    <span id="details-tag-impact" class="details-tag tag-impact" data-attribute-tag="impact"></span>
+                    <span id="details-tag-value" class="details-tag tag-value" data-attribute-tag="value"></span>
+                    <span id="details-tag-complexity" class="details-tag tag-complexity" data-attribute-tag="complexity"></span>
+                    <span id="details-tag-action" class="details-tag tag-action" data-attribute-tag="action"></span>
+                    <!-- Time tags -->
+                    <span id="details-tag-estimates" class="details-tag tag-estimates" data-attribute-tag="estimates"></span>
+                    <span id="details-tag-deadline" class="details-tag tag-deadline"></span>
+                    <span id="details-tag-recurrence" class="details-tag tag-recurrence"></span>
+                    <span id="details-tag-interval" class="details-tag tag-interval" data-attribute-tag="interval"></span>
+                    <!-- Organization tags -->
+                    <span id="details-tag-projects" class="details-tag tag-projects" data-attribute-tag="projects"></span>
+                    <span id="details-tag-sprint" class="details-tag tag-sprint" data-attribute-tag="sprint"></span>
                 </div>
 
+                <!-- URL section -->
+                <div id="details-url-row" class="details-row details-url-row">
+                    <span class="details-label">🔗 URL:</span>
+                    <span id="details-task-url" class="details-value"></span>
+                </div>
+
+                <!-- Why section -->
+                <div id="details-why-section" class="details-section" data-attribute-section="why">
+                    <span class="details-label">❓ Why:</span>
+                    <p id="details-task-why" class="details-text"></p>
+                </div>
+
+                <!-- Notes section -->
                 <div class="details-section">
-                    <span class="details-label">Notes:</span>
+                    <span class="details-label">📝 Notes:</span>
                     <p id="details-task-notes" class="details-notes"></p>
                 </div>
 
+                <!-- Schedule section -->
                 <div class="details-section">
-                    <span class="details-label">Schedule:</span>
+                    <span class="details-label">🗓️ Schedule:</span>
                     <div id="details-schedule-list" class="details-schedule"></div>
                 </div>
             </div>

@@ -1,8 +1,8 @@
 # Weekly Task Manager
 
-**Version 1.3.0**
+**Version 1.9.0**
 
-A Chrome/Chromium browser extension for managing weekly tasks with priority levels, categories, energy tracking, and a visual weekly planner grid. Schedule tasks into time blocks, track completion across the week, and keep everything in sync between the popup and full-page planner.
+A Chrome/Chromium browser extension for managing weekly tasks with priority levels, categories, energy tracking, 13 toggleable task attributes, and a visual weekly planner grid. Schedule tasks into time blocks, track completion across the week, and keep everything in sync between the popup and full-page planner.
 
 ## Features
 

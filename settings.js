@@ -185,19 +185,23 @@ function showCsvPreview(rows) {
     const previewRows = rows.slice(0, 10);
     container.innerHTML = `
         <p style="margin:0 0 8px; font-size:0.85em; color:var(--text-muted)">Preview (first ${previewRows.length} of ${rows.length} rows):</p>
-        <table>
-            <thead><tr><th>Title</th><th>Priority</th><th>Type</th><th>Energy</th></tr></thead>
-            <tbody>
-                ${previewRows.map(r => `
-                    <tr>
-                        <td>${r.title}</td>
-                        <td>${r.priority}</td>
-                        <td>${r.type}</td>
-                        <td>${r.energy}</td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
+        <div style="overflow-x:auto;">
+            <table>
+                <thead><tr><th>Title</th><th>Priority</th><th>Type</th><th>Energy</th><th>Status</th><th>Impact</th></tr></thead>
+                <tbody>
+                    ${previewRows.map(r => `
+                        <tr>
+                            <td>${r.title}</td>
+                            <td>${r.priority}</td>
+                            <td>${r.type}</td>
+                            <td>${r.energy}</td>
+                            <td>${r.status || 'inbox'}</td>
+                            <td>${r.impact || 'TBD'}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
         ${rows.length > 10 ? `<p style="font-size:0.8em; color:var(--text-muted)">...and ${rows.length - 10} more rows</p>` : ''}
     `;
     container.classList.remove('hidden');
@@ -208,7 +212,20 @@ async function importCsvTasks(rows) {
     let count = 0;
     for (const row of rows) {
         if (!row.title) continue;
-        await addNewTask(row.title, row.url, row.priority, row.deadline || null, row.type, row.energy, row.notes, row.recurrence);
+        // Pass extra attributes via the extraAttrs parameter
+        const extraAttrs = {
+            status: row.status,
+            why: row.why,
+            projects: row.projects,
+            impact: row.impact,
+            value: row.value,
+            complexity: row.complexity,
+            action: row.action,
+            estimates: row.estimates,
+            sprint: row.sprint,
+            interval: row.interval
+        };
+        await addNewTask(row.title, row.url, row.priority, row.deadline || null, row.type, row.energy, row.notes, row.recurrence, extraAttrs);
         count++;
     }
     return count;
@@ -224,6 +241,65 @@ async function populateSettingsForm() {
     if (darkModeToggle) darkModeToggle.checked = settings.theme === 'dark';
     if (fontFamilySelect) fontFamilySelect.value = settings.fontFamily || 'system';
     if (fontSizeSelect) fontSizeSelect.value = settings.fontSize || 'medium';
+
+    // Populate attribute toggles
+    populateAttributeToggles(settings);
+}
+
+// All toggleable attributes including priority and type (which can now be disabled)
+const ALL_TOGGLEABLE_ATTRS = ['priority', 'type', 'status', 'why', 'projects', 'impact', 'value', 'complexity', 'energy', 'action', 'estimates', 'sprint', 'interval'];
+
+// Populate attribute toggle checkboxes from settings
+function populateAttributeToggles(settings) {
+    const enabledAttrs = settings.enabledAttributes || { priority: true, type: true, energy: true };
+
+    ALL_TOGGLEABLE_ATTRS.forEach(attr => {
+        const checkbox = document.getElementById(`attr-${attr}`);
+        if (checkbox) {
+            // Default to true for priority, type, and energy if not explicitly set
+            const defaultEnabled = ['priority', 'type', 'energy'].includes(attr);
+            checkbox.checked = enabledAttrs[attr] !== undefined ? enabledAttrs[attr] : defaultEnabled;
+        }
+    });
+}
+
+// Setup attribute toggle listeners for auto-save
+function setupAttributeToggleListeners(renderCallback) {
+    ALL_TOGGLEABLE_ATTRS.forEach(attr => {
+        const checkbox = document.getElementById(`attr-${attr}`);
+        if (checkbox) {
+            checkbox.addEventListener('change', async () => {
+                await saveAttributeToggles();
+                showInfoMessage('Attribute settings saved!', 'success');
+                // Re-render the page to update forms and Groups tab
+                if (renderCallback) renderCallback();
+            });
+        }
+    });
+}
+
+// Save attribute toggles to settings
+async function saveAttributeToggles() {
+    const settings = await getSettings();
+
+    if (!settings.enabledAttributes) {
+        settings.enabledAttributes = { priority: true, type: true, energy: true };
+    }
+
+    ALL_TOGGLEABLE_ATTRS.forEach(attr => {
+        const checkbox = document.getElementById(`attr-${attr}`);
+        if (checkbox) {
+            settings.enabledAttributes[attr] = checkbox.checked;
+        }
+    });
+
+    await saveSettings(settings);
+}
+
+// Get enabled attributes (helper for other modules)
+async function getEnabledAttributes() {
+    const settings = await getSettings();
+    return settings.enabledAttributes || { priority: true, type: true, energy: true };
 }
 
 async function saveSettingsFromForm() {
@@ -449,7 +525,17 @@ function renderColumnMappingUI(schema, savedMapping = null) {
         energy: ['select'],
         deadline: ['date'],
         notes: ['rich_text', 'text'],
-        url: ['url', 'rich_text']
+        url: ['url', 'rich_text'],
+        // New attributes
+        impact: ['select', 'status'],
+        value: ['select'],
+        complexity: ['select'],
+        action: ['select'],
+        estimates: ['select'],
+        why: ['rich_text', 'text'],
+        projects: ['rich_text', 'text', 'multi_select'],
+        sprint: ['rich_text', 'text', 'select'],
+        interval: ['date']
     };
 
     // Populate each mapping dropdown
@@ -497,8 +583,13 @@ function renderValueMappingUI(field, notionOptions, savedMappings = null) {
     const localValues = {
         priority: ['CRITICAL', 'IMPORTANT', 'SOMEDAY'],
         type: ['home', 'work'],
-        energy: ['low', 'high'],
-        status: ['completed', 'incomplete']
+        energy: ['TBD', 'Low', 'Medium', 'High'],
+        status: ['completed', 'incomplete'],
+        impact: ['TBD', 'LOW', 'Medium', 'High'],
+        value: ['TBD', 'BUILD', 'LEARN'],
+        complexity: ['TBD', 'JUST DO IT', 'Trivial', 'Simple & Clear', 'Multiple Steps', 'Dependent/Risk', 'Unknown/Broad'],
+        action: ['TBD', 'Question', 'Mandate', 'Delete', 'Simplify', 'Accelerate', 'Automate'],
+        estimates: ['Unknown', '0 HR', '1 Hr', '2 Hr', '4 HR', '8 Hr - 1 Day', '16 Hr - 2 Day', '24 Hr - 3 Day', '40 Hr - 5 Day', '56 Hr - 1 Week', '112 Hr - 2 Week', '224 Hr - 1 Month']
     };
 
     const values = localValues[field];
@@ -525,7 +616,8 @@ function renderValueMappingUI(field, notionOptions, savedMappings = null) {
  * Collect column mapping configuration from UI
  */
 function collectColumnMappingConfig() {
-    const fields = ['priority', 'status', 'type', 'energy', 'deadline', 'notes', 'url'];
+    const fields = ['priority', 'status', 'type', 'energy', 'deadline', 'notes', 'url',
+                    'impact', 'value', 'complexity', 'action', 'estimates', 'why', 'projects', 'sprint', 'interval'];
     const columnMapping = {};
     const valueMappings = {};
 
@@ -534,12 +626,17 @@ function collectColumnMappingConfig() {
         columnMapping[field] = select?.value || '';
 
         // Collect value mappings for select fields
-        if (['priority', 'type', 'energy', 'status'].includes(field)) {
+        if (['priority', 'type', 'energy', 'status', 'impact', 'value', 'complexity', 'action', 'estimates'].includes(field)) {
             const localValues = {
                 priority: ['CRITICAL', 'IMPORTANT', 'SOMEDAY'],
                 type: ['home', 'work'],
-                energy: ['low', 'high'],
-                status: ['completed', 'incomplete']
+                energy: ['TBD', 'Low', 'Medium', 'High'],
+                status: ['completed', 'incomplete'],
+                impact: ['TBD', 'LOW', 'Medium', 'High'],
+                value: ['TBD', 'BUILD', 'LEARN'],
+                complexity: ['TBD', 'JUST DO IT', 'Trivial', 'Simple & Clear', 'Multiple Steps', 'Dependent/Risk', 'Unknown/Broad'],
+                action: ['TBD', 'Question', 'Mandate', 'Delete', 'Simplify', 'Accelerate', 'Automate'],
+                estimates: ['Unknown', '0 HR', '1 Hr', '2 Hr', '4 HR', '8 Hr - 1 Day', '16 Hr - 2 Day', '24 Hr - 3 Day', '40 Hr - 5 Day', '56 Hr - 1 Week', '112 Hr - 2 Week', '224 Hr - 1 Month']
             };
 
             valueMappings[field] = {};
@@ -627,10 +724,10 @@ function notionPageToTask(page, mapping, valueMappings) {
     }
 
     // Extract energy
-    let energy = 'low';
+    let energy = 'TBD';
     if (mapping.energy && props[mapping.energy]) {
         const propVal = extractPropertyValue(props[mapping.energy]);
-        energy = reverseMapValue(propVal, valueMappings.energy) || 'low';
+        energy = reverseMapValue(propVal, valueMappings.energy) || 'TBD';
     }
 
     // Extract completed status
@@ -672,6 +769,77 @@ function notionPageToTask(page, mapping, valueMappings) {
         }
     }
 
+    // Extract new attributes
+    let impact = 'TBD';
+    if (mapping.impact && props[mapping.impact]) {
+        const propVal = extractPropertyValue(props[mapping.impact]);
+        impact = reverseMapValue(propVal, valueMappings.impact) || 'TBD';
+    }
+
+    let value = 'TBD';
+    if (mapping.value && props[mapping.value]) {
+        const propVal = extractPropertyValue(props[mapping.value]);
+        value = reverseMapValue(propVal, valueMappings.value) || 'TBD';
+    }
+
+    let complexity = 'TBD';
+    if (mapping.complexity && props[mapping.complexity]) {
+        const propVal = extractPropertyValue(props[mapping.complexity]);
+        complexity = reverseMapValue(propVal, valueMappings.complexity) || 'TBD';
+    }
+
+    let action = 'TBD';
+    if (mapping.action && props[mapping.action]) {
+        const propVal = extractPropertyValue(props[mapping.action]);
+        action = reverseMapValue(propVal, valueMappings.action) || 'TBD';
+    }
+
+    let estimates = 'Unknown';
+    if (mapping.estimates && props[mapping.estimates]) {
+        const propVal = extractPropertyValue(props[mapping.estimates]);
+        estimates = reverseMapValue(propVal, valueMappings.estimates) || 'Unknown';
+    }
+
+    // Extract text fields
+    let why = '';
+    if (mapping.why && props[mapping.why]) {
+        const whyProp = props[mapping.why];
+        if (whyProp.type === 'rich_text') {
+            why = whyProp.rich_text?.map(t => t.plain_text).join('') || '';
+        }
+    }
+
+    let projects = '';
+    if (mapping.projects && props[mapping.projects]) {
+        const projectsProp = props[mapping.projects];
+        if (projectsProp.type === 'rich_text') {
+            projects = projectsProp.rich_text?.map(t => t.plain_text).join('') || '';
+        } else if (projectsProp.type === 'multi_select') {
+            projects = projectsProp.multi_select?.map(s => s.name).join(', ') || '';
+        }
+    }
+
+    let sprint = '';
+    if (mapping.sprint && props[mapping.sprint]) {
+        const sprintProp = props[mapping.sprint];
+        if (sprintProp.type === 'rich_text') {
+            sprint = sprintProp.rich_text?.map(t => t.plain_text).join('') || '';
+        } else if (sprintProp.type === 'select') {
+            sprint = sprintProp.select?.name || '';
+        }
+    }
+
+    let interval = null;
+    if (mapping.interval && props[mapping.interval]) {
+        const intervalProp = props[mapping.interval];
+        if (intervalProp.date) {
+            interval = {
+                start: intervalProp.date.start || null,
+                end: intervalProp.date.end || null
+            };
+        }
+    }
+
     return {
         notionPageId: page.id,
         title,
@@ -682,7 +850,17 @@ function notionPageToTask(page, mapping, valueMappings) {
         type,
         energy,
         notes,
-        completedAt: completed ? new Date().toISOString() : null
+        completedAt: completed ? new Date().toISOString() : null,
+        // New attributes
+        impact,
+        value,
+        complexity,
+        action,
+        estimates,
+        why,
+        projects,
+        sprint,
+        interval
     };
 }
 
@@ -765,6 +943,88 @@ function taskToNotionProperties(task, mapping, valueMappings) {
                 rich_text: [{ text: { content: task.url } }]
             };
         }
+    }
+
+    // New attributes - Impact
+    if (mapping.impact && valueMappings.impact?.[task.impact]) {
+        const propDef = _notionDatabaseSchema?.properties?.[mapping.impact];
+        if (propDef?.type === 'status') {
+            properties[mapping.impact] = { status: { name: valueMappings.impact[task.impact] } };
+        } else {
+            properties[mapping.impact] = { select: { name: valueMappings.impact[task.impact] } };
+        }
+    }
+
+    // Value
+    if (mapping.value && valueMappings.value?.[task.value]) {
+        properties[mapping.value] = {
+            select: { name: valueMappings.value[task.value] }
+        };
+    }
+
+    // Complexity
+    if (mapping.complexity && valueMappings.complexity?.[task.complexity]) {
+        properties[mapping.complexity] = {
+            select: { name: valueMappings.complexity[task.complexity] }
+        };
+    }
+
+    // Action
+    if (mapping.action && valueMappings.action?.[task.action]) {
+        properties[mapping.action] = {
+            select: { name: valueMappings.action[task.action] }
+        };
+    }
+
+    // Estimates
+    if (mapping.estimates && valueMappings.estimates?.[task.estimates]) {
+        properties[mapping.estimates] = {
+            select: { name: valueMappings.estimates[task.estimates] }
+        };
+    }
+
+    // Why (text field)
+    if (mapping.why && task.why) {
+        properties[mapping.why] = {
+            rich_text: [{ text: { content: task.why } }]
+        };
+    }
+
+    // Projects (text or multi_select)
+    if (mapping.projects && task.projects) {
+        const propDef = _notionDatabaseSchema?.properties?.[mapping.projects];
+        if (propDef?.type === 'multi_select') {
+            const projectNames = task.projects.split(',').map(p => p.trim()).filter(Boolean);
+            properties[mapping.projects] = {
+                multi_select: projectNames.map(name => ({ name }))
+            };
+        } else {
+            properties[mapping.projects] = {
+                rich_text: [{ text: { content: task.projects } }]
+            };
+        }
+    }
+
+    // Sprint (text or select)
+    if (mapping.sprint && task.sprint) {
+        const propDef = _notionDatabaseSchema?.properties?.[mapping.sprint];
+        if (propDef?.type === 'select') {
+            properties[mapping.sprint] = { select: { name: task.sprint } };
+        } else {
+            properties[mapping.sprint] = {
+                rich_text: [{ text: { content: task.sprint } }]
+            };
+        }
+    }
+
+    // Interval (date range)
+    if (mapping.interval && task.interval) {
+        properties[mapping.interval] = {
+            date: {
+                start: task.interval.start || null,
+                end: task.interval.end || null
+            }
+        };
     }
 
     return properties;
@@ -923,7 +1183,20 @@ async function performNotionSync(renderPageCallback) {
                     notionData.notes,
                     notionData.completedAt,
                     null, // no recurrence
-                    page.id // notionPageId
+                    page.id, // notionPageId
+                    null, // lastModified (auto-set)
+                    null, // colorCode
+                    // New attributes from Notion
+                    'inbox', // status - Notion doesn't map to internal status
+                    notionData.why || '',
+                    notionData.projects || '',
+                    notionData.impact || 'TBD',
+                    notionData.value || 'TBD',
+                    notionData.complexity || 'TBD',
+                    notionData.action || 'TBD',
+                    notionData.estimates || 'Unknown',
+                    notionData.sprint || '',
+                    notionData.interval || null
                 );
                 localTasks.push(newTask);
                 tasksModified = true;
@@ -1044,8 +1317,21 @@ async function importNewNotionTasks(renderPageCallback) {
                 notionData.energy,
                 notionData.notes,
                 notionData.completedAt,
-                null,
-                page.id
+                null, // recurrence
+                page.id, // notionPageId
+                null, // lastModified (auto-set)
+                null, // colorCode
+                // New attributes from Notion
+                'inbox', // status
+                notionData.why || '',
+                notionData.projects || '',
+                notionData.impact || 'TBD',
+                notionData.value || 'TBD',
+                notionData.complexity || 'TBD',
+                notionData.action || 'TBD',
+                notionData.estimates || 'Unknown',
+                notionData.sprint || '',
+                notionData.interval || null
             );
             localTasks.push(newTask);
             importCount++;
@@ -1098,7 +1384,7 @@ async function setupNotionSyncListeners(renderPageCallback) {
     }
 
     // Property select change handlers (show value mapping when select property chosen)
-    ['priority', 'status', 'type', 'energy'].forEach(field => {
+    ['priority', 'status', 'type', 'energy', 'impact', 'value', 'complexity', 'action', 'estimates'].forEach(field => {
         const select = document.getElementById(`notion-map-${field}`);
         if (select) {
             select.addEventListener('change', () => {
@@ -1327,10 +1613,61 @@ function normalizeSheetRow(row) {
         ? row.priority.toUpperCase() : 'SOMEDAY';
     const type = (['home','work'].includes((row.type || '').toLowerCase()))
         ? row.type.toLowerCase() : 'home';
-    const energy = (['low','high'].includes((row.energy || '').toLowerCase()))
-        ? row.energy.toLowerCase() : 'low';
+
+    // Energy now supports TBD, Low, Medium, High (case-insensitive match)
+    let energy = 'TBD';
+    const energyInput = (row.energy || '').toLowerCase();
+    if (['low', 'medium', 'high'].includes(energyInput)) {
+        energy = energyInput.charAt(0).toUpperCase() + energyInput.slice(1); // Capitalize
+    } else if (energyInput === 'tbd' || energyInput === '') {
+        energy = 'TBD';
+    }
+
     const recurrence = (['daily','weekly','monthly'].includes((row.recurrence || '').toLowerCase()))
         ? row.recurrence.toLowerCase() : null;
+
+    // Normalize status (validate against known options)
+    const validStatuses = ['inbox', 'breakdown', 'stretch', 'ready', 'next-action', 'blocked',
+                           'in-progress', 'influence', 'monitor', 'delegate', 'done', 'archive'];
+    const statusInput = (row.status || '').toLowerCase().replace(/\s+/g, '-');
+    const status = validStatuses.includes(statusInput) ? statusInput : 'inbox';
+
+    // Normalize impact
+    const validImpact = ['TBD', 'LOW', 'Medium', 'High'];
+    const impactInput = row.impact || '';
+    const impact = validImpact.find(v => v.toLowerCase() === impactInput.toLowerCase()) || 'TBD';
+
+    // Normalize value
+    const validValue = ['TBD', 'BUILD', 'LEARN'];
+    const valueInput = row.value || '';
+    const value = validValue.find(v => v.toLowerCase() === valueInput.toLowerCase()) || 'TBD';
+
+    // Normalize complexity
+    const validComplexity = ['TBD', 'JUST DO IT', 'Trivial', 'Simple & Clear', 'Multiple Steps', 'Dependent/Risk', 'Unknown/Broad'];
+    const complexityInput = row.complexity || '';
+    const complexity = validComplexity.find(v => v.toLowerCase() === complexityInput.toLowerCase()) || 'TBD';
+
+    // Normalize action
+    const validAction = ['TBD', 'Question', 'Mandate', 'Delete', 'Simplify', 'Accelerate', 'Automate'];
+    const actionInput = row.action || '';
+    const action = validAction.find(v => v.toLowerCase() === actionInput.toLowerCase()) || 'TBD';
+
+    // Normalize estimates
+    const validEstimates = ['Unknown', '0 HR', '1 Hr', '2 Hr', '4 HR', '8 Hr - 1 Day', '16 Hr - 2 Day',
+                           '24 Hr - 3 Day', '40 Hr - 5 Day', '56 Hr - 1 Week', '112 Hr - 2 Week', '224 Hr - 1 Month'];
+    const estimatesInput = row.estimates || row.estimate || '';
+    const estimates = validEstimates.find(v => v.toLowerCase() === estimatesInput.toLowerCase()) || 'Unknown';
+
+    // Parse interval (expects "start,end" or "start - end" format with ISO dates)
+    let interval = null;
+    const intervalInput = row.interval || '';
+    if (intervalInput) {
+        const parts = intervalInput.split(/[,\-–]/).map(s => s.trim()).filter(Boolean);
+        if (parts.length === 2) {
+            interval = { start: parts[0], end: parts[1] };
+        }
+    }
+
     return {
         title: row.title || row.name || '',
         url: row.url || row.link || '',
@@ -1339,7 +1676,18 @@ function normalizeSheetRow(row) {
         energy,
         deadline: row.deadline || null,
         notes: row.notes || row.description || '',
-        recurrence
+        recurrence,
+        // New attributes
+        status,
+        why: row.why || '',
+        projects: row.projects || row.project || '',
+        impact,
+        value,
+        complexity,
+        action,
+        estimates,
+        sprint: row.sprint || '',
+        interval
     };
 }
 
@@ -1367,19 +1715,23 @@ function showSheetsPreview(rows) {
     const previewRows = rows.slice(0, 10);
     container.innerHTML = `
         <p style="margin:0 0 8px; font-size:0.85em; color:var(--text-muted)">Preview (first ${previewRows.length} of ${rows.length} rows):</p>
-        <table>
-            <thead><tr><th>Title</th><th>Priority</th><th>Type</th><th>Energy</th></tr></thead>
-            <tbody>
-                ${previewRows.map(r => `
-                    <tr>
-                        <td>${r.title}</td>
-                        <td>${r.priority}</td>
-                        <td>${r.type}</td>
-                        <td>${r.energy}</td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
+        <div style="overflow-x:auto;">
+            <table>
+                <thead><tr><th>Title</th><th>Priority</th><th>Type</th><th>Energy</th><th>Status</th><th>Impact</th></tr></thead>
+                <tbody>
+                    ${previewRows.map(r => `
+                        <tr>
+                            <td>${r.title}</td>
+                            <td>${r.priority}</td>
+                            <td>${r.type}</td>
+                            <td>${r.energy}</td>
+                            <td>${r.status || 'inbox'}</td>
+                            <td>${r.impact || 'TBD'}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
         ${rows.length > 10 ? `<p style="font-size:0.8em; color:var(--text-muted)">...and ${rows.length - 10} more rows</p>` : ''}
     `;
     container.classList.remove('hidden');
@@ -1390,7 +1742,20 @@ async function importSheetsTasks(rows) {
     let count = 0;
     for (const row of rows) {
         if (!row.title) continue;
-        await addNewTask(row.title, row.url, row.priority, row.deadline || null, row.type, row.energy, row.notes, row.recurrence);
+        // Pass extra attributes via the extraAttrs parameter
+        const extraAttrs = {
+            status: row.status,
+            why: row.why,
+            projects: row.projects,
+            impact: row.impact,
+            value: row.value,
+            complexity: row.complexity,
+            action: row.action,
+            estimates: row.estimates,
+            sprint: row.sprint,
+            interval: row.interval
+        };
+        await addNewTask(row.title, row.url, row.priority, row.deadline || null, row.type, row.energy, row.notes, row.recurrence, extraAttrs);
         count++;
     }
     return count;
@@ -1453,6 +1818,9 @@ async function setupSettingsModalListeners(renderPageCallback) {
             showInfoMessage('Settings saved!', 'success');
         });
     }
+
+    // Setup attribute toggle listeners for auto-save
+    setupAttributeToggleListeners(renderPageCallback);
 }
 
 // --- Import/Export Modal Listeners Setup ---

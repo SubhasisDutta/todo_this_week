@@ -46,7 +46,7 @@ describe('Notes field', () => {
     });
 
     test('notes backfilled to empty string for old tasks', (done) => {
-        seedTasks([{ id: 'old-task', title: 'Old', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' }]);
+        seedTasks([{ id: 'old-task', title: 'Old', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' }]);
         getTasks(tasks => {
             expect(tasks[0].notes).toBe('');
             done();
@@ -93,7 +93,7 @@ describe('completedAt field', () => {
     });
 
     test('completedAt backfilled to null for old tasks', (done) => {
-        seedTasks([{ id: 'old-task', title: 'Old', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' }]);
+        seedTasks([{ id: 'old-task', title: 'Old', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' }]);
         getTasks(tasks => {
             expect(tasks[0].completedAt).toBeNull();
             done();
@@ -204,7 +204,7 @@ describe('lastModified field', () => {
     });
 
     test('lastModified backfilled for old tasks', (done) => {
-        seedTasks([{ id: 'old-task', title: 'Old', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'low' }]);
+        seedTasks([{ id: 'old-task', title: 'Old', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' }]);
         getTasks(tasks => {
             expect(tasks[0].lastModified).toBeDefined();
             expect(new Date(tasks[0].lastModified).getTime()).not.toBeNaN();

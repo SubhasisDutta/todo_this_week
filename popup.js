@@ -14,8 +14,9 @@ function createTaskItem(item, options = {}) {
     if (isItemCompleted) {
         taskItem.classList.add('task-completed');
     } else {
-        if (task.energy === 'low') taskItem.classList.add('energy-low-incomplete');
-        else if (task.energy === 'high') taskItem.classList.add('energy-high-incomplete');
+        if (task.energy === 'Low') taskItem.classList.add('energy-low-incomplete');
+        else if (task.energy === 'Medium') taskItem.classList.add('energy-medium-incomplete');
+        else if (task.energy === 'High') taskItem.classList.add('energy-high-incomplete');
     }
     taskItem.setAttribute('data-task-id', task.id);
     if (isAssignment) {

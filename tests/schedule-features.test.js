@@ -6,6 +6,7 @@ const path = require('path');
 // Load task_utils first (dependency)
 loadScript(path.join(__dirname, '..', 'task_utils.js'), [
     'DEFAULT_TIME_BLOCKS', 'TIME_BLOCKS', 'DEFAULT_SETTINGS',
+    'ATTRIBUTE_OPTIONS', 'DEFAULT_ENABLED_ATTRIBUTES',
     'Task', 'getTasks', 'saveTasks', 'addNewTask', 'getTaskById',
     'updateTaskCompletion', 'updateTask', 'deleteTask', 'showInfoMessage',
     'getOrCreateToastContainer',
@@ -266,7 +267,7 @@ describe('Task Actions', () => {
         type: 'work',
         displayOrder: 0,
         schedule: [{ day: 'monday', blockId: 'ai-study', completed: false }],
-        energy: 'high',
+        energy: 'High',
         notes: 'Test notes',
         completedAt: null,
         recurrence: null,
@@ -445,12 +446,12 @@ describe('Magic Fill', () => {
 describe('Buffer Zones', () => {
     const task1 = {
         id: 't1', title: 'Task 1', priority: 'IMPORTANT', completed: false,
-        type: 'work', energy: 'high', notes: '',
+        type: 'work', energy: 'High', notes: '',
         schedule: [{ day: 'monday', blockId: 'ai-study', completed: false }]
     };
     const task2 = {
         id: 't2', title: 'Task 2', priority: 'IMPORTANT', completed: false,
-        type: 'work', energy: 'high', notes: '',
+        type: 'work', energy: 'High', notes: '',
         schedule: [{ day: 'monday', blockId: 'morning-prep', completed: false }]
     };
 
@@ -661,7 +662,7 @@ describe('Time Tracking', () => {
         priority: 'IMPORTANT',
         completed: false,
         type: 'work',
-        energy: 'high',
+        energy: 'High',
         schedule: [{ day: 'monday', blockId: 'ai-study', completed: false }],
         notes: ''
     };
@@ -758,7 +759,7 @@ describe('Task Details Modal', () => {
         type: 'work',
         displayOrder: 0,
         schedule: [{ day: 'monday', blockId: 'ai-study', completed: false }],
-        energy: 'high',
+        energy: 'High',
         notes: 'Important notes here',
         completedAt: null,
         recurrence: 'weekly'
@@ -845,7 +846,7 @@ describe('Schedule Features Integration', () => {
     test('context menu integrates with grid rendering', async () => {
         const task = {
             id: 't1', title: 'Test', priority: 'IMPORTANT', completed: false,
-            type: 'work', energy: 'high', notes: '',
+            type: 'work', energy: 'High', notes: '',
             schedule: [{ day: 'monday', blockId: 'ai-study', completed: false }]
         };
         seedTasks([task]);
