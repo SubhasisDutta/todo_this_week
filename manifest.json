@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Weekly Task Planner",
-  "version": "1.9.0",
-  "description": "A weekly task planner with priority management, scheduling, visual time blocking, magic fill, focus mode, Groups tab with bento grid, 13 toggleable task attributes, Task Details modal, auto-save settings, auto-save task edit, and Notion import with full attribute support.",
+  "version": "2.0.0",
+  "description": "A weekly task planner with priority management, scheduling, visual time blocking, magic fill, focus mode, Groups tab with bento grid and completed tasks toggle, 10 toggleable task attributes, Task Details modal, auto-save, and Notion import.",
   "permissions": [
     "storage",
     "tabs",

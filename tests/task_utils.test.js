@@ -32,7 +32,7 @@ describe('Task class', () => {
         expect(task.type).toBe('home');
         expect(task.displayOrder).toBe(0);
         expect(task.schedule).toEqual([]);
-        expect(task.energy).toBe('TBD');
+        expect(task.energy).toBe('Low');
         expect(task.url).toBe('');
         expect(task.deadline).toBeNull();
         // New attributes should have defaults
@@ -65,22 +65,19 @@ describe('Task class', () => {
         expect(task.energy).toBe('High');
     });
 
-    test('accepts new attribute parameters', () => {
+    test('accepts attribute parameters', () => {
         // Parameters: id, title, url, priority, completed, deadline, type, displayOrder, schedule, energy,
         // notes, completedAt, recurrence, notionPageId, lastModified, colorCode,
-        // status, why, projects, impact, value, complexity, action, estimates, sprint, interval
+        // status, impact, value, complexity, action, estimates, interval
         const task = new Task('id1', 'Title', '', 'SOMEDAY', false, null, 'home', 0, [], 'Medium',
             'notes', null, null, null, null, null,
-            'in-progress', 'Strategic goal', 'Project X', 'High', 'BUILD', 'Simple & Clear', 'Accelerate', '2 Hr', 'Sprint 1', { start: '2025-01-01', end: '2025-01-07' });
+            'in-progress', 'High', 'BUILD', 'Simple & Clear', 'Accelerate', '2 Hr', { start: '2025-01-01', end: '2025-01-07' });
         expect(task.status).toBe('in-progress');
-        expect(task.why).toBe('Strategic goal');
-        expect(task.projects).toBe('Project X');
         expect(task.impact).toBe('High');
         expect(task.value).toBe('BUILD');
         expect(task.complexity).toBe('Simple & Clear');
         expect(task.action).toBe('Accelerate');
         expect(task.estimates).toBe('2 Hr');
-        expect(task.sprint).toBe('Sprint 1');
         expect(task.interval).toEqual({ start: '2025-01-01', end: '2025-01-07' });
     });
 });
@@ -126,16 +123,16 @@ describe('getTasks', () => {
         });
     });
 
-    test('backfills missing energy to TBD', (done) => {
+    test('backfills missing energy to Low', (done) => {
         seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [] }]);
         getTasks(tasks => {
-            expect(tasks[0].energy).toBe('TBD');
+            expect(tasks[0].energy).toBe('Low');
             done();
         });
     });
 
-    test('migrates legacy energy values low to Low', (done) => {
-        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' }]);
+    test('migrates legacy energy values TBD/Medium to Low', (done) => {
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'TBD' }]);
         getTasks(tasks => {
             expect(tasks[0].energy).toBe('Low');
             done();
@@ -150,8 +147,8 @@ describe('getTasks', () => {
         });
     });
 
-    test('backfills missing new attributes', (done) => {
-        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Medium' }]);
+    test('backfills missing attributes', (done) => {
+        seedTasks([{ id: 'task1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', displayOrder: 0, schedule: [], energy: 'Low' }]);
         getTasks(tasks => {
             expect(tasks[0].status).toBe('inbox');
             expect(tasks[0].impact).toBe('TBD');

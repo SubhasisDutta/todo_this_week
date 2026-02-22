@@ -215,14 +215,11 @@ async function importCsvTasks(rows) {
         // Pass extra attributes via the extraAttrs parameter
         const extraAttrs = {
             status: row.status,
-            why: row.why,
-            projects: row.projects,
             impact: row.impact,
             value: row.value,
             complexity: row.complexity,
             action: row.action,
             estimates: row.estimates,
-            sprint: row.sprint,
             interval: row.interval
         };
         await addNewTask(row.title, row.url, row.priority, row.deadline || null, row.type, row.energy, row.notes, row.recurrence, extraAttrs);
@@ -247,7 +244,7 @@ async function populateSettingsForm() {
 }
 
 // All toggleable attributes including priority and type (which can now be disabled)
-const ALL_TOGGLEABLE_ATTRS = ['priority', 'type', 'status', 'why', 'projects', 'impact', 'value', 'complexity', 'energy', 'action', 'estimates', 'sprint', 'interval'];
+const ALL_TOGGLEABLE_ATTRS = ['priority', 'type', 'status', 'impact', 'value', 'complexity', 'energy', 'action', 'estimates', 'interval'];
 
 // Populate attribute toggle checkboxes from settings
 function populateAttributeToggles(settings) {
@@ -526,15 +523,12 @@ function renderColumnMappingUI(schema, savedMapping = null) {
         deadline: ['date'],
         notes: ['rich_text', 'text'],
         url: ['url', 'rich_text'],
-        // New attributes
+        // Additional attributes
         impact: ['select', 'status'],
         value: ['select'],
         complexity: ['select'],
         action: ['select'],
         estimates: ['select'],
-        why: ['rich_text', 'text'],
-        projects: ['rich_text', 'text', 'multi_select'],
-        sprint: ['rich_text', 'text', 'select'],
         interval: ['date']
     };
 
@@ -617,7 +611,7 @@ function renderValueMappingUI(field, notionOptions, savedMappings = null) {
  */
 function collectColumnMappingConfig() {
     const fields = ['priority', 'status', 'type', 'energy', 'deadline', 'notes', 'url',
-                    'impact', 'value', 'complexity', 'action', 'estimates', 'why', 'projects', 'sprint', 'interval'];
+                    'impact', 'value', 'complexity', 'action', 'estimates', 'interval'];
     const columnMapping = {};
     const valueMappings = {};
 
@@ -630,7 +624,7 @@ function collectColumnMappingConfig() {
             const localValues = {
                 priority: ['CRITICAL', 'IMPORTANT', 'SOMEDAY'],
                 type: ['home', 'work'],
-                energy: ['TBD', 'Low', 'Medium', 'High'],
+                energy: ['Low', 'High'],
                 status: ['completed', 'incomplete'],
                 impact: ['TBD', 'LOW', 'Medium', 'High'],
                 value: ['TBD', 'BUILD', 'LEARN'],
@@ -800,35 +794,6 @@ function notionPageToTask(page, mapping, valueMappings) {
         estimates = reverseMapValue(propVal, valueMappings.estimates) || 'Unknown';
     }
 
-    // Extract text fields
-    let why = '';
-    if (mapping.why && props[mapping.why]) {
-        const whyProp = props[mapping.why];
-        if (whyProp.type === 'rich_text') {
-            why = whyProp.rich_text?.map(t => t.plain_text).join('') || '';
-        }
-    }
-
-    let projects = '';
-    if (mapping.projects && props[mapping.projects]) {
-        const projectsProp = props[mapping.projects];
-        if (projectsProp.type === 'rich_text') {
-            projects = projectsProp.rich_text?.map(t => t.plain_text).join('') || '';
-        } else if (projectsProp.type === 'multi_select') {
-            projects = projectsProp.multi_select?.map(s => s.name).join(', ') || '';
-        }
-    }
-
-    let sprint = '';
-    if (mapping.sprint && props[mapping.sprint]) {
-        const sprintProp = props[mapping.sprint];
-        if (sprintProp.type === 'rich_text') {
-            sprint = sprintProp.rich_text?.map(t => t.plain_text).join('') || '';
-        } else if (sprintProp.type === 'select') {
-            sprint = sprintProp.select?.name || '';
-        }
-    }
-
     let interval = null;
     if (mapping.interval && props[mapping.interval]) {
         const intervalProp = props[mapping.interval];
@@ -851,15 +816,12 @@ function notionPageToTask(page, mapping, valueMappings) {
         energy,
         notes,
         completedAt: completed ? new Date().toISOString() : null,
-        // New attributes
+        // Additional attributes
         impact,
         value,
         complexity,
         action,
         estimates,
-        why,
-        projects,
-        sprint,
         interval
     };
 }
@@ -981,40 +943,6 @@ function taskToNotionProperties(task, mapping, valueMappings) {
         properties[mapping.estimates] = {
             select: { name: valueMappings.estimates[task.estimates] }
         };
-    }
-
-    // Why (text field)
-    if (mapping.why && task.why) {
-        properties[mapping.why] = {
-            rich_text: [{ text: { content: task.why } }]
-        };
-    }
-
-    // Projects (text or multi_select)
-    if (mapping.projects && task.projects) {
-        const propDef = _notionDatabaseSchema?.properties?.[mapping.projects];
-        if (propDef?.type === 'multi_select') {
-            const projectNames = task.projects.split(',').map(p => p.trim()).filter(Boolean);
-            properties[mapping.projects] = {
-                multi_select: projectNames.map(name => ({ name }))
-            };
-        } else {
-            properties[mapping.projects] = {
-                rich_text: [{ text: { content: task.projects } }]
-            };
-        }
-    }
-
-    // Sprint (text or select)
-    if (mapping.sprint && task.sprint) {
-        const propDef = _notionDatabaseSchema?.properties?.[mapping.sprint];
-        if (propDef?.type === 'select') {
-            properties[mapping.sprint] = { select: { name: task.sprint } };
-        } else {
-            properties[mapping.sprint] = {
-                rich_text: [{ text: { content: task.sprint } }]
-            };
-        }
     }
 
     // Interval (date range)
@@ -1186,16 +1114,13 @@ async function performNotionSync(renderPageCallback) {
                     page.id, // notionPageId
                     null, // lastModified (auto-set)
                     null, // colorCode
-                    // New attributes from Notion
+                    // Attributes from Notion
                     'inbox', // status - Notion doesn't map to internal status
-                    notionData.why || '',
-                    notionData.projects || '',
                     notionData.impact || 'TBD',
                     notionData.value || 'TBD',
                     notionData.complexity || 'TBD',
                     notionData.action || 'TBD',
                     notionData.estimates || 'Unknown',
-                    notionData.sprint || '',
                     notionData.interval || null
                 );
                 localTasks.push(newTask);
@@ -1321,16 +1246,13 @@ async function importNewNotionTasks(renderPageCallback) {
                 page.id, // notionPageId
                 null, // lastModified (auto-set)
                 null, // colorCode
-                // New attributes from Notion
+                // Attributes from Notion
                 'inbox', // status
-                notionData.why || '',
-                notionData.projects || '',
                 notionData.impact || 'TBD',
                 notionData.value || 'TBD',
                 notionData.complexity || 'TBD',
                 notionData.action || 'TBD',
                 notionData.estimates || 'Unknown',
-                notionData.sprint || '',
                 notionData.interval || null
             );
             localTasks.push(newTask);
@@ -1677,16 +1599,13 @@ function normalizeSheetRow(row) {
         deadline: row.deadline || null,
         notes: row.notes || row.description || '',
         recurrence,
-        // New attributes
+        // Additional attributes
         status,
-        why: row.why || '',
-        projects: row.projects || row.project || '',
         impact,
         value,
         complexity,
         action,
         estimates,
-        sprint: row.sprint || '',
         interval
     };
 }
@@ -1745,14 +1664,11 @@ async function importSheetsTasks(rows) {
         // Pass extra attributes via the extraAttrs parameter
         const extraAttrs = {
             status: row.status,
-            why: row.why,
-            projects: row.projects,
             impact: row.impact,
             value: row.value,
             complexity: row.complexity,
             action: row.action,
             estimates: row.estimates,
-            sprint: row.sprint,
             interval: row.interval
         };
         await addNewTask(row.title, row.url, row.priority, row.deadline || null, row.type, row.energy, row.notes, row.recurrence, extraAttrs);

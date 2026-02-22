@@ -223,9 +223,7 @@ function setupManagerDOM() {
                         </div>
                         <input type="radio" id="manager-type-home" name="manager-type" value="home" checked>
                         <input type="radio" id="manager-type-work" name="manager-type" value="work">
-                        <input type="radio" id="manager-energy-tbd" name="manager-energy" value="TBD" checked>
-                        <input type="radio" id="manager-energy-low" name="manager-energy" value="Low">
-                        <input type="radio" id="manager-energy-medium" name="manager-energy" value="Medium">
+                        <input type="radio" id="manager-energy-low" name="manager-energy" value="Low" checked>
                         <input type="radio" id="manager-energy-high" name="manager-energy" value="High">
                         <select id="manager-task-recurrence" class="neumorphic-select">
                             <option value="">None</option>

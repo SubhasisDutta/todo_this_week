@@ -258,22 +258,6 @@
                         </label>
                     </div>
                     <div class="attribute-toggle-item">
-                        <span class="attribute-icon">❓</span>
-                        <span class="attribute-label">Why</span>
-                        <label class="toggle-switch" for="attr-why">
-                            <input type="checkbox" id="attr-why" data-attribute="why">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="attribute-toggle-item">
-                        <span class="attribute-icon">📁</span>
-                        <span class="attribute-label">Projects</span>
-                        <label class="toggle-switch" for="attr-projects">
-                            <input type="checkbox" id="attr-projects" data-attribute="projects">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="attribute-toggle-item">
                         <span class="attribute-icon">💥</span>
                         <span class="attribute-label">Impact</span>
                         <label class="toggle-switch" for="attr-impact">
@@ -318,14 +302,6 @@
                         <span class="attribute-label">Estimates</span>
                         <label class="toggle-switch" for="attr-estimates">
                             <input type="checkbox" id="attr-estimates" data-attribute="estimates">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="attribute-toggle-item">
-                        <span class="attribute-icon">🏃</span>
-                        <span class="attribute-label">Sprint</span>
-                        <label class="toggle-switch" for="attr-sprint">
-                            <input type="checkbox" id="attr-sprint" data-attribute="sprint">
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
@@ -785,6 +761,26 @@
                         <h4 class="faq-question">What does the red line on the schedule mean?</h4>
                         <p class="faq-answer">The red horizontal line shows the current time position on today's column. It updates every minute. Past time blocks (above the line) appear dimmed to help you focus on upcoming tasks. The current time block has a subtle red highlight.</p>
                     </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">What is the Groups tab?</h4>
+                        <p class="faq-answer">The Groups tab shows your tasks grouped by enabled attributes (Priority, Type, Energy, etc.) in a bento grid layout. Each box shows the task count and a mini donut chart. Click any box to drill down and see tasks grouped by that attribute's values. Double-click any task to open the Task Details modal.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">How do I view all details for a task?</h4>
+                        <p class="faq-answer">Double-click any task in the Parking Lot, Assigned sidebar, or Groups drill-down to open the Task Details modal. It shows all task attributes as colorful tag badges, plus notes, URL, and schedule. Click "Edit" to modify the task or "Delete" to remove it.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">Does the task edit modal auto-save?</h4>
+                        <p class="faq-answer">Yes! When editing a task via the Task Details modal's Edit button, changes auto-save after about 1 second of inactivity. The button shows "Saving..." then "Saved ✓" to confirm. The Groups tab and other views update immediately.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">Which task attributes does Notion import support?</h4>
+                        <p class="faq-answer">Notion import supports 10 task attributes: title, priority, type, energy, deadline, notes, URL, impact, value, complexity, action, estimates, and interval. Configure column mapping in the Notion tab of the Import/Export modal to match your Notion database properties.</p>
+                    </div>
                 </div>
 
             </div><!-- end .help-content -->
@@ -850,12 +846,8 @@
                         <div class="form-group" data-attribute-field="energy">
                             <label>🔋 Energy:</label>
                             <div class="radio-group-modern horizontal">
-                                <input type="radio" id="manager-energy-tbd" name="manager-energy" value="TBD" checked>
-                                <label for="manager-energy-tbd">❓ TBD</label>
-                                <input type="radio" id="manager-energy-low" name="manager-energy" value="Low">
+                                <input type="radio" id="manager-energy-low" name="manager-energy" value="Low" checked>
                                 <label for="manager-energy-low">🍃 Low</label>
-                                <input type="radio" id="manager-energy-medium" name="manager-energy" value="Medium">
-                                <label for="manager-energy-medium">⚡ Medium</label>
                                 <input type="radio" id="manager-energy-high" name="manager-energy" value="High">
                                 <label for="manager-energy-high">🔋 High</label>
                             </div>
@@ -976,24 +968,6 @@
                     </div>
                 </details>
 
-                <!-- Organization -->
-                <details class="form-section-collapsible" id="org-attrs-section">
-                    <summary>Organization</summary>
-                    <div class="form-section-content">
-                        <div class="form-group" data-attribute-field="why">
-                            <label for="manager-task-why">❓ Why:</label>
-                            <input type="text" id="manager-task-why" class="neumorphic-input" placeholder="Reason or goal for this task">
-                        </div>
-                        <div class="form-group" data-attribute-field="projects">
-                            <label for="manager-task-projects">📁 Project:</label>
-                            <input type="text" id="manager-task-projects" class="neumorphic-input" placeholder="Project name">
-                        </div>
-                        <div class="form-group" data-attribute-field="sprint">
-                            <label for="manager-task-sprint">🏃 Sprint:</label>
-                            <input type="text" id="manager-task-sprint" class="neumorphic-input" placeholder="Sprint cycle">
-                        </div>
-                    </div>
-                </details>
 
                 <button id="manager-add-task-btn" class="neumorphic-btn" style="width: 100%; margin-top: 10px;">Add Task</button>
             </div>
@@ -1246,29 +1220,6 @@
                             </div>
                             <div id="notion-estimates-values" class="value-mapping-group hidden"></div>
 
-                            <!-- Why -->
-                            <div class="mapping-row">
-                                <label for="notion-map-why">❓ Why</label>
-                                <select id="notion-map-why" class="neumorphic-input notion-property-select">
-                                    <option value="">-- Not mapped --</option>
-                                </select>
-                            </div>
-
-                            <!-- Projects -->
-                            <div class="mapping-row">
-                                <label for="notion-map-projects">📁 Projects</label>
-                                <select id="notion-map-projects" class="neumorphic-input notion-property-select">
-                                    <option value="">-- Not mapped --</option>
-                                </select>
-                            </div>
-
-                            <!-- Sprint -->
-                            <div class="mapping-row">
-                                <label for="notion-map-sprint">🏃 Sprint</label>
-                                <select id="notion-map-sprint" class="neumorphic-input notion-property-select">
-                                    <option value="">-- Not mapped --</option>
-                                </select>
-                            </div>
 
                             <!-- Interval -->
                             <div class="mapping-row">
@@ -1397,9 +1348,6 @@
                     <span id="details-tag-deadline" class="details-tag tag-deadline"></span>
                     <span id="details-tag-recurrence" class="details-tag tag-recurrence"></span>
                     <span id="details-tag-interval" class="details-tag tag-interval" data-attribute-tag="interval"></span>
-                    <!-- Organization tags -->
-                    <span id="details-tag-projects" class="details-tag tag-projects" data-attribute-tag="projects"></span>
-                    <span id="details-tag-sprint" class="details-tag tag-sprint" data-attribute-tag="sprint"></span>
                 </div>
 
                 <!-- URL section -->
@@ -1408,11 +1356,6 @@
                     <span id="details-task-url" class="details-value"></span>
                 </div>
 
-                <!-- Why section -->
-                <div id="details-why-section" class="details-section" data-attribute-section="why">
-                    <span class="details-label">❓ Why:</span>
-                    <p id="details-task-why" class="details-text"></p>
-                </div>
 
                 <!-- Notes section -->
                 <div class="details-section">

@@ -1,8 +1,8 @@
 # Weekly Task Manager
 
-**Version 1.9.0**
+**Version 2.0.0**
 
-A Chrome/Chromium browser extension for managing weekly tasks with priority levels, categories, energy tracking, 13 toggleable task attributes, and a visual weekly planner grid. Schedule tasks into time blocks, track completion across the week, and keep everything in sync between the popup and full-page planner.
+A Chrome/Chromium browser extension for managing weekly tasks with priority levels, categories, energy tracking, 10 toggleable task attributes, and a visual weekly planner grid. Schedule tasks into time blocks, track completion across the week, and keep everything in sync between the popup and full-page planner.
 
 ## Features
 
@@ -17,11 +17,14 @@ A Chrome/Chromium browser extension for managing weekly tasks with priority leve
 - **Recurring Tasks:** Mark tasks as Daily, Weekly, or Monthly — a new instance is automatically created when the task is completed
 - **Cascade Completion:** When all scheduled assignments for a task are completed, the parent task is automatically marked complete
 - **Last Modified Tracking:** Every task has a `lastModified` timestamp that updates automatically on any change
-- **Auto-Save:** Inline edits in the planner are auto-saved after 1.5 seconds of inactivity, with a visual status indicator (Saving/Saved/Unsaved)
+- **Auto-Save:** Inline edits in the planner auto-save after 1.5 seconds; task edit modal auto-saves after 800ms with visual "Saving.../Saved ✓" indicator
 - **Cross-Tab Sync:** Changes in the popup are reflected in the planner page in real-time, and vice versa
 - **Import/Export:** Back up tasks to JSON or CSV (timestamped files), or import from JSON with smart merge logic (matching IDs update, new IDs create)
-- **Notion Import:** Import tasks from a Notion database using an API key and database ID (via Settings)
+- **Notion Import:** Import tasks from a Notion database with full attribute mapping support (priority, type, energy, impact, value, complexity, action, estimates, interval)
 - **Google Sheets Import:** Import tasks from a published Google Sheets CSV (via Settings)
+- **10 Toggleable Task Attributes:** Configure which attributes to show/hide: Priority, Type, Status, Impact, Value, Complexity, Energy, Action, Estimates, Interval
+- **Groups Tab:** Bento grid view showing tasks grouped by any enabled attribute with mini donut charts; click to drill down with completed tasks disclosure toggle
+- **Task Details Modal:** Double-click any task to view full details with colorful attribute tags
 - **Race Condition Protection:** An operation queue serializes rapid concurrent operations (e.g., fast checkbox clicks)
 - **Undo/Redo:** Ctrl+Z / Ctrl+Shift+Z undo/redo support (up to 5 history entries); undo toast appears after destructive actions
 - **Sample Tasks:** On first run, 6 sample tasks are automatically created to demonstrate all features
@@ -46,14 +49,13 @@ Access the planner by clicking the "PLANNER" button in the popup. It opens in a 
   - *Assigned Tasks* sidebar with an "Unassign All" button
   - Today's column is visually highlighted. Time block slot limits are enforced during drag-and-drop.
 
-- **PRIORITY Tab** — Three columns (Critical, Important, Someday) displaying all tasks:
-  - Search/filter bar to find tasks by title
-  - Inline editing with auto-save for all task properties (title, URL, priority, deadline, type, energy, notes, recurrence, schedule)
-  - Move tasks up/down within their priority group using arrow buttons
-  - Delete tasks with confirmation prompt (shows undo toast)
-  - Expand/collapse per-task schedule management with day and time block selectors
-
-- **LOCATION Tab** — Two columns (Home, Work) for viewing tasks grouped by category, with a search/filter bar.
+- **GROUPS Tab** — Bento grid view of tasks grouped by enabled attributes:
+  - Each attribute box shows active task count and mini donut chart showing distribution
+  - Click any box to drill down into that attribute's groupings
+  - Drill-down view with horizontal columns for each attribute value
+  - Completed tasks disclosure toggle in each column (collapsed by default)
+  - Double-click any task to open Task Details modal
+  - Search bar filters tasks within drill-down view
 
 - **ARCHIVE Tab** — Completed tasks grouped by completion date, sorted by last modified (most recent first) within each group. Features a wider search bar and individual restore buttons; a "Clear All Completed" button removes all completed tasks (with undo support).
 
@@ -162,17 +164,18 @@ npm run test:watch
 npm run test:coverage
 ```
 
-The test suite includes **280+ tests** across 7 test files:
+The test suite includes **425+ tests** across 8 test files:
 
 | Test Suite | Tests | Coverage |
 |-----------|-------|----------|
-| `task_utils.test.js` | ~95 | Task class (new fields incl. lastModified), CRUD, settings, time blocks, undo/redo, recurring tasks, time validation, debounce, sync |
+| `task_utils.test.js` | ~95 | Task class (10 attribute fields), CRUD, settings, time blocks, undo/redo, recurring tasks, time validation, debounce, sync |
 | `popup.test.js` | ~17 | Task item rendering, tab switching, completion handlers, drag-and-drop |
-| `manager.test.js` | ~85 | Grid generation, day headers, sidebar lists, priority/location/archive/stats rendering, archive sorting by lastModified, search filter, add task modal, header tooltips, FAQ tab |
-| `integration.test.js` | ~25 | Task lifecycle, scheduling, cascade completion, ordering, import/merge, recurring tasks, undo/redo |
-| `settings.test.js` | ~38 | applySettings, initSettings, modal open/close, form population, time block editing, overlap validation |
-| `features.test.js` | ~33 | Notes field, completedAt stamping, lastModified tracking, undo/redo stacks, recurring task creation, archive grouping |
-| `search.test.js` | ~17 | applySearchFilter logic, setupPrioritySearch, setupLocationSearch, setupArchiveSearch |
+| `manager.test.js` | ~122 | Grid generation, Groups tab, archive tab, stats, search filter, add task modal, context menu, focus mode, time tracking |
+| `integration.test.js` | ~18 | Task lifecycle, scheduling, cascade completion, ordering, import/merge, recurring tasks, undo/redo |
+| `settings.test.js` | ~47 | applySettings, initSettings, modal open/close, form population, time block editing, Notion import, enabled attributes |
+| `features.test.js` | ~35 | Notes field, completedAt, lastModified, undo/redo stacks, recurring task creation, archive grouping |
+| `search.test.js` | ~17 | applySearchFilter logic, schedule/archive/groups search |
+| `schedule-features.test.js` | ~91 | Context menu, magic fill, buffer zones, focus mode, fluid resizing, time tracking, task details modal |
 
 ### Debugging
 
@@ -220,6 +223,11 @@ todo_this_week/
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.0.0 | 2026-02-22 | Removed Projects, Sprint, and Why attributes (10 attributes total), added completed tasks disclosure toggle in Groups tab drill-down, Energy attribute simplified to Low/High |
+| 1.9.0 | 2026-02-22 | Auto-save for task edit modal (800ms debounce), Notion import with full 13-attribute support, Groups tab immediate update after edit, 425+ tests |
+| 1.8.0 | 2026-02-21 | Groups tab with bento grid, Task Details modal, 13 toggleable attributes, double-click task interaction |
+| 1.5.0 | 2026-02-20 | Schedule enhancements: context menu, magic fill, buffer zones, focus mode, fluid resizing, time tracking, color coding |
+| 1.4.0 | 2026-02-20 | Parking lot sidebar, drag guide lines, hover popover, current time indicator |
 | 1.3.0 | 2026-02-19 | Added lastModified timestamp tracking for all tasks, archive tab sorting by last modified (most recent first), wider archive search bar, Notion integration with column/value mapping, 280+ tests |
 | 1.2.0 | 2026-02-18 | Dedicated import/export modal (JSON + CSV export), dedicated time blocks modal with inline label editing and overlap validation, schedule tab header styling, help modal FAQ section, 245 tests |
 | 1.1.0 | 2026-02-17 | Settings modal (dark mode, fonts), Notion + Google Sheets import, task notes, recurring tasks, undo/redo, archive tab, stats tab, search/filter, help modal, global add task button |

@@ -479,9 +479,7 @@ const ATTRIBUTE_META = {
     complexity: { label: 'Complexity', icon: '🧩', options: null },
     energy: { label: 'Energy', icon: '🔋', options: null },
     action: { label: 'Action', icon: '🎬', options: null },
-    estimates: { label: 'Estimates', icon: '⏱️', options: null },
-    projects: { label: 'Projects', icon: '📁', options: null }, // Text field - uses unique values
-    sprint: { label: 'Sprint', icon: '🏃', options: null }      // Text field - uses unique values
+    estimates: { label: 'Estimates', icon: '⏱️', options: null }
 };
 
 // Chart colors for pie charts
@@ -507,7 +505,7 @@ async function renderGroupsTab() {
     bentoView.innerHTML = '';
 
     // Attributes that have select-type options (shown in bento grid)
-    const selectTypeAttributes = ['priority', 'type', 'status', 'impact', 'value', 'complexity', 'energy', 'action', 'estimates', 'projects', 'sprint'];
+    const selectTypeAttributes = ['priority', 'type', 'status', 'impact', 'value', 'complexity', 'energy', 'action', 'estimates'];
 
     // Build list of attributes to display (only enabled select-type attributes)
     const attributesToShow = [];
@@ -758,22 +756,12 @@ async function renderGroupsDrilldownColumns(attrKey) {
 
     const tasks = await getTasksAsync();
     const activeTasks = tasks.filter(t => !t.completed);
+    const completedTasks = tasks.filter(t => t.completed);
 
     container.innerHTML = '';
 
     // Get options for this attribute
     let options = getAttributeOptions(attrKey);
-
-    // For text fields (projects, sprint), extract unique values from tasks
-    if (options.length === 0 && (attrKey === 'projects' || attrKey === 'sprint')) {
-        const uniqueValues = new Set();
-        uniqueValues.add(''); // Empty/unset
-        activeTasks.forEach(t => {
-            const val = t[attrKey];
-            if (val) uniqueValues.add(val);
-        });
-        options = Array.from(uniqueValues);
-    }
 
     // If still no options, show TBD
     if (options.length === 0) {
@@ -781,7 +769,7 @@ async function renderGroupsDrilldownColumns(attrKey) {
     }
 
     options.forEach(optionValue => {
-        const filteredTasks = activeTasks.filter(t => {
+        const filteredActiveTasks = activeTasks.filter(t => {
             const taskValue = t[attrKey];
             if (optionValue === '' || optionValue === 'TBD') {
                 return !taskValue || taskValue === '' || taskValue === 'TBD';
@@ -789,12 +777,20 @@ async function renderGroupsDrilldownColumns(attrKey) {
             return taskValue === optionValue;
         });
 
-        const column = createDrilldownColumn(attrKey, optionValue, filteredTasks);
+        const filteredCompletedTasks = completedTasks.filter(t => {
+            const taskValue = t[attrKey];
+            if (optionValue === '' || optionValue === 'TBD') {
+                return !taskValue || taskValue === '' || taskValue === 'TBD';
+            }
+            return taskValue === optionValue;
+        });
+
+        const column = createDrilldownColumn(attrKey, optionValue, filteredActiveTasks, filteredCompletedTasks);
         container.appendChild(column);
     });
 }
 
-function createDrilldownColumn(attrKey, optionValue, tasks) {
+function createDrilldownColumn(attrKey, optionValue, activeTasks, completedTasks = []) {
     const column = document.createElement('div');
     column.classList.add('groups-drilldown-column');
     column.dataset.optionValue = optionValue;
@@ -805,17 +801,23 @@ function createDrilldownColumn(attrKey, optionValue, tasks) {
     column.innerHTML = `
         <div class="drilldown-column-header">
             <span class="drilldown-column-title">${icon} ${label}</span>
-            <span class="drilldown-column-count">${tasks.length}</span>
+            <span class="drilldown-column-count">${activeTasks.length}</span>
         </div>
         <div class="drilldown-task-list" data-option="${optionValue}">
-            ${tasks.length === 0 ? '<p class="drilldown-empty">No tasks</p>' : ''}
+            ${activeTasks.length === 0 ? '<p class="drilldown-empty">No active tasks</p>' : ''}
         </div>
+        <details class="completed-disclosure ${completedTasks.length === 0 ? 'hidden' : ''}">
+            <summary class="completed-disclosure-summary">
+                Completed <span class="completed-count">${completedTasks.length}</span>
+            </summary>
+            <div class="completed-tasks-list" data-option="${optionValue}"></div>
+        </details>
     `;
 
     const taskList = column.querySelector('.drilldown-task-list');
 
-    // Sort tasks by priority then displayOrder
-    const sortedTasks = [...tasks].sort((a, b) => {
+    // Sort active tasks by priority then displayOrder
+    const sortedActiveTasks = [...activeTasks].sort((a, b) => {
         const priorityOrder = { 'CRITICAL': 1, 'IMPORTANT': 2, 'SOMEDAY': 3 };
         const pA = priorityOrder[a.priority] || 3;
         const pB = priorityOrder[b.priority] || 3;
@@ -823,10 +825,25 @@ function createDrilldownColumn(attrKey, optionValue, tasks) {
         return (a.displayOrder || 0) - (b.displayOrder || 0);
     });
 
-    sortedTasks.forEach(task => {
+    sortedActiveTasks.forEach(task => {
         const taskEl = createTaskElement(task, { context: 'management' });
         taskList.appendChild(taskEl);
     });
+
+    // Render completed tasks in disclosure
+    if (completedTasks.length > 0) {
+        const completedList = column.querySelector('.completed-tasks-list');
+        const sortedCompletedTasks = [...completedTasks].sort((a, b) => {
+            // Sort by completedAt (most recent first)
+            const aTime = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+            const bTime = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+            return bTime - aTime;
+        });
+        sortedCompletedTasks.forEach(task => {
+            const taskEl = createTaskElement(task, { context: 'management' });
+            completedList.appendChild(taskEl);
+        });
+    }
 
     return column;
 }
@@ -2346,17 +2363,14 @@ function setupTaskManagementListeners() {
             let deadline = document.getElementById('manager-task-deadline').value;
             if (priority !== 'CRITICAL' || !deadline) deadline = null;
 
-            // Collect new attribute fields
+            // Collect attribute fields
             const extraAttrs = {
                 status: document.getElementById('manager-task-status')?.value || 'inbox',
-                why: document.getElementById('manager-task-why')?.value.trim() || '',
-                projects: document.getElementById('manager-task-projects')?.value.trim() || '',
                 impact: document.getElementById('manager-task-impact')?.value || 'TBD',
                 value: document.getElementById('manager-task-value')?.value || 'TBD',
                 complexity: document.getElementById('manager-task-complexity')?.value || 'TBD',
                 action: document.getElementById('manager-task-action')?.value || 'TBD',
                 estimates: document.getElementById('manager-task-estimates')?.value || 'Unknown',
-                sprint: document.getElementById('manager-task-sprint')?.value.trim() || '',
                 interval: null
             };
 
@@ -2388,14 +2402,11 @@ function setupTaskManagementListeners() {
                     task.notes = notes;
                     task.recurrence = recurrence || null;
                     task.status = extraAttrs.status;
-                    task.why = extraAttrs.why;
-                    task.projects = extraAttrs.projects;
                     task.impact = extraAttrs.impact;
                     task.value = extraAttrs.value;
                     task.complexity = extraAttrs.complexity;
                     task.action = extraAttrs.action;
                     task.estimates = extraAttrs.estimates;
-                    task.sprint = extraAttrs.sprint;
                     task.interval = extraAttrs.interval;
                     task.lastModified = new Date().toISOString();
 
@@ -2441,18 +2452,14 @@ function clearAddTaskForm() {
     if (prioritySomeday) prioritySomeday.checked = true;
     const typeHome = document.getElementById('manager-type-home');
     if (typeHome) typeHome.checked = true;
-    const energyTbd = document.getElementById('manager-energy-tbd');
-    if (energyTbd) energyTbd.checked = true;
+    const energyLow = document.getElementById('manager-energy-low');
+    if (energyLow) energyLow.checked = true;
     document.getElementById('manager-task-deadline').value = '';
     document.getElementById('manager-task-deadline-group').style.display = 'none';
 
-    // New attribute fields
+    // Attribute fields
     const statusEl = document.getElementById('manager-task-status');
     if (statusEl) statusEl.value = 'inbox';
-    const whyEl = document.getElementById('manager-task-why');
-    if (whyEl) whyEl.value = '';
-    const projectsEl = document.getElementById('manager-task-projects');
-    if (projectsEl) projectsEl.value = '';
     const impactEl = document.getElementById('manager-task-impact');
     if (impactEl) impactEl.value = 'TBD';
     const valueEl = document.getElementById('manager-task-value');
@@ -2463,8 +2470,6 @@ function clearAddTaskForm() {
     if (actionEl) actionEl.value = 'TBD';
     const estimatesEl = document.getElementById('manager-task-estimates');
     if (estimatesEl) estimatesEl.value = 'Unknown';
-    const sprintEl = document.getElementById('manager-task-sprint');
-    if (sprintEl) sprintEl.value = '';
     const intervalStart = document.getElementById('manager-interval-start');
     if (intervalStart) intervalStart.value = '';
     const intervalEnd = document.getElementById('manager-interval-end');
@@ -2512,13 +2517,9 @@ async function openAddTaskModalForEdit(taskId) {
     const energyRadio = document.getElementById(`manager-energy-${energyValue}`);
     if (energyRadio) energyRadio.checked = true;
 
-    // New attributes
+    // Attributes
     const statusEl = document.getElementById('manager-task-status');
     if (statusEl) statusEl.value = task.status || 'inbox';
-    const whyEl = document.getElementById('manager-task-why');
-    if (whyEl) whyEl.value = task.why || '';
-    const projectsEl = document.getElementById('manager-task-projects');
-    if (projectsEl) projectsEl.value = task.projects || '';
     const impactEl = document.getElementById('manager-task-impact');
     if (impactEl) impactEl.value = task.impact || 'TBD';
     const valueEl = document.getElementById('manager-task-value');
@@ -2529,8 +2530,6 @@ async function openAddTaskModalForEdit(taskId) {
     if (actionEl) actionEl.value = task.action || 'TBD';
     const estimatesEl = document.getElementById('manager-task-estimates');
     if (estimatesEl) estimatesEl.value = task.estimates || 'Unknown';
-    const sprintEl = document.getElementById('manager-task-sprint');
-    if (sprintEl) sprintEl.value = task.sprint || '';
 
     // Interval
     const intervalStart = document.getElementById('manager-interval-start');
@@ -2633,16 +2632,13 @@ async function performEditAutoSave() {
     let deadline = document.getElementById('manager-task-deadline')?.value || null;
     if (priority !== 'CRITICAL' || !deadline) deadline = null;
 
-    // New attributes
+    // Attributes
     const status = document.getElementById('manager-task-status')?.value || 'inbox';
-    const why = document.getElementById('manager-task-why')?.value.trim() || '';
-    const projects = document.getElementById('manager-task-projects')?.value.trim() || '';
     const impact = document.getElementById('manager-task-impact')?.value || 'TBD';
     const value = document.getElementById('manager-task-value')?.value || 'TBD';
     const complexity = document.getElementById('manager-task-complexity')?.value || 'TBD';
     const action = document.getElementById('manager-task-action')?.value || 'TBD';
     const estimates = document.getElementById('manager-task-estimates')?.value || 'Unknown';
-    const sprint = document.getElementById('manager-task-sprint')?.value.trim() || '';
 
     // Interval
     const intervalStart = document.getElementById('manager-interval-start')?.value || null;
@@ -2659,14 +2655,11 @@ async function performEditAutoSave() {
     task.notes = notes;
     task.recurrence = recurrence;
     task.status = status;
-    task.why = why;
-    task.projects = projects;
     task.impact = impact;
     task.value = value;
     task.complexity = complexity;
     task.action = action;
     task.estimates = estimates;
-    task.sprint = sprint;
     task.interval = interval;
     task.lastModified = new Date().toISOString();
 
@@ -3655,12 +3648,6 @@ async function populateTaskDetailsModal(task) {
         setTag('details-tag-interval', '', false);
     }
 
-    // Projects tag
-    setTag('details-tag-projects', task.projects ? `📁 ${task.projects}` : '', enabled.projects && task.projects, 'tag-projects');
-
-    // Sprint tag
-    setTag('details-tag-sprint', task.sprint ? `🏃 ${task.sprint}` : '', enabled.sprint && task.sprint, 'tag-sprint');
-
     // URL section
     const urlRow = document.getElementById('details-url-row');
     const urlEl = document.getElementById('details-task-url');
@@ -3669,16 +3656,6 @@ async function populateTaskDetailsModal(task) {
         if (urlRow) urlRow.style.display = '';
     } else {
         if (urlRow) urlRow.style.display = 'none';
-    }
-
-    // Why section
-    const whySection = document.getElementById('details-why-section');
-    const whyEl = document.getElementById('details-task-why');
-    if (enabled.why && task.why) {
-        if (whyEl) whyEl.textContent = task.why;
-        if (whySection) whySection.style.display = '';
-    } else {
-        if (whySection) whySection.style.display = 'none';
     }
 
     // Notes

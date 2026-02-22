@@ -501,12 +501,12 @@ describe('notionPageToTask', () => {
             notes: 'Notes',
             url: 'URL',
             status: '', deadline: '', impact: '', value: '', complexity: '',
-            action: '', estimates: '', why: '', projects: '', sprint: '', interval: ''
+            action: '', estimates: '', interval: ''
         };
         const valueMappings = {
             priority: { 'CRITICAL': 'High', 'IMPORTANT': 'Medium', 'SOMEDAY': 'Low' },
             type: { 'home': 'Home', 'work': 'Work' },
-            energy: { 'TBD': '', 'Low': 'Low', 'Medium': 'Medium', 'High': 'High' }
+            energy: { 'Low': 'Low', 'High': 'High' }
         };
 
         const result = notionPageToTask(page, mapping, valueMappings);
@@ -515,12 +515,12 @@ describe('notionPageToTask', () => {
         expect(result.title).toBe('Test Task');
         expect(result.priority).toBe('CRITICAL');
         expect(result.type).toBe('work');
-        expect(result.energy).toBe('Medium');
+        expect(result.energy).toBe('Low');
         expect(result.notes).toBe('Test notes');
         expect(result.url).toBe('https://example.com');
     });
 
-    test('extracts new attributes from Notion page', () => {
+    test('extracts attributes from Notion page', () => {
         const page = {
             id: 'notion-page-456',
             properties: {
@@ -530,9 +530,6 @@ describe('notionPageToTask', () => {
                 'Complexity': { type: 'select', select: { name: 'Simple' } },
                 'Action': { type: 'select', select: { name: 'Automate' } },
                 'Estimates': { type: 'select', select: { name: '2 Hours' } },
-                'Why': { type: 'rich_text', rich_text: [{ plain_text: 'Important reason' }] },
-                'Projects': { type: 'rich_text', rich_text: [{ plain_text: 'Project Alpha' }] },
-                'Sprint': { type: 'rich_text', rich_text: [{ plain_text: 'Sprint 5' }] },
                 'Interval': { type: 'date', date: { start: '2024-01-01', end: '2024-01-15' } }
             }
         };
@@ -543,9 +540,6 @@ describe('notionPageToTask', () => {
             complexity: 'Complexity',
             action: 'Action',
             estimates: 'Estimates',
-            why: 'Why',
-            projects: 'Projects',
-            sprint: 'Sprint',
             interval: 'Interval',
             priority: '', type: '', energy: '', notes: '', url: '', status: '', deadline: ''
         };
@@ -564,9 +558,6 @@ describe('notionPageToTask', () => {
         expect(result.complexity).toBe('Trivial');
         expect(result.action).toBe('Automate');
         expect(result.estimates).toBe('2 Hr');
-        expect(result.why).toBe('Important reason');
-        expect(result.projects).toBe('Project Alpha');
-        expect(result.sprint).toBe('Sprint 5');
         expect(result.interval).toEqual({ start: '2024-01-01', end: '2024-01-15' });
     });
 
@@ -585,21 +576,18 @@ describe('notionPageToTask', () => {
         expect(result.title).toBe('Minimal Task');
         expect(result.priority).toBe('SOMEDAY');
         expect(result.type).toBe('home');
-        expect(result.energy).toBe('TBD');
+        expect(result.energy).toBe('Low');
         expect(result.impact).toBe('TBD');
         expect(result.value).toBe('TBD');
         expect(result.complexity).toBe('TBD');
         expect(result.action).toBe('TBD');
         expect(result.estimates).toBe('Unknown');
-        expect(result.why).toBe('');
-        expect(result.projects).toBe('');
-        expect(result.sprint).toBe('');
         expect(result.interval).toBeNull();
     });
 });
 
 describe('normalizeSheetRow', () => {
-    test('normalizes CSV row with new attributes', () => {
+    test('normalizes CSV row with attributes', () => {
         const row = {
             title: 'CSV Task',
             priority: 'IMPORTANT',
@@ -610,10 +598,7 @@ describe('normalizeSheetRow', () => {
             value: 'BUILD',
             complexity: 'Multiple Steps',
             action: 'Simplify',
-            estimates: '4 HR',
-            why: 'Good reason',
-            projects: 'Project Beta',
-            sprint: 'Sprint 3'
+            estimates: '4 HR'
         };
 
         const result = normalizeSheetRow(row);
@@ -628,9 +613,6 @@ describe('normalizeSheetRow', () => {
         expect(result.complexity).toBe('Multiple Steps');
         expect(result.action).toBe('Simplify');
         expect(result.estimates).toBe('4 HR');
-        expect(result.why).toBe('Good reason');
-        expect(result.projects).toBe('Project Beta');
-        expect(result.sprint).toBe('Sprint 3');
     });
 
     test('normalizes invalid status to inbox', () => {
