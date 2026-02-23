@@ -876,12 +876,10 @@ describe('validate24HourCoverage', () => {
         expect(result.error).toContain('Invalid time format');
     });
 
-    test('detects gap in DEFAULT_TIME_BLOCKS (11PM-12AM missing)', () => {
-        // DEFAULT_TIME_BLOCKS ends at 11PM, missing 11PM-12AM
+    test('DEFAULT_TIME_BLOCKS has full 24-hour coverage', () => {
+        // DEFAULT_TIME_BLOCKS should cover all 24 hours
         const result = validate24HourCoverage(DEFAULT_TIME_BLOCKS);
-        expect(result.valid).toBe(false);
-        expect(result.error).toContain('11PM-12AM');
-        expect(result.gaps).toEqual([{ start: 23, end: 24 }]);
+        expect(result.valid).toBe(true);
     });
 
     test('handles overlapping blocks (still covers time)', () => {

@@ -12,7 +12,7 @@ const DEFAULT_TIME_BLOCKS = [
     { id: 'deep-work-2', label: 'Deep Work Block 3', time: '[3PM-6PM]', limit: '1', colorClass: 'block-color-yellow' },
     { id: 'commute-relax', label: 'Commute and Relax', time: '[6PM-8PM]', limit: 'multiple', colorClass: 'block-color-sage' },
     { id: 'family-time', label: 'Chill Time', time: '[8PM-10PM]', limit: 'multiple', colorClass: 'block-color-skyblue' },
-    { id: 'night-build', label: 'Night Block', time: '[10PM-11PM]', limit: '1', colorClass: 'block-color-orange' }
+    { id: 'night-build', label: 'Night Block', time: '[10PM-12AM]', limit: '1', colorClass: 'block-color-orange' }
 ];
 
 // Alias for backward compatibility

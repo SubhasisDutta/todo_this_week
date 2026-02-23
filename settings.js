@@ -494,6 +494,7 @@ function renderTimeBlocksTable(blocks, isWorkingCopy = false) {
 }
 
 // Add a new block to working copy (doesn't save)
+// Returns { success: true, block } or { success: false, error }
 function addTimeBlockToWorkingCopy(label, startTime, endTime, limit, colorClass) {
     const id = 'custom-' + label.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
     const formattedStart = formatTimeInput(startTime);
@@ -501,10 +502,17 @@ function addTimeBlockToWorkingCopy(label, startTime, endTime, limit, colorClass)
     const timeStr = `[${formattedStart}-${formattedEnd}]`;
 
     const newBlock = { id, label, time: timeStr, limit, colorClass: colorClass || '' };
+
+    // Validate overlap before adding
+    const overlapValidation = validateTimeBlockOverlap(newBlock, _workingTimeBlocks);
+    if (!overlapValidation.valid) {
+        return { success: false, error: overlapValidation.error };
+    }
+
     _workingTimeBlocks.push(newBlock);
     renderTimeBlocksTable(_workingTimeBlocks, true);
     markTimeBlocksUnsaved();
-    return newBlock;
+    return { success: true, block: newBlock };
 }
 
 // Validate and save all time block changes
@@ -2410,8 +2418,13 @@ async function setupTimeBlocksModalListeners(renderPageCallback) {
                 return;
             }
 
-            // Add to working copy (doesn't save)
-            addTimeBlockToWorkingCopy(label, startTime, endTime, limit, colorClass);
+            // Add to working copy with validation (doesn't save)
+            const result = addTimeBlockToWorkingCopy(label, startTime, endTime, limit, colorClass);
+
+            if (!result.success) {
+                showInfoMessage(result.error, 'error');
+                return;
+            }
 
             // Hide and clear form
             if (addBlockForm) addBlockForm.classList.add('hidden');
