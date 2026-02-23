@@ -13,7 +13,7 @@ loadScript(path.join(__dirname, '..', 'task_utils.js'), [
     'getTimeBlocks', 'saveTimeBlocks',
     'pushUndoState', 'undo', 'redo',
     'createRecurringInstance',
-    'parseTimeRange', 'validateTimeBlockOverlap'
+    'parseTimeRange', 'validateTimeBlockOverlap', 'validate24HourCoverage'
 ]);
 
 // Load settings.js
@@ -30,7 +30,9 @@ loadScript(path.join(__dirname, '..', 'settings.js'), [
     'setupImportExportModalListeners',
     'setupTimeBlocksModalListeners',
     'setupImportExportTabs',
-    'formatTimeInput', 'addTimeBlock', 'updateTimeBlockLabel', 'deleteTimeBlock',
+    'formatTimeInput', 'addTimeBlock', 'updateTimeBlockLabel', 'updateTimeBlockTime', 'deleteTimeBlock',
+    'parseTimeToInputFormat', 'formatTimeDisplay',
+    'addTimeBlockToWorkingCopy', 'validateAndSaveTimeBlocks', 'markTimeBlocksUnsaved', 'markTimeBlocksSaved',
     'notionPageToTask', 'normalizeSheetRow', 'getEnabledAttributes'
 ]);
 
@@ -282,6 +284,212 @@ describe('updateTimeBlockLabel', () => {
     });
 });
 
+describe('parseTimeToInputFormat', () => {
+    test('parses [7AM-8AM] correctly', () => {
+        const result = parseTimeToInputFormat('[7AM-8AM]');
+        expect(result).toEqual({ startTime: '07:00', endTime: '08:00' });
+    });
+
+    test('parses [12AM-1AM] correctly (midnight)', () => {
+        const result = parseTimeToInputFormat('[12AM-1AM]');
+        expect(result).toEqual({ startTime: '00:00', endTime: '01:00' });
+    });
+
+    test('parses [12PM-1PM] correctly (noon)', () => {
+        const result = parseTimeToInputFormat('[12PM-1PM]');
+        expect(result).toEqual({ startTime: '12:00', endTime: '13:00' });
+    });
+
+    test('parses [10PM-12AM] correctly (spans midnight)', () => {
+        const result = parseTimeToInputFormat('[10PM-12AM]');
+        expect(result).toEqual({ startTime: '22:00', endTime: '00:00' });
+    });
+
+    test('returns null for invalid format', () => {
+        const result = parseTimeToInputFormat('invalid');
+        expect(result).toBeNull();
+    });
+});
+
+describe('formatTimeDisplay', () => {
+    test('formats 07:00 to 08:00 correctly', () => {
+        const result = formatTimeDisplay('07:00', '08:00');
+        expect(result).toBe('[7AM-8AM]');
+    });
+
+    test('formats midnight correctly', () => {
+        const result = formatTimeDisplay('00:00', '01:00');
+        expect(result).toBe('[12AM-1AM]');
+    });
+
+    test('formats noon correctly', () => {
+        const result = formatTimeDisplay('12:00', '13:00');
+        expect(result).toBe('[12PM-1PM]');
+    });
+
+    test('formats PM times correctly', () => {
+        const result = formatTimeDisplay('18:00', '22:00');
+        expect(result).toBe('[6PM-10PM]');
+    });
+});
+
+describe('updateTimeBlockTime', () => {
+    beforeEach(() => {
+        resetChromeStorage();
+        document.body.innerHTML = `
+            <div id="info-message-area" class="info-message" style="display: none;"></div>
+            <div id="time-blocks-table-container"></div>
+        `;
+    });
+
+    test('updates time and saves when valid', async () => {
+        // Seed with full 24-hour coverage so validation passes
+        seedTimeBlocks([
+            { id: 'block1', label: 'Night', time: '[12AM-9AM]', limit: 'multiple', colorClass: '' },
+            { id: 'block2', label: 'Day', time: '[9AM-6PM]', limit: 'multiple', colorClass: '' },
+            { id: 'block3', label: 'Evening', time: '[6PM-12AM]', limit: 'multiple', colorClass: '' }
+        ]);
+
+        // Change block2 from 9AM-6PM to 9AM-5PM
+        const result = await updateTimeBlockTime('block2', '09:00', '17:00');
+        expect(result.success).toBe(false); // This will fail because 5PM-6PM is now a gap
+    });
+
+    test('rejects time change that creates gap in 24-hour coverage', async () => {
+        // Seed with full 24-hour coverage
+        seedTimeBlocks([
+            { id: 'block1', label: 'Early', time: '[12AM-12PM]', limit: 'multiple', colorClass: '' },
+            { id: 'block2', label: 'Late', time: '[12PM-12AM]', limit: 'multiple', colorClass: '' }
+        ]);
+
+        // Try to change block2 from 12PM-12AM to 1PM-12AM, creating a gap
+        const result = await updateTimeBlockTime('block2', '13:00', '00:00');
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Missing coverage');
+    });
+
+    test('returns error for non-existent block', async () => {
+        seedTimeBlocks([
+            { id: 'existing', label: 'Block', time: '[9AM-5PM]', limit: 'multiple', colorClass: '' }
+        ]);
+
+        const result = await updateTimeBlockTime('non-existent', '10:00', '14:00');
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('not found');
+    });
+});
+
+describe('deleteTimeBlock with 24-hour validation', () => {
+    beforeEach(() => {
+        resetChromeStorage();
+        document.body.innerHTML = `
+            <div id="info-message-area" class="info-message" style="display: none;"></div>
+            <div id="time-blocks-table-container"></div>
+        `;
+    });
+
+    test('prevents deletion that creates gap in 24-hour coverage', async () => {
+        // Seed with full 24-hour coverage
+        seedTimeBlocks([
+            { id: 'block1', label: 'Early', time: '[12AM-12PM]', limit: 'multiple', colorClass: '' },
+            { id: 'block2', label: 'Late', time: '[12PM-12AM]', limit: 'multiple', colorClass: '' }
+        ]);
+
+        // Try to delete one block, creating a gap
+        const result = await deleteTimeBlock('block1');
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Missing coverage');
+
+        // Verify block was not deleted
+        const blocks = await getTimeBlocks();
+        expect(blocks).toHaveLength(2);
+    });
+
+    test('allows deletion with skipValidation flag', async () => {
+        seedTimeBlocks([
+            { id: 'block1', label: 'Early', time: '[12AM-12PM]', limit: 'multiple', colorClass: '' },
+            { id: 'block2', label: 'Late', time: '[12PM-12AM]', limit: 'multiple', colorClass: '' }
+        ]);
+
+        const result = await deleteTimeBlock('block1', true);
+        expect(result.success).toBe(true);
+
+        const blocks = await getTimeBlocks();
+        expect(blocks).toHaveLength(1);
+    });
+});
+
+describe('Batch editing workflow', () => {
+    beforeEach(() => {
+        resetChromeStorage();
+        document.body.innerHTML = `
+            <div id="info-message-area" class="info-message" style="display: none;"></div>
+            <div id="time-blocks-table-container"></div>
+            <span id="time-blocks-save-status"></span>
+            <button id="validate-save-time-blocks-btn"></button>
+        `;
+    });
+
+    test('addTimeBlockToWorkingCopy adds block to table without saving to storage', async () => {
+        seedTimeBlocks([
+            { id: 'block1', label: 'Morning', time: '[12AM-12PM]', limit: 'multiple', colorClass: '' }
+        ]);
+        // Initialize working copy by rendering
+        const blocks = await getTimeBlocks();
+        renderTimeBlocksTable(blocks);
+
+        // Add to working copy
+        addTimeBlockToWorkingCopy('Afternoon', '12:00', '18:00', 'multiple', '');
+
+        // Check table now shows 2 rows
+        const tableRows = document.querySelectorAll('.time-blocks-table tbody tr');
+        expect(tableRows).toHaveLength(2);
+
+        // But storage still has 1
+        const savedBlocks = await getTimeBlocks();
+        expect(savedBlocks).toHaveLength(1);
+    });
+
+    test('markTimeBlocksUnsaved shows unsaved status', () => {
+        markTimeBlocksUnsaved();
+        const statusEl = document.getElementById('time-blocks-save-status');
+        expect(statusEl.textContent).toContain('Unsaved');
+        expect(statusEl.classList.contains('unsaved')).toBe(true);
+    });
+
+    test('markTimeBlocksSaved shows saved status', () => {
+        markTimeBlocksSaved();
+        const statusEl = document.getElementById('time-blocks-save-status');
+        expect(statusEl.textContent).toContain('Saved');
+        expect(statusEl.classList.contains('saved')).toBe(true);
+    });
+
+    test('validateAndSaveTimeBlocks saves valid blocks', async () => {
+        // Seed with full 24-hour coverage
+        seedTimeBlocks([
+            { id: 'block1', label: 'Early', time: '[12AM-12PM]', limit: 'multiple', colorClass: '' },
+            { id: 'block2', label: 'Late', time: '[12PM-12AM]', limit: 'multiple', colorClass: '' }
+        ]);
+        const blocks = await getTimeBlocks();
+        renderTimeBlocksTable(blocks);
+
+        const result = await validateAndSaveTimeBlocks();
+        expect(result.success).toBe(true);
+    });
+
+    test('validateAndSaveTimeBlocks rejects gaps in coverage', async () => {
+        seedTimeBlocks([
+            { id: 'block1', label: 'Morning', time: '[9AM-12PM]', limit: 'multiple', colorClass: '' }
+        ]);
+        const blocks = await getTimeBlocks();
+        renderTimeBlocksTable(blocks);
+
+        const result = await validateAndSaveTimeBlocks();
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Missing coverage');
+    });
+});
+
 describe('addTimeBlock with overlap validation', () => {
     beforeEach(() => {
         resetChromeStorage();
@@ -506,7 +714,7 @@ describe('notionPageToTask', () => {
         const valueMappings = {
             priority: { 'CRITICAL': 'High', 'IMPORTANT': 'Medium', 'SOMEDAY': 'Low' },
             type: { 'home': 'Home', 'work': 'Work' },
-            energy: { 'Low': 'Low', 'High': 'High' }
+            energy: { 'TBD': '', 'Low': 'Low', 'Medium': 'Medium', 'High': 'High' }
         };
 
         const result = notionPageToTask(page, mapping, valueMappings);
@@ -515,7 +723,7 @@ describe('notionPageToTask', () => {
         expect(result.title).toBe('Test Task');
         expect(result.priority).toBe('CRITICAL');
         expect(result.type).toBe('work');
-        expect(result.energy).toBe('Low');
+        expect(result.energy).toBe('Medium');
         expect(result.notes).toBe('Test notes');
         expect(result.url).toBe('https://example.com');
     });
@@ -576,7 +784,7 @@ describe('notionPageToTask', () => {
         expect(result.title).toBe('Minimal Task');
         expect(result.priority).toBe('SOMEDAY');
         expect(result.type).toBe('home');
-        expect(result.energy).toBe('Low');
+        expect(result.energy).toBe('TBD');
         expect(result.impact).toBe('TBD');
         expect(result.value).toBe('TBD');
         expect(result.complexity).toBe('TBD');

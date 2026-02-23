@@ -316,9 +316,84 @@ async function saveSettingsFromForm() {
 
 // --- Time Blocks Management ---
 
-function renderTimeBlocksTable(blocks) {
+// Working copy of time blocks for batch editing
+let _workingTimeBlocks = [];
+let _timeBlocksHasChanges = false;
+
+// Convert "[7AM-8AM]" format to { startTime: "07:00", endTime: "08:00" } for HTML time inputs
+function parseTimeToInputFormat(timeStr) {
+    const match = timeStr.match(/\[(\d{1,2})(AM|PM)-(\d{1,2})(AM|PM)\]/i);
+    if (!match) return null;
+
+    let startHour = parseInt(match[1], 10);
+    const startPeriod = match[2].toUpperCase();
+    let endHour = parseInt(match[3], 10);
+    const endPeriod = match[4].toUpperCase();
+
+    // Convert to 24-hour format
+    if (startPeriod === 'PM' && startHour !== 12) startHour += 12;
+    if (startPeriod === 'AM' && startHour === 12) startHour = 0;
+    if (endPeriod === 'PM' && endHour !== 12) endHour += 12;
+    if (endPeriod === 'AM' && endHour === 12) endHour = 0;
+
+    // Format as "HH:00" for time inputs
+    const pad = (n) => n.toString().padStart(2, '0');
+    return {
+        startTime: `${pad(startHour)}:00`,
+        endTime: `${pad(endHour)}:00`
+    };
+}
+
+// Convert 24-hour times to display format "[7AM-8AM]"
+function formatTimeDisplay(startTime, endTime) {
+    const formatSingle = (time24) => {
+        const [hours] = time24.split(':').map(Number);
+        if (hours === 0) return '12AM';
+        if (hours === 12) return '12PM';
+        return hours < 12 ? `${hours}AM` : `${hours - 12}PM`;
+    };
+    return `[${formatSingle(startTime)}-${formatSingle(endTime)}]`;
+}
+
+// Mark time blocks as having unsaved changes
+function markTimeBlocksUnsaved() {
+    _timeBlocksHasChanges = true;
+    const statusEl = document.getElementById('time-blocks-save-status');
+    if (statusEl) {
+        statusEl.textContent = '⚠ Unsaved changes';
+        statusEl.className = 'time-blocks-status unsaved';
+    }
+    const saveBtn = document.getElementById('validate-save-time-blocks-btn');
+    if (saveBtn) {
+        saveBtn.disabled = false;
+    }
+}
+
+// Mark time blocks as saved
+function markTimeBlocksSaved() {
+    _timeBlocksHasChanges = false;
+    const statusEl = document.getElementById('time-blocks-save-status');
+    if (statusEl) {
+        statusEl.textContent = '✓ Saved';
+        statusEl.className = 'time-blocks-status saved';
+        setTimeout(() => {
+            if (!_timeBlocksHasChanges && statusEl) {
+                statusEl.textContent = '';
+                statusEl.className = 'time-blocks-status';
+            }
+        }, 2000);
+    }
+}
+
+function renderTimeBlocksTable(blocks, isWorkingCopy = false) {
     const container = document.getElementById('time-blocks-table-container');
     if (!container) return;
+
+    // Store working copy
+    if (!isWorkingCopy) {
+        _workingTimeBlocks = JSON.parse(JSON.stringify(blocks));
+        _timeBlocksHasChanges = false;
+    }
 
     if (!blocks || blocks.length === 0) {
         container.innerHTML = '<p>No time blocks configured.</p>';
@@ -332,57 +407,139 @@ function renderTimeBlocksTable(blocks) {
             <thead>
                 <tr>
                     <th>Label</th>
-                    <th>Time</th>
+                    <th>Start</th>
+                    <th>End</th>
                     <th>Limit</th>
                     <th>Color</th>
                     <th>Action</th>
                 </tr>
             </thead>
             <tbody>
-                ${blocks.map((block, idx) => `
-                    <tr>
+                ${blocks.map((block, idx) => {
+                    const parsedTime = parseTimeToInputFormat(block.time);
+                    const startTime = parsedTime ? parsedTime.startTime : '00:00';
+                    const endTime = parsedTime ? parsedTime.endTime : '01:00';
+                    return `
+                    <tr data-block-id="${block.id}">
                         <td>
                             <input type="text" class="neumorphic-input edit-block-label"
                                    value="${block.label.replace(/"/g, '&quot;')}"
                                    data-block-id="${block.id}">
                         </td>
-                        <td>${block.time}</td>
+                        <td>
+                            <input type="time" class="neumorphic-input edit-block-time edit-block-start"
+                                   value="${startTime}"
+                                   data-block-id="${block.id}"
+                                   step="3600">
+                        </td>
+                        <td>
+                            <input type="time" class="neumorphic-input edit-block-time edit-block-end"
+                                   value="${endTime}"
+                                   data-block-id="${block.id}"
+                                   step="3600">
+                        </td>
                         <td>${limitLabel[block.limit] || block.limit}</td>
                         <td><span class="color-swatch ${block.colorClass || ''}">${block.colorClass || 'none'}</span></td>
                         <td>
-                            <button class="neumorphic-btn delete-block-btn" data-block-id="${block.id}" style="font-size:0.75em; padding:3px 8px;">Delete</button>
+                            <button class="neumorphic-btn delete-block-btn" data-block-id="${block.id}" style="font-size:0.75em; padding:3px 8px;">Remove</button>
                         </td>
                     </tr>
-                `).join('')}
+                `}).join('')}
             </tbody>
         </table>
     `;
     container.innerHTML = tableHtml;
 
-    // Attach delete listeners
+    // Attach delete listeners (removes from working copy, doesn't save)
     container.querySelectorAll('.delete-block-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
+        btn.addEventListener('click', () => {
             const blockId = btn.dataset.blockId;
-            await deleteTimeBlock(blockId);
+            _workingTimeBlocks = _workingTimeBlocks.filter(b => b.id !== blockId);
+            renderTimeBlocksTable(_workingTimeBlocks, true);
+            markTimeBlocksUnsaved();
         });
     });
 
-    // Attach label edit listeners
+    // Attach label edit listeners (updates working copy, doesn't save)
     container.querySelectorAll('.edit-block-label').forEach(input => {
-        input.addEventListener('change', async () => {
+        input.addEventListener('input', () => {
             const blockId = input.dataset.blockId;
-            const newLabel = input.value.trim();
-            if (newLabel) {
-                await updateTimeBlockLabel(blockId, newLabel);
-                showInfoMessage('Time block label updated.', 'success');
-            } else {
-                showInfoMessage('Label cannot be empty.', 'error');
-                const blocks = await getTimeBlocks();
-                const block = blocks.find(b => b.id === blockId);
-                if (block) input.value = block.label;
+            const block = _workingTimeBlocks.find(b => b.id === blockId);
+            if (block) {
+                block.label = input.value;
+                markTimeBlocksUnsaved();
             }
         });
     });
+
+    // Attach time edit listeners (updates working copy, doesn't save)
+    container.querySelectorAll('.edit-block-time').forEach(input => {
+        input.addEventListener('change', () => {
+            const blockId = input.dataset.blockId;
+            const row = input.closest('tr');
+            const startInput = row.querySelector('.edit-block-start');
+            const endInput = row.querySelector('.edit-block-end');
+            const newStartTime = startInput.value;
+            const newEndTime = endInput.value;
+
+            if (newStartTime && newEndTime) {
+                const block = _workingTimeBlocks.find(b => b.id === blockId);
+                if (block) {
+                    block.time = formatTimeDisplay(newStartTime, newEndTime);
+                    markTimeBlocksUnsaved();
+                }
+            }
+        });
+    });
+}
+
+// Add a new block to working copy (doesn't save)
+function addTimeBlockToWorkingCopy(label, startTime, endTime, limit, colorClass) {
+    const id = 'custom-' + label.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
+    const formattedStart = formatTimeInput(startTime);
+    const formattedEnd = formatTimeInput(endTime);
+    const timeStr = `[${formattedStart}-${formattedEnd}]`;
+
+    const newBlock = { id, label, time: timeStr, limit, colorClass: colorClass || '' };
+    _workingTimeBlocks.push(newBlock);
+    renderTimeBlocksTable(_workingTimeBlocks, true);
+    markTimeBlocksUnsaved();
+    return newBlock;
+}
+
+// Validate and save all time block changes
+async function validateAndSaveTimeBlocks() {
+    // Validate all labels are non-empty
+    for (const block of _workingTimeBlocks) {
+        if (!block.label || !block.label.trim()) {
+            showInfoMessage('All time blocks must have a label.', 'error');
+            return { success: false, error: 'Empty label' };
+        }
+    }
+
+    // Validate no overlaps
+    for (let i = 0; i < _workingTimeBlocks.length; i++) {
+        const block = _workingTimeBlocks[i];
+        const otherBlocks = _workingTimeBlocks.filter((_, idx) => idx !== i);
+        const overlapValidation = validateTimeBlockOverlap(block, otherBlocks);
+        if (!overlapValidation.valid) {
+            showInfoMessage(overlapValidation.error, 'error');
+            return { success: false, error: overlapValidation.error };
+        }
+    }
+
+    // Validate 24-hour coverage
+    const coverageValidation = validate24HourCoverage(_workingTimeBlocks);
+    if (!coverageValidation.valid) {
+        showInfoMessage(coverageValidation.error, 'error');
+        return { success: false, error: coverageValidation.error };
+    }
+
+    // All validations passed, save
+    await saveTimeBlocks(_workingTimeBlocks);
+    markTimeBlocksSaved();
+    showInfoMessage('Time blocks saved successfully!', 'success');
+    return { success: true };
 }
 
 // Convert 24-hour time input (e.g., "13:00") to display format (e.g., "1PM")
@@ -394,16 +551,15 @@ function formatTimeInput(time24) {
     return `${hour12}${period}`;
 }
 
+// Legacy function for backwards compatibility - only checks overlap, not 24-hour coverage
 async function addTimeBlock(label, startTime, endTime, limit, colorClass) {
     const blocks = await getTimeBlocks();
     const id = 'custom-' + label.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
 
-    // Convert time inputs to display format
     const formattedStart = formatTimeInput(startTime);
     const formattedEnd = formatTimeInput(endTime);
     const timeStr = `[${formattedStart}-${formattedEnd}]`;
 
-    // Validate overlap
     const newBlock = { id, label, time: timeStr, limit, colorClass: colorClass || '' };
     const validation = validateTimeBlockOverlap(newBlock, blocks);
     if (!validation.valid) {
@@ -417,14 +573,25 @@ async function addTimeBlock(label, startTime, endTime, limit, colorClass) {
     return blocks;
 }
 
-async function deleteTimeBlock(blockId) {
+// Legacy function - kept for backwards compatibility
+async function deleteTimeBlock(blockId, skipValidation = false) {
     const blocks = await getTimeBlocks();
     const filtered = blocks.filter(b => b.id !== blockId);
+
+    if (!skipValidation) {
+        const coverageValidation = validate24HourCoverage(filtered);
+        if (!coverageValidation.valid) {
+            showInfoMessage(`Cannot delete: ${coverageValidation.error}`, 'error');
+            return { success: false, error: coverageValidation.error };
+        }
+    }
+
     await saveTimeBlocks(filtered);
     renderTimeBlocksTable(filtered);
-    return filtered;
+    return { success: true, blocks: filtered };
 }
 
+// Legacy function - kept for backwards compatibility
 async function updateTimeBlockLabel(blockId, newLabel) {
     const blocks = await getTimeBlocks();
     const blockIndex = blocks.findIndex(b => b.id === blockId);
@@ -434,6 +601,45 @@ async function updateTimeBlockLabel(blockId, newLabel) {
         return true;
     }
     return false;
+}
+
+// Legacy function - kept for backwards compatibility
+async function updateTimeBlockTime(blockId, newStartTime, newEndTime) {
+    const blocks = await getTimeBlocks();
+    const blockIndex = blocks.findIndex(b => b.id === blockId);
+    if (blockIndex === -1) {
+        return { success: false, error: 'Time block not found.' };
+    }
+
+    const newTimeStr = formatTimeDisplay(newStartTime, newEndTime);
+
+    const testBlocks = blocks.map((b, i) => {
+        if (i === blockIndex) {
+            return { ...b, time: newTimeStr };
+        }
+        return b;
+    });
+
+    const overlapValidation = validateTimeBlockOverlap(
+        { ...blocks[blockIndex], time: newTimeStr },
+        blocks,
+        blockId
+    );
+    if (!overlapValidation.valid) {
+        showInfoMessage(overlapValidation.error, 'error');
+        return { success: false, error: overlapValidation.error };
+    }
+
+    const coverageValidation = validate24HourCoverage(testBlocks);
+    if (!coverageValidation.valid) {
+        showInfoMessage(coverageValidation.error, 'error');
+        return { success: false, error: coverageValidation.error };
+    }
+
+    blocks[blockIndex].time = newTimeStr;
+    await saveTimeBlocks(blocks);
+    showInfoMessage('Time block updated.', 'success');
+    return { success: true };
 }
 
 async function resetTimeBlocksToDefaults() {
@@ -2012,47 +2218,101 @@ async function setupTimeBlocksModalListeners(renderPageCallback) {
         });
     }
 
+    // Close button - warn about unsaved changes
     if (timeBlocksCloseBtn) {
-        timeBlocksCloseBtn.addEventListener('click', closeTimeBlocksModal);
-    }
-
-    if (timeBlocksModal) {
-        timeBlocksModal.addEventListener('click', (e) => {
-            if (e.target === timeBlocksModal) closeTimeBlocksModal();
+        timeBlocksCloseBtn.addEventListener('click', () => {
+            if (_timeBlocksHasChanges) {
+                if (confirm('You have unsaved changes. Discard them?')) {
+                    _timeBlocksHasChanges = false;
+                    closeTimeBlocksModal();
+                }
+            } else {
+                closeTimeBlocksModal();
+            }
         });
     }
 
-    // Time blocks management
+    // Click outside modal - warn about unsaved changes
+    if (timeBlocksModal) {
+        timeBlocksModal.addEventListener('click', (e) => {
+            if (e.target === timeBlocksModal) {
+                if (_timeBlocksHasChanges) {
+                    if (confirm('You have unsaved changes. Discard them?')) {
+                        _timeBlocksHasChanges = false;
+                        closeTimeBlocksModal();
+                    }
+                } else {
+                    closeTimeBlocksModal();
+                }
+            }
+        });
+    }
+
+    // Validate & Save button
+    const validateSaveBtn = document.getElementById('validate-save-time-blocks-btn');
+    if (validateSaveBtn) {
+        validateSaveBtn.addEventListener('click', async () => {
+            validateSaveBtn.textContent = 'Validating...';
+            validateSaveBtn.disabled = true;
+            try {
+                const result = await validateAndSaveTimeBlocks();
+                if (result.success) {
+                    if (renderPageCallback) await renderPageCallback();
+                }
+            } finally {
+                validateSaveBtn.textContent = 'Validate & Save';
+                validateSaveBtn.disabled = !_timeBlocksHasChanges;
+            }
+        });
+    }
+
+    // Reset to defaults
     const resetBlocksBtn = document.getElementById('reset-time-blocks-btn');
     if (resetBlocksBtn) {
         resetBlocksBtn.addEventListener('click', async () => {
-            if (confirm('Reset all time blocks to defaults? This cannot be undone.')) {
+            if (confirm('Reset all time blocks to defaults? This will discard any unsaved changes.')) {
                 await resetTimeBlocksToDefaults();
+                _timeBlocksHasChanges = false;
                 showInfoMessage('Time blocks reset to defaults.', 'success');
-                closeTimeBlocksModal();
                 if (renderPageCallback) await renderPageCallback();
             }
         });
     }
 
+    // Add Block button - shows the form
     const addBlockBtn = document.getElementById('add-time-block-btn');
     const addBlockForm = document.getElementById('add-time-block-form');
     if (addBlockBtn && addBlockForm) {
+        // Hide form by default
+        addBlockForm.classList.add('hidden');
         addBlockBtn.addEventListener('click', () => {
             addBlockForm.classList.toggle('hidden');
         });
     }
 
+    // Cancel new block
     const cancelNewBlockBtn = document.getElementById('cancel-new-block-btn');
     if (cancelNewBlockBtn && addBlockForm) {
         cancelNewBlockBtn.addEventListener('click', () => {
             addBlockForm.classList.add('hidden');
+            // Clear form
+            const labelInput = document.getElementById('new-block-label');
+            const startInput = document.getElementById('new-block-start');
+            const endInput = document.getElementById('new-block-end');
+            const limitSelect = document.getElementById('new-block-limit');
+            const colorSelect = document.getElementById('new-block-color');
+            if (labelInput) labelInput.value = '';
+            if (startInput) startInput.value = '';
+            if (endInput) endInput.value = '';
+            if (limitSelect) limitSelect.value = 'multiple';
+            if (colorSelect) colorSelect.value = '';
         });
     }
 
+    // Add new block to working copy (not saved yet)
     const saveNewBlockBtn = document.getElementById('save-new-block-btn');
     if (saveNewBlockBtn) {
-        saveNewBlockBtn.addEventListener('click', async () => {
+        saveNewBlockBtn.addEventListener('click', () => {
             const label = document.getElementById('new-block-label')?.value.trim();
             const startTime = document.getElementById('new-block-start')?.value;
             const endTime = document.getElementById('new-block-end')?.value;
@@ -2064,22 +2324,18 @@ async function setupTimeBlocksModalListeners(renderPageCallback) {
                 return;
             }
 
-            const result = await addTimeBlock(label, startTime, endTime, limit, colorClass);
-            if (result === null) {
-                // Validation failed (overlap detected), error already shown
-                return;
-            }
+            // Add to working copy (doesn't save)
+            addTimeBlockToWorkingCopy(label, startTime, endTime, limit, colorClass);
 
+            // Hide and clear form
             if (addBlockForm) addBlockForm.classList.add('hidden');
-            // Clear form
             document.getElementById('new-block-label').value = '';
             document.getElementById('new-block-start').value = '';
             document.getElementById('new-block-end').value = '';
             document.getElementById('new-block-limit').value = 'multiple';
             document.getElementById('new-block-color').value = '';
-            showInfoMessage('Time block added!', 'success');
-            closeTimeBlocksModal();
-            if (renderPageCallback) await renderPageCallback();
+
+            showInfoMessage('Time block added. Click "Validate & Save" to save changes.', 'info');
         });
     }
 }

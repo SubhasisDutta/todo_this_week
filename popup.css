@@ -2406,6 +2406,60 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
     border-color: var(--text-muted);
 }
 
+/* Editable time inputs in time blocks table */
+.time-blocks-table .edit-block-time {
+    width: 85px;
+    padding: 4px 6px;
+    font-size: 0.9em;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    transition: border-color 0.2s, background-color 0.2s;
+    cursor: pointer;
+}
+.time-blocks-table .edit-block-time:focus {
+    border-color: var(--accent-blue);
+    background: var(--bg-primary);
+    outline: none;
+}
+.time-blocks-table .edit-block-time:hover:not(:focus) {
+    border-color: var(--text-muted);
+}
+/* Dark mode adjustments for time inputs */
+:root[data-theme="dark"] .time-blocks-table .edit-block-time {
+    color-scheme: dark;
+}
+
+/* Time blocks save status indicator */
+.time-blocks-status {
+    font-size: 0.85em;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: var(--border-radius-sm);
+}
+.time-blocks-status.unsaved {
+    color: var(--priority-critical);
+    background: rgba(239, 68, 68, 0.1);
+}
+.time-blocks-status.saved {
+    color: var(--success-text);
+    background: var(--success-bg);
+}
+
+/* Primary button style for Validate & Save */
+.primary-btn {
+    background: var(--accent-blue);
+    color: white;
+    font-weight: 600;
+}
+.primary-btn:hover:not(:disabled) {
+    filter: brightness(1.1);
+}
+.primary-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* --- FAQ Section --- */
 .faq-item {
     margin-bottom: 16px;

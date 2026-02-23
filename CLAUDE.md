@@ -162,6 +162,7 @@ Defined in `task_utils.js` as `DEFAULT_TIME_BLOCKS`. A `TIME_BLOCKS` alias is ke
 | `createRecurringInstance` | `createRecurringInstance(task)` → Task | Creates new Task with new ID, empty schedule, shifted deadline (daily +1d, weekly +7d, monthly +1mo). |
 | `parseTimeRange` | `parseTimeRange(timeStr)` → {start, end} \| null | Parses `[1PM-3PM]` format to 24-hour numbers. Returns null for invalid format. |
 | `validateTimeBlockOverlap` | `validateTimeBlockOverlap(newBlock, existingBlocks, excludeId?)` → {valid, error} | Checks if new block overlaps with existing blocks. Returns `{valid: false, error: string}` if overlap detected. |
+| `validate24HourCoverage` | `validate24HourCoverage(blocks)` → {valid, error, gaps} | Validates that time blocks cover all 24 hours. Returns gaps array with `{start, end}` for any missing coverage. Handles midnight wraparound (end=0 treated as 24). |
 | `isValidUrl` | `isValidUrl(string)` → boolean | Uses `new URL()` constructor for validation. |
 | `getOrCreateToastContainer` | `getOrCreateToastContainer(documentContext)` → HTMLElement | Creates or returns existing `#toast-container` element for toast notifications. |
 | `showInfoMessage` | `showInfoMessage(message, type, duration, documentContext)` | Creates corner toast notification. Supports 'success', 'error', 'info' types. Default duration is 5 seconds. Toast auto-dismisses and supports manual close button. |
@@ -246,8 +247,13 @@ Tab switching is handled by `setupImportExportTabs()` in settings.js. Uses `.imp
 ### Time Block Configuration
 - Time blocks are configurable via the Time Blocks modal (accessible from SCHEDULE tab)
 - Inline label editing: click on any block label to rename it directly in the table
+- Inline time editing: start and end times can be edited via HTML5 time inputs in the table
+- 24-hour coverage validation: `validate24HourCoverage()` ensures all time blocks cover the full day without gaps
+- Time changes and deletions are rejected if they would create gaps in coverage, with error messages indicating missing hours
 - Overlap detection: `validateTimeBlockOverlap()` prevents creating blocks with overlapping time ranges
 - `parseTimeRange()` converts `[1PM-3PM]` format to 24-hour numbers for comparison
+- `parseTimeToInputFormat()` converts `[1PM-3PM]` to `{startTime: "13:00", endTime: "15:00"}` for HTML time inputs
+- `formatTimeDisplay()` converts 24-hour times back to display format `[1PM-3PM]`
 - `formatTimeInput()` converts 24-hour time input (e.g., "13:00") to display format (e.g., "1PM")
 
 ### Help Modal FAQ
@@ -526,12 +532,12 @@ This makes all listed symbols available as globals in the test scope.
 
 The `loadScript` regex also handles `async function` DOMContentLoaded handlers (needed because manager.js and popup.js DOMContentLoaded handlers are now `async`).
 
-### Test Suites (~425 total)
-- **task_utils.test.js (~95):** Task class (new fields including lastModified, colorCode, and 10 v1.7.0 attributes), getTasks backfill (including energy migration 'low'→'Low'), CRUD, settings CRUD, time blocks, undo/redo stacks, createRecurringInstance, seedSampleTasks, toast notifications (showInfoMessage), validateTask, debounce, withTaskLock, parseTimeRange, validateTimeBlockOverlap, ATTRIBUTE_OPTIONS, DEFAULT_ENABLED_ATTRIBUTES
+### Test Suites (~448 total)
+- **task_utils.test.js (~104):** Task class (new fields including lastModified, colorCode, and 10 v1.7.0 attributes), getTasks backfill (including energy migration 'low'→'Low'), CRUD, settings CRUD, time blocks, undo/redo stacks, createRecurringInstance, seedSampleTasks, toast notifications (showInfoMessage), validateTask, debounce, withTaskLock, parseTimeRange, validateTimeBlockOverlap, validate24HourCoverage (gap detection, full coverage, invalid format), ATTRIBUTE_OPTIONS, DEFAULT_ENABLED_ATTRIBUTES
 - **popup.test.js (~17):** createTaskItem (notes, recurrence), renderTasks, renderAllTabs, tab switching, add-task validation, open-manager button
 - **manager.test.js (~122):** generateDayHeaders/generatePlannerGrid (now async), createTaskElement (notes/recurrence badges), renderSidebarLists, Groups tab (calculateAttributeDistribution, createBentoBox, renderGroupsTab), renderArchiveTab (with lastModified sorting), renderStatsTab, applySearchFilter, setupTabSwitching, renderPage, highlightCurrentDay, setupAddTaskModalListeners, header tooltips, FAQ tab, collapsible parking lot, drag guide lines, hover popover, current time indicator
 - **integration.test.js (~18):** Task lifecycle (with energy capitalization), schedule management, cascade completion, ordering, import/merge, validation, cross-tab sync, recurring tasks (auto-instance creation), undo/redo lifecycle
-- **settings.test.js (~47):** applySettings (theme, font-family, font-size CSS vars), initSettings (first-run seeding), populateSettingsForm, openSettingsModal/closeSettingsModal, FONT_FAMILY_MAP/FONT_SIZE_MAP constants, formatTimeInput, updateTimeBlockLabel, addTimeBlock overlap validation, renderTimeBlocksTable, settings auto-save, getEnabledAttributes, notionPageToTask (new attribute extraction), normalizeSheetRow (CSV attribute parsing)
+- **settings.test.js (~61):** applySettings (theme, font-family, font-size CSS vars), initSettings (first-run seeding), populateSettingsForm, openSettingsModal/closeSettingsModal, FONT_FAMILY_MAP/FONT_SIZE_MAP constants, formatTimeInput, parseTimeToInputFormat, formatTimeDisplay, updateTimeBlockLabel, updateTimeBlockTime (with 24-hour validation), deleteTimeBlock (with 24-hour validation), addTimeBlock overlap validation, renderTimeBlocksTable, settings auto-save, getEnabledAttributes, notionPageToTask (new attribute extraction), normalizeSheetRow (CSV attribute parsing)
 - **features.test.js (~35):** Notes field (CRUD, backfill), completedAt (set on complete, clear on uncomplete, backfill), lastModified field (auto-set, update on modify, backfill), undo/redo cycle, createRecurringInstance (daily/weekly/monthly deadline shift, fresh lastModified), recurring auto-instance via updateTask, archive date grouping
 - **search.test.js (~17):** applySearchFilter (hide non-matching, show all for empty query, case insensitive, multi-container, partial match, grid cell filtering), setupScheduleSearch, setupArchiveSearch, setupGroupsDrilldownSearch
 - **schedule-features.test.js (~91):** v1.5.0 schedule enhancements: context menu (creation, actions, visibility), task actions (duplicate, color code, split), magic fill (gap detection, today only), buffer zones (back-to-back detection), focus mode (toggle, highlight current), fluid resizing (handle creation, span blocks), time tracking (start/stop, deviation calculation), task details modal (open/close, populate)

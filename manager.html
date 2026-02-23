@@ -1267,11 +1267,14 @@
 
             <section class="settings-section">
                 <p style="font-size:0.82em; color:var(--text-muted); margin:0 0 10px;">Configure the time blocks in your
-                    weekly planner grid. Changes will be reflected immediately in the Schedule tab.</p>
+                    weekly planner grid. Edit times and labels below, then click "Validate & Save" to apply changes.</p>
                 <div id="time-blocks-table-container"></div>
-                <div class="buttons-container" style="margin-top:10px; gap:8px;">
-                    <button id="reset-time-blocks-btn" class="neumorphic-btn">↩️ Reset to Defaults</button>
+                <div class="time-blocks-actions" style="margin-top:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                    <button id="validate-save-time-blocks-btn" class="neumorphic-btn primary-btn" disabled>✓ Validate & Save</button>
+                    <span id="time-blocks-save-status" class="time-blocks-status"></span>
+                    <div style="flex:1;"></div>
                     <button id="add-time-block-btn" class="neumorphic-btn">➕ Add Block</button>
+                    <button id="reset-time-blocks-btn" class="neumorphic-btn">↩️ Reset</button>
                 </div>
                 <div id="add-time-block-form" class="hidden"
                     style="margin-top:14px; padding:14px; background:var(--inset-bg); border-radius:var(--border-radius-md);">

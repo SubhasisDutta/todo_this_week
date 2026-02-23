@@ -15,7 +15,7 @@ loadScript(path.join(__dirname, '..', 'task_utils.js'), [
     'getTimeBlocks', 'saveTimeBlocks',
     'pushUndoState', 'undo', 'redo',
     'createRecurringInstance',
-    'parseTimeRange', 'validateTimeBlockOverlap'
+    'parseTimeRange', 'validateTimeBlockOverlap', 'validate24HourCoverage'
 ]);
 
 beforeEach(() => {
@@ -796,6 +796,103 @@ describe('validateTimeBlockOverlap', () => {
         const result = validateTimeBlockOverlap(newBlock, existingBlocks);
         expect(result.valid).toBe(false);
         expect(result.error).toContain('Invalid time format');
+    });
+});
+
+describe('validate24HourCoverage', () => {
+    test('validates full 24-hour coverage', () => {
+        const blocks = [
+            { id: '1', label: 'Night', time: '[12AM-7AM]' },
+            { id: '2', label: 'Morning', time: '[7AM-12PM]' },
+            { id: '3', label: 'Afternoon', time: '[12PM-6PM]' },
+            { id: '4', label: 'Evening', time: '[6PM-12AM]' }
+        ];
+        const result = validate24HourCoverage(blocks);
+        expect(result.valid).toBe(true);
+        expect(result.error).toBeNull();
+        expect(result.gaps).toBeNull();
+    });
+
+    test('detects gap at the beginning of the day', () => {
+        const blocks = [
+            { id: '1', label: 'Morning', time: '[7AM-12PM]' },
+            { id: '2', label: 'Rest', time: '[12PM-12AM]' }
+        ];
+        const result = validate24HourCoverage(blocks);
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('Missing coverage');
+        expect(result.error).toContain('12AM-7AM');
+        expect(result.gaps).toEqual([{ start: 0, end: 7 }]);
+    });
+
+    test('detects gap in the middle of the day', () => {
+        const blocks = [
+            { id: '1', label: 'Night', time: '[12AM-9AM]' },
+            { id: '2', label: 'Afternoon', time: '[1PM-12AM]' }
+        ];
+        const result = validate24HourCoverage(blocks);
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('Missing coverage');
+        expect(result.error).toContain('9AM-1PM');
+        expect(result.gaps).toEqual([{ start: 9, end: 13 }]);
+    });
+
+    test('detects gap at the end of the day', () => {
+        const blocks = [
+            { id: '1', label: 'Day', time: '[12AM-10PM]' }
+        ];
+        const result = validate24HourCoverage(blocks);
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('Missing coverage');
+        expect(result.error).toContain('10PM-12AM');
+        expect(result.gaps).toEqual([{ start: 22, end: 24 }]);
+    });
+
+    test('detects multiple gaps', () => {
+        const blocks = [
+            { id: '1', label: 'Morning', time: '[8AM-10AM]' },
+            { id: '2', label: 'Evening', time: '[6PM-8PM]' }
+        ];
+        const result = validate24HourCoverage(blocks);
+        expect(result.valid).toBe(false);
+        expect(result.gaps.length).toBe(3);
+        expect(result.gaps).toContainEqual({ start: 0, end: 8 });
+        expect(result.gaps).toContainEqual({ start: 10, end: 18 });
+        expect(result.gaps).toContainEqual({ start: 20, end: 24 });
+    });
+
+    test('returns error for empty blocks array', () => {
+        const result = validate24HourCoverage([]);
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('No time blocks defined');
+    });
+
+    test('returns error for invalid time format in block', () => {
+        const blocks = [
+            { id: '1', label: 'Bad Block', time: 'invalid' }
+        ];
+        const result = validate24HourCoverage(blocks);
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('Invalid time format');
+    });
+
+    test('detects gap in DEFAULT_TIME_BLOCKS (11PM-12AM missing)', () => {
+        // DEFAULT_TIME_BLOCKS ends at 11PM, missing 11PM-12AM
+        const result = validate24HourCoverage(DEFAULT_TIME_BLOCKS);
+        expect(result.valid).toBe(false);
+        expect(result.error).toContain('11PM-12AM');
+        expect(result.gaps).toEqual([{ start: 23, end: 24 }]);
+    });
+
+    test('handles overlapping blocks (still covers time)', () => {
+        // Overlapping blocks still provide coverage
+        const blocks = [
+            { id: '1', label: 'Block1', time: '[12AM-12PM]' },
+            { id: '2', label: 'Block2', time: '[8AM-8PM]' },
+            { id: '3', label: 'Block3', time: '[4PM-12AM]' }
+        ];
+        const result = validate24HourCoverage(blocks);
+        expect(result.valid).toBe(true);
     });
 });
 

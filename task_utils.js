@@ -727,6 +727,77 @@ function validateTimeBlockOverlap(newBlock, existingBlocks, excludeId = null) {
     return { valid: true, error: null };
 }
 
+/**
+ * Validate that time blocks cover all 24 hours of the day without gaps.
+ * @param {Array} blocks - Array of time block objects with 'time' property in "[1PM-3PM]" format
+ * @returns {Object} { valid: boolean, error: string|null, gaps: Array<{start, end}>|null }
+ */
+function validate24HourCoverage(blocks) {
+    if (!blocks || blocks.length === 0) {
+        return { valid: false, error: 'No time blocks defined. The day must be fully covered (24 hours).', gaps: [{ start: 0, end: 24 }] };
+    }
+
+    // Parse all time ranges
+    const ranges = [];
+    for (const block of blocks) {
+        const range = parseTimeRange(block.time);
+        if (!range) {
+            return { valid: false, error: `Invalid time format for block "${block.label}".`, gaps: null };
+        }
+        // Convert end=0 (12AM) to end=24 when it represents end of day
+        // This happens when a block spans to midnight, e.g., [10PM-12AM] -> {start: 22, end: 0}
+        // For coverage calculation, we need end=24 to represent end of day
+        let end = range.end;
+        if (end === 0 && range.start > 0) {
+            end = 24;
+        }
+        ranges.push({ start: range.start, end: end, label: block.label });
+    }
+
+    // Sort by start time
+    ranges.sort((a, b) => a.start - b.start);
+
+    // Find gaps
+    const gaps = [];
+    let coveredUntil = 0;
+
+    for (const range of ranges) {
+        if (range.start > coveredUntil) {
+            // Gap found
+            gaps.push({ start: coveredUntil, end: range.start });
+        }
+        // Extend coverage (handle overlapping blocks)
+        if (range.end > coveredUntil) {
+            coveredUntil = range.end;
+        }
+    }
+
+    // Check if we covered until midnight (24)
+    if (coveredUntil < 24) {
+        gaps.push({ start: coveredUntil, end: 24 });
+    }
+
+    if (gaps.length > 0) {
+        // Format gap times for error message
+        const formatHour = (h) => {
+            if (h === 0 || h === 24) return '12AM';
+            if (h === 12) return '12PM';
+            return h < 12 ? `${h}AM` : `${h - 12}PM`;
+        };
+
+        const gapStrings = gaps.map(g => `${formatHour(g.start)}-${formatHour(g.end)}`);
+        const gapList = gapStrings.join(', ');
+
+        return {
+            valid: false,
+            error: `Time blocks must cover all 24 hours. Missing coverage: ${gapList}. Please adjust the time blocks to fill the gaps.`,
+            gaps
+        };
+    }
+
+    return { valid: true, error: null, gaps: null };
+}
+
 // --- Debounce Utility ---
 function debounce(fn, delay) {
     let timeoutId;
