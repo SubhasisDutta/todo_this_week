@@ -13,7 +13,8 @@ loadScript(path.join(__dirname, '..', 'task_utils.js'), [
     'getTimeBlocks', 'saveTimeBlocks',
     'pushUndoState', 'undo', 'redo',
     'createRecurringInstance',
-    'parseTimeRange', 'validateTimeBlockOverlap', 'validate24HourCoverage'
+    'parseTimeRange', 'validateTimeBlockOverlap', 'validate24HourCoverage',
+    'deriveCompletedFromStatus', 'deriveStatusFromCompleted'
 ]);
 
 // Load settings.js
@@ -33,7 +34,8 @@ loadScript(path.join(__dirname, '..', 'settings.js'), [
     'formatTimeInput', 'addTimeBlock', 'updateTimeBlockLabel', 'updateTimeBlockTime', 'deleteTimeBlock',
     'parseTimeToInputFormat', 'formatTimeDisplay',
     'addTimeBlockToWorkingCopy', 'validateAndSaveTimeBlocks', 'markTimeBlocksUnsaved', 'markTimeBlocksSaved',
-    'notionPageToTask', 'normalizeSheetRow', 'getEnabledAttributes'
+    'notionPageToTask', 'normalizeSheetRow', 'getEnabledAttributes',
+    'autoMapSelectValues'
 ]);
 
 // Minimal DOM setup for settings tests
@@ -879,5 +881,73 @@ describe('getEnabledAttributes', () => {
         expect(enabled.type).toBe(false);
         expect(enabled.status).toBe(true);
         expect(enabled.impact).toBe(true);
+    });
+});
+
+describe('autoMapSelectValues', () => {
+    test('maps exact case-insensitive matches', () => {
+        const local = ['CRITICAL', 'IMPORTANT', 'SOMEDAY'];
+        const notion = ['Critical', 'Important', 'Someday'];
+
+        const result = autoMapSelectValues(local, notion);
+
+        expect(result).toEqual({
+            'CRITICAL': 'Critical',
+            'IMPORTANT': 'Important',
+            'SOMEDAY': 'Someday'
+        });
+    });
+
+    test('handles exact matches (same case)', () => {
+        const local = ['inbox', 'done'];
+        const notion = ['inbox', 'done', 'other'];
+
+        const result = autoMapSelectValues(local, notion);
+
+        expect(result).toEqual({
+            'inbox': 'inbox',
+            'done': 'done'
+        });
+    });
+
+    test('skips unmatched values', () => {
+        const local = ['home', 'work'];
+        const notion = ['Home', 'Office'];
+
+        const result = autoMapSelectValues(local, notion);
+
+        expect(result).toEqual({
+            'home': 'Home'
+            // 'work' has no match (Office != work)
+        });
+    });
+
+    test('returns empty object when no matches', () => {
+        const local = ['foo', 'bar'];
+        const notion = ['baz', 'qux'];
+
+        const result = autoMapSelectValues(local, notion);
+
+        expect(result).toEqual({});
+    });
+
+    test('handles empty arrays', () => {
+        expect(autoMapSelectValues([], ['a', 'b'])).toEqual({});
+        expect(autoMapSelectValues(['a', 'b'], [])).toEqual({});
+        expect(autoMapSelectValues([], [])).toEqual({});
+    });
+
+    test('maps status values correctly', () => {
+        const local = ['inbox', 'in-progress', 'done', 'archive'];
+        const notion = ['Inbox', 'In-Progress', 'Done', 'Archive'];
+
+        const result = autoMapSelectValues(local, notion);
+
+        expect(result).toEqual({
+            'inbox': 'Inbox',
+            'in-progress': 'In-Progress',
+            'done': 'Done',
+            'archive': 'Archive'
+        });
     });
 });

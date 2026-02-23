@@ -43,7 +43,11 @@ const DEFAULT_SETTINGS = {
         priority: { CRITICAL: '', IMPORTANT: '', SOMEDAY: '' },
         type: { home: '', work: '' },
         energy: { low: '', high: '' },
-        status: { completed: '', incomplete: '' }
+        status: {
+            'inbox': '', 'breakdown': '', 'stretch': '', 'ready': '', 'next-action': '', 'blocked': '',
+            'in-progress': '', 'influence': '', 'monitor': '', 'delegate': '',
+            'done': '', 'archive': ''
+        }
     },
     notionLastSyncedAt: null,
     notionSyncEnabled: false,
@@ -318,6 +322,24 @@ function getTasks(callback) {
                     taskInstance.status = 'inbox';
                     needsSave = true;
                 }
+
+                // --- Status-Completed Synchronization Migration ---
+                // Ensure status and completed are in sync
+                const statusImpliesCompleted = deriveCompletedFromStatus(taskInstance.status);
+                if (taskInstance.completed && !statusImpliesCompleted) {
+                    // Task was marked completed but status is not a completion status
+                    // Set status to 'done' to match
+                    taskInstance.status = 'done';
+                    needsSave = true;
+                } else if (!taskInstance.completed && statusImpliesCompleted) {
+                    // Status implies completion but completed is false
+                    // Sync completed flag
+                    taskInstance.completed = true;
+                    if (!taskInstance.completedAt) {
+                        taskInstance.completedAt = new Date().toISOString();
+                    }
+                    needsSave = true;
+                }
                 if (typeof taskInstance.impact === 'undefined') {
                     taskInstance.impact = 'TBD';
                     needsSave = true;
@@ -451,13 +473,46 @@ async function getTaskById(taskId) {
     });
 }
 
+// --- Status-Completion Synchronization Helpers ---
+
+/**
+ * Derive the completed boolean from the status field.
+ * Returns true if status is 'done' or 'archive' (completion states).
+ * @param {string} status - The task status value
+ * @returns {boolean}
+ */
+function deriveCompletedFromStatus(status) {
+    return ['done', 'archive'].includes(status);
+}
+
+/**
+ * Derive the status from the completed checkbox state.
+ * @param {boolean} completed - Whether the checkbox is checked
+ * @param {string} currentStatus - The current status value (preserves 'archive' if already set)
+ * @returns {string} - The new status value
+ */
+function deriveStatusFromCompleted(completed, currentStatus = 'inbox') {
+    if (completed) {
+        // If checking the box, preserve 'archive' status, otherwise set to 'done'
+        return currentStatus === 'archive' ? 'archive' : 'done';
+    }
+    // If unchecking, reset to inbox
+    return 'inbox';
+}
+
 // --- New utility function to update parent task completion status ---
 function updateTaskCompletion(task) {
+    // Handle cascade completion from schedule items
     if (task.schedule && task.schedule.length > 0) {
         const allAssignmentsCompleted = task.schedule.every(item => item.completed);
-        task.completed = allAssignmentsCompleted;
+        if (allAssignmentsCompleted && !deriveCompletedFromStatus(task.status)) {
+            // All schedule items completed, mark task as done
+            task.status = 'done';
+        }
     }
-    // If there is no schedule, task.completed is managed directly by its own checkbox.
+
+    // Always sync completed flag from status
+    task.completed = deriveCompletedFromStatus(task.status);
 }
 
 // Function to create the next recurring instance of a task
@@ -507,7 +562,7 @@ function createRecurringInstance(task) {
         null,        // lastModified = null (will be auto-set by constructor)
         null,        // colorCode
         // --- Copy attribute fields ---
-        task.status || 'inbox',
+        'inbox',     // Always reset status to inbox for recurring instances
         task.impact || 'TBD',
         task.value || 'TBD',
         task.complexity || 'TBD',

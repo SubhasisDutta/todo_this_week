@@ -14,7 +14,8 @@ loadScript(path.join(__dirname, '..', 'task_utils.js'), [
     'getTimeBlocks', 'saveTimeBlocks',
     'pushUndoState', 'undo', 'redo',
     'createRecurringInstance',
-    'parseTimeRange'
+    'parseTimeRange',
+    'deriveCompletedFromStatus', 'deriveStatusFromCompleted'
 ]);
 
 // Load settings.js (dependency of manager.js)
@@ -348,8 +349,9 @@ describe('createTaskElement', () => {
         expect(el.classList.contains('priority-CRITICAL')).toBe(true);
     });
 
-    test('adds completed class', () => {
-        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: true, type: 'home', energy: 'Low', schedule: [], notes: '', recurrence: null };
+    test('adds completed class when status is done', () => {
+        // Note: completion is now derived from status field, not completed boolean
+        const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: true, status: 'done', type: 'home', energy: 'Low', schedule: [], notes: '', recurrence: null };
         const el = createTaskElement(task);
         expect(el.classList.contains('task-completed')).toBe(true);
     });

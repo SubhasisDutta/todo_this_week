@@ -12,7 +12,8 @@ loadScript(path.join(__dirname, '..', 'task_utils.js'), [
     'getSettings', 'saveSettings', 'seedSampleTasks',
     'getTimeBlocks', 'saveTimeBlocks',
     'pushUndoState', 'undo', 'redo',
-    'createRecurringInstance'
+    'createRecurringInstance',
+    'deriveCompletedFromStatus', 'deriveStatusFromCompleted'
 ]);
 
 // Load settings.js (dependency of popup.js — provides initSettings)
@@ -102,8 +103,9 @@ describe('createTaskItem', () => {
         expect(el.classList.contains('priority-CRITICAL')).toBe(true);
     });
 
-    test('applies completed styling', () => {
-        const task = { id: 'task1', title: 'Done Task', priority: 'SOMEDAY', completed: true, energy: 'Low', schedule: [] };
+    test('applies completed styling when status is done', () => {
+        // Note: completion is now derived from status field, not completed boolean
+        const task = { id: 'task1', title: 'Done Task', priority: 'SOMEDAY', completed: true, status: 'done', energy: 'Low', schedule: [] };
         const el = createTaskItem(task);
         expect(el.classList.contains('task-completed')).toBe(true);
     });

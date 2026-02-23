@@ -163,6 +163,8 @@ function setupSchedulingListeners() {
                 pushUndoState(tasks);
                 const task = await getTaskById(taskId);
                 if (task) {
+                    // Update status based on checkbox state
+                    task.status = deriveStatusFromCompleted(isCompleted, task.status);
                     task.completed = isCompleted;
                     if (task.schedule && task.schedule.length > 0) {
                         task.schedule.forEach(item => item.completed = isCompleted);
@@ -738,6 +740,8 @@ function setupGroupsDrilldownTaskListeners() {
                 pushUndoState(tasks);
                 const task = await getTaskById(taskId);
                 if (task) {
+                    // Update status based on checkbox state
+                    task.status = deriveStatusFromCompleted(isCompleted, task.status);
                     task.completed = isCompleted;
                     if (task.schedule && task.schedule.length > 0) {
                         task.schedule.forEach(item => item.completed = isCompleted);
@@ -940,7 +944,8 @@ async function renderArchiveTab() {
     if (!container) return;
 
     const tasks = await getTasksAsync();
-    const completedTasks = tasks.filter(t => t.completed);
+    // Filter by status: 'done' or 'archive' are completion states
+    const completedTasks = tasks.filter(t => t.status === 'done' || t.status === 'archive');
 
     if (completedTasks.length === 0) {
         container.innerHTML = '<p class="archive-empty-msg">No completed tasks yet. Complete some tasks and they\'ll appear here!</p>';
@@ -1030,6 +1035,8 @@ function setupArchiveListeners() {
                 if (task) {
                     const tasks = await getTasksAsync();
                     pushUndoState(tasks);
+                    // Reset status to inbox when restoring
+                    task.status = 'inbox';
                     task.completed = false;
                     task.completedAt = null;
                     await updateTask(task);
@@ -1054,7 +1061,8 @@ function setupArchiveListeners() {
     if (clearAllBtn) {
         clearAllBtn.addEventListener('click', async () => {
             const tasks = await getTasksAsync();
-            const completedCount = tasks.filter(t => t.completed).length;
+            // Filter by status: 'done' or 'archive' are completion states
+            const completedCount = tasks.filter(t => t.status === 'done' || t.status === 'archive').length;
             if (completedCount === 0) {
                 showInfoMessage('No completed tasks to clear.', 'info');
                 return;
@@ -1062,7 +1070,7 @@ function setupArchiveListeners() {
             if (!confirm(`Are you sure you want to permanently delete all ${completedCount} completed tasks? This cannot be undone.`)) return;
 
             pushUndoState(tasks);
-            const activeTasks = tasks.filter(t => !t.completed);
+            const activeTasks = tasks.filter(t => t.status !== 'done' && t.status !== 'archive');
             await saveTasksAsync(activeTasks);
             showInfoMessage(`Cleared ${completedCount} completed tasks.`, 'success');
             await renderPage();
@@ -1999,7 +2007,9 @@ function createTaskElement(task, options = {}) {
 
     const taskItem = document.createElement('div');
     taskItem.classList.add('task-item', `priority-${task.priority}`);
-    if (task.completed) {
+    // Derive completion state from status
+    const isCompleted = deriveCompletedFromStatus(task.status);
+    if (isCompleted) {
         taskItem.classList.add('task-completed');
     } else {
         if (task.energy === 'Low') taskItem.classList.add('energy-low-incomplete');
@@ -2016,7 +2026,7 @@ function createTaskElement(task, options = {}) {
     if (context === 'management' || context === 'sidebar') {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
-        checkbox.checked = task.completed;
+        checkbox.checked = isCompleted;
         checkbox.classList.add('task-complete-checkbox');
         const checkboxId = `checkbox-${context}-${task.id.replace(/[^a-zA-Z0-9-_]/g, '')}`;
         checkbox.id = checkboxId;
@@ -2544,11 +2554,46 @@ async function openAddTaskModalForEdit(taskId) {
 
     // Setup form visibility and open modal
     await setupAddTaskFormVisibility();
+
+    // Expand details sections that have non-default values when editing
+    expandEditSectionsWithValues(task);
+
     const addTaskModal = document.getElementById('add-task-modal');
     if (addTaskModal) addTaskModal.classList.remove('hidden');
 
     // Setup auto-save for edit mode
     setupEditModeAutoSave();
+}
+
+// Expand details sections that have non-default values when editing
+function expandEditSectionsWithValues(task) {
+    // Planning section - expand if any planning attributes have non-default values
+    const planningSection = document.getElementById('planning-attrs-section');
+    if (planningSection) {
+        const hasPlanningValues = (
+            (task.status && task.status !== 'inbox') ||
+            (task.impact && task.impact !== 'TBD') ||
+            (task.value && task.value !== 'TBD') ||
+            (task.complexity && task.complexity !== 'TBD') ||
+            (task.action && task.action !== 'TBD')
+        );
+        if (hasPlanningValues) {
+            planningSection.open = true;
+        }
+    }
+
+    // Time & Scheduling section - expand if any time attributes have non-default values
+    const timeSection = document.getElementById('time-attrs-section');
+    if (timeSection) {
+        const hasTimeValues = (
+            (task.estimates && task.estimates !== 'Unknown') ||
+            (task.interval && (task.interval.startDate || task.interval.endDate || task.interval.start || task.interval.end)) ||
+            task.recurrence
+        );
+        if (hasTimeValues) {
+            timeSection.open = true;
+        }
+    }
 }
 
 // Auto-save debounce timer reference
@@ -2740,6 +2785,8 @@ function setupDisplayAreaListeners() {
                     pushUndoState(tasks);
                     const task = await getTaskById(taskId);
                     if (task) {
+                        // Update status based on checkbox state
+                        task.status = deriveStatusFromCompleted(isCompleted, task.status);
                         task.completed = isCompleted;
                         if (task.schedule && task.schedule.length > 0) {
                             task.schedule.forEach(item => item.completed = isCompleted);
@@ -2846,7 +2893,7 @@ function setupDisplayAreaListeners() {
                             </select>
                         </div>
                         <div class="form-group-inline"><label>Notes:</label><textarea class="neumorphic-input edit-task-notes" rows="3">${(task.notes || '').replace(/</g, '&lt;')}</textarea></div>
-                        <div class="form-group-inline form-group-inline-checkbox"><label for="edit-task-completed-${safeId}">Completed:</label><input type="checkbox" id="edit-task-completed-${safeId}" class="edit-task-completed" ${task.completed ? 'checked' : ''} style="width: auto; margin-right: 5px;"></div>
+                        <div class="form-group-inline form-group-inline-checkbox"><label for="edit-task-completed-${safeId}">Completed:</label><input type="checkbox" id="edit-task-completed-${safeId}" class="edit-task-completed" ${deriveCompletedFromStatus(task.status) ? 'checked' : ''} style="width: auto; margin-right: 5px;"></div>
                         <div class="inline-edit-actions"><span class="save-status"></span><button class="neumorphic-btn save-inline-btn">Save</button><button class="neumorphic-btn cancel-inline-btn">Cancel</button></div>
                     </div>`;
                 taskItem.insertAdjacentHTML('beforeend', formHtml);
@@ -2882,7 +2929,10 @@ function setupDisplayAreaListeners() {
                     updatedTask.deadline = dl;
                     updatedTask.type = taskItem.querySelector(`input[name^="edit-type-"]:checked`).value;
                     updatedTask.energy = taskItem.querySelector(`input[name^="edit-energy-"]:checked`).value;
-                    updatedTask.completed = taskItem.querySelector('.edit-task-completed').checked;
+                    const isCompleted = taskItem.querySelector('.edit-task-completed').checked;
+                    // Derive status from checkbox state
+                    updatedTask.status = deriveStatusFromCompleted(isCompleted, updatedTask.status);
+                    updatedTask.completed = isCompleted;
                     updatedTask.notes = taskItem.querySelector('.edit-task-notes').value;
                     updatedTask.recurrence = taskItem.querySelector('.edit-task-recurrence').value || null;
                     return updatedTask;

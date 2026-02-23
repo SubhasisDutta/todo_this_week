@@ -717,6 +717,28 @@ function extractPropertiesFromSchema(schema) {
 }
 
 /**
+ * Auto-map Notion select values to local values (case-insensitive match)
+ * @param {Array<string>} localOptions - Local option values
+ * @param {Array<string>} notionOptions - Notion option values from schema
+ * @returns {Object} - Mapping object { localValue: notionValue }
+ */
+function autoMapSelectValues(localOptions, notionOptions) {
+    const mappings = {};
+
+    localOptions.forEach(localVal => {
+        // Find case-insensitive match in Notion options
+        const match = notionOptions.find(
+            notionVal => notionVal.toLowerCase() === localVal.toLowerCase()
+        );
+        if (match) {
+            mappings[localVal] = match;
+        }
+    });
+
+    return mappings;
+}
+
+/**
  * Render column mapping dropdowns based on fetched schema
  */
 function renderColumnMappingUI(schema, savedMapping = null) {
@@ -792,7 +814,7 @@ function renderValueMappingUI(field, notionOptions, savedMappings = null) {
         priority: ['CRITICAL', 'IMPORTANT', 'SOMEDAY'],
         type: ['home', 'work'],
         energy: ['TBD', 'Low', 'Medium', 'High'],
-        status: ['completed', 'incomplete'],
+        status: ['inbox', 'breakdown', 'stretch', 'ready', 'next-action', 'blocked', 'in-progress', 'influence', 'monitor', 'delegate', 'done', 'archive'],
         impact: ['TBD', 'LOW', 'Medium', 'High'],
         value: ['TBD', 'BUILD', 'LEARN'],
         complexity: ['TBD', 'JUST DO IT', 'Trivial', 'Simple & Clear', 'Multiple Steps', 'Dependent/Risk', 'Unknown/Broad'],
@@ -803,13 +825,19 @@ function renderValueMappingUI(field, notionOptions, savedMappings = null) {
     const values = localValues[field];
     if (!values) return;
 
+    // Auto-map if no saved mappings exist or all are empty
+    let effectiveMappings = savedMappings;
+    if (!savedMappings || Object.values(savedMappings).every(v => !v)) {
+        effectiveMappings = autoMapSelectValues(values, notionOptions);
+    }
+
     container.innerHTML = values.map(val => `
         <div class="value-mapping-row">
             <label>${val}</label>
             <select class="neumorphic-input" id="notion-value-${field}-${val}">
                 <option value="">-- Select --</option>
                 ${notionOptions.map(opt => `
-                    <option value="${opt}" ${savedMappings?.[val] === opt ? 'selected' : ''}>
+                    <option value="${opt}" ${effectiveMappings?.[val] === opt ? 'selected' : ''}>
                         ${opt}
                     </option>
                 `).join('')}
@@ -839,7 +867,7 @@ function collectColumnMappingConfig() {
                 priority: ['CRITICAL', 'IMPORTANT', 'SOMEDAY'],
                 type: ['home', 'work'],
                 energy: ['Low', 'High'],
-                status: ['completed', 'incomplete'],
+                status: ['inbox', 'breakdown', 'stretch', 'ready', 'next-action', 'blocked', 'in-progress', 'influence', 'monitor', 'delegate', 'done', 'archive'],
                 impact: ['TBD', 'LOW', 'Medium', 'High'],
                 value: ['TBD', 'BUILD', 'LEARN'],
                 complexity: ['TBD', 'JUST DO IT', 'Trivial', 'Simple & Clear', 'Multiple Steps', 'Dependent/Risk', 'Unknown/Broad'],
@@ -938,15 +966,20 @@ function notionPageToTask(page, mapping, valueMappings) {
         energy = reverseMapValue(propVal, valueMappings.energy) || 'TBD';
     }
 
-    // Extract completed status
+    // Extract status
+    let status = 'inbox';
     let completed = false;
     if (mapping.status && props[mapping.status]) {
         const prop = props[mapping.status];
         if (prop.type === 'checkbox') {
+            // Checkbox type: map to done/inbox
             completed = prop.checkbox === true;
+            status = completed ? 'done' : 'inbox';
         } else {
             const propVal = extractPropertyValue(prop);
-            completed = reverseMapValue(propVal, valueMappings.status) === 'completed';
+            status = reverseMapValue(propVal, valueMappings.status) || 'inbox';
+            // Derive completed from status using same logic as task_utils.js
+            completed = ['done', 'archive'].includes(status);
         }
     }
 
@@ -1025,6 +1058,7 @@ function notionPageToTask(page, mapping, valueMappings) {
         url,
         priority,
         completed,
+        status,
         deadline,
         type,
         energy,
@@ -1053,20 +1087,21 @@ function taskToNotionProperties(task, mapping, valueMappings) {
         };
     }
 
-    // Status/Completed
+    // Status
     if (mapping.status) {
-        const statusName = task.completed
-            ? valueMappings.status?.completed
-            : valueMappings.status?.incomplete;
-        if (statusName) {
-            // Determine property type from schema
-            const propDef = _notionDatabaseSchema?.properties?.[mapping.status];
-            if (propDef?.type === 'checkbox') {
-                properties[mapping.status] = { checkbox: task.completed };
-            } else if (propDef?.type === 'status') {
-                properties[mapping.status] = { status: { name: statusName } };
-            } else {
-                properties[mapping.status] = { select: { name: statusName } };
+        const propDef = _notionDatabaseSchema?.properties?.[mapping.status];
+        if (propDef?.type === 'checkbox') {
+            // Checkbox type: map completed states to true
+            properties[mapping.status] = { checkbox: ['done', 'archive'].includes(task.status) };
+        } else {
+            // Select/status type: use the mapped value for the task's status
+            const statusName = valueMappings.status?.[task.status];
+            if (statusName) {
+                if (propDef?.type === 'status') {
+                    properties[mapping.status] = { status: { name: statusName } };
+                } else {
+                    properties[mapping.status] = { select: { name: statusName } };
+                }
             }
         }
     }
@@ -1285,23 +1320,44 @@ async function performNotionSync(renderPageCallback) {
             const notionData = notionPageToTask(page, notionColumnMapping, notionValueMappings);
 
             if (localTask) {
-                // Task exists locally - check for changes
-                const notionCompleted = notionData.completed;
-                const localCompleted = localTask.completed;
+                // Task exists locally - check for changes and update all attributes from Notion
+                const fieldsToSync = [
+                    'title', 'priority', 'type', 'energy', 'status', 'completed',
+                    'deadline', 'notes', 'url', 'impact', 'value', 'complexity',
+                    'action', 'estimates'
+                ];
 
-                if (notionCompleted !== localCompleted) {
-                    // Conflict: Notion wins for completion status
-                    syncActions.push({
-                        type: 'update-local',
-                        taskId: localTask.id,
-                        field: 'completed',
-                        from: localCompleted,
-                        to: notionCompleted,
-                        title: localTask.title
-                    });
-                    localTask.completed = notionCompleted;
-                    localTask.completedAt = notionCompleted ? new Date().toISOString() : null;
-                    tasksModified = true;
+                for (const field of fieldsToSync) {
+                    const notionValue = notionData[field];
+                    const localValue = localTask[field];
+
+                    if (notionValue !== undefined && notionValue !== localValue) {
+                        syncActions.push({
+                            type: 'update-local',
+                            taskId: localTask.id,
+                            field: field,
+                            from: localValue,
+                            to: notionValue,
+                            title: localTask.title
+                        });
+                        localTask[field] = notionValue;
+                        tasksModified = true;
+
+                        // Handle completedAt when completed status changes
+                        if (field === 'completed') {
+                            localTask.completedAt = notionValue ? new Date().toISOString() : null;
+                        }
+                    }
+                }
+
+                // Handle interval separately (object comparison)
+                if (notionData.interval !== undefined) {
+                    const notionInterval = JSON.stringify(notionData.interval);
+                    const localInterval = JSON.stringify(localTask.interval);
+                    if (notionInterval !== localInterval) {
+                        localTask.interval = notionData.interval;
+                        tasksModified = true;
+                    }
                 }
             } else {
                 // New page from Notion - create local task
@@ -1329,7 +1385,7 @@ async function performNotionSync(renderPageCallback) {
                     null, // lastModified (auto-set)
                     null, // colorCode
                     // Attributes from Notion
-                    'inbox', // status - Notion doesn't map to internal status
+                    notionData.status || 'inbox', // status from Notion mapping
                     notionData.impact || 'TBD',
                     notionData.value || 'TBD',
                     notionData.complexity || 'TBD',

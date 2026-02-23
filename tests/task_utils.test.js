@@ -15,7 +15,8 @@ loadScript(path.join(__dirname, '..', 'task_utils.js'), [
     'getTimeBlocks', 'saveTimeBlocks',
     'pushUndoState', 'undo', 'redo',
     'createRecurringInstance',
-    'parseTimeRange', 'validateTimeBlockOverlap', 'validate24HourCoverage'
+    'parseTimeRange', 'validateTimeBlockOverlap', 'validate24HourCoverage',
+    'deriveCompletedFromStatus', 'deriveStatusFromCompleted'
 ]);
 
 beforeEach(() => {
@@ -260,16 +261,79 @@ describe('updateTaskCompletion', () => {
         expect(task.completed).toBe(false);
     });
 
-    test('does not change completed for tasks without schedule', () => {
-        const task = { completed: true, schedule: [] };
+    test('derives completed from status for tasks without schedule', () => {
+        // completed is now derived from status, not stored independently
+        const task = { status: 'done', completed: false, schedule: [] };
         updateTaskCompletion(task);
-        expect(task.completed).toBe(true);
+        expect(task.completed).toBe(true); // derived from status='done'
     });
 
-    test('does not change completed when schedule is undefined', () => {
-        const task = { completed: false };
+    test('completed is false when status is inbox for tasks without schedule', () => {
+        const task = { status: 'inbox', completed: true, schedule: [] };
         updateTaskCompletion(task);
-        expect(task.completed).toBe(false);
+        expect(task.completed).toBe(false); // derived from status='inbox'
+    });
+
+    test('defaults to inbox (incomplete) when status is undefined', () => {
+        const task = { completed: true }; // no status, no schedule
+        updateTaskCompletion(task);
+        expect(task.completed).toBe(false); // undefined status treated as non-completion
+    });
+});
+
+describe('deriveCompletedFromStatus', () => {
+    test('returns true for done status', () => {
+        expect(deriveCompletedFromStatus('done')).toBe(true);
+    });
+
+    test('returns true for archive status', () => {
+        expect(deriveCompletedFromStatus('archive')).toBe(true);
+    });
+
+    test('returns false for inbox status', () => {
+        expect(deriveCompletedFromStatus('inbox')).toBe(false);
+    });
+
+    test('returns false for in-progress status', () => {
+        expect(deriveCompletedFromStatus('in-progress')).toBe(false);
+    });
+
+    test('returns false for all non-completion statuses', () => {
+        const nonCompletionStatuses = ['inbox', 'breakdown', 'stretch', 'ready', 'next-action', 'blocked', 'in-progress', 'influence', 'monitor', 'delegate'];
+        nonCompletionStatuses.forEach(status => {
+            expect(deriveCompletedFromStatus(status)).toBe(false);
+        });
+    });
+
+    test('returns false for undefined status', () => {
+        expect(deriveCompletedFromStatus(undefined)).toBe(false);
+    });
+});
+
+describe('deriveStatusFromCompleted', () => {
+    test('returns done when completed is true', () => {
+        expect(deriveStatusFromCompleted(true, 'inbox')).toBe('done');
+    });
+
+    test('preserves archive status when completing', () => {
+        expect(deriveStatusFromCompleted(true, 'archive')).toBe('archive');
+    });
+
+    test('returns inbox when uncompleting from done', () => {
+        expect(deriveStatusFromCompleted(false, 'done')).toBe('inbox');
+    });
+
+    test('returns inbox when uncompleting from archive', () => {
+        expect(deriveStatusFromCompleted(false, 'archive')).toBe('inbox');
+    });
+
+    test('returns inbox when uncompleting from any status', () => {
+        expect(deriveStatusFromCompleted(false, 'in-progress')).toBe('inbox');
+    });
+
+    test('defaults currentStatus to inbox', () => {
+        expect(deriveStatusFromCompleted(true)).toBe('done');
+        expect(deriveStatusFromCompleted(false)).toBe('inbox');
     });
 });
 

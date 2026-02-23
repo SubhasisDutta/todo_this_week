@@ -827,6 +827,21 @@
                         <h4 class="faq-question">Which task attributes does Notion import support?</h4>
                         <p class="faq-answer">Notion import supports 10 task attributes: title, priority, type, energy, deadline, notes, URL, impact, value, complexity, action, estimates, and interval. Configure column mapping in the Notion tab of the Import/Export modal to match your Notion database properties.</p>
                     </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">How does the status attribute work with the completion checkbox?</h4>
+                        <p class="faq-answer">The status and completion checkbox are synchronized. When you check the completion checkbox, the status is set to "Done". When you uncheck it, the status resets to "Inbox". Conversely, if you set the status to "Done" or "Archive" (via the edit form), the checkbox appears checked. This bidirectional sync ensures consistency between workflow status and completion state.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">What's the difference between Done and Archive status?</h4>
+                        <p class="faq-answer">Both "Done" and "Archive" are completion states. "Done" means the task was completed successfully. "Archive" is for tasks that were dropped, cancelled, or set aside. Both appear in the Archive tab. Checking the completion checkbox sets status to "Done", but if you manually set status to "Archive", it stays "Archive" when you check the box.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">How does Notion auto-mapping work?</h4>
+                        <p class="faq-answer">When you fetch your Notion database schema, the extension automatically maps select field values that match (case-insensitive) between local values and Notion values. For example, if your Notion has "Critical" and the local option is "CRITICAL", they're automatically mapped. You can always manually adjust mappings after auto-mapping.</p>
+                    </div>
                 </div>
 
             </div><!-- end .help-content -->
@@ -892,10 +907,14 @@
                         <div class="form-group" data-attribute-field="energy">
                             <label>🔋 Energy:</label>
                             <div class="radio-group-modern horizontal">
+                                <input type="radio" id="manager-energy-tbd" name="manager-energy" value="TBD">
+                                <label for="manager-energy-tbd">❓ TBD</label>
                                 <input type="radio" id="manager-energy-low" name="manager-energy" value="Low" checked>
                                 <label for="manager-energy-low">🍃 Low</label>
+                                <input type="radio" id="manager-energy-medium" name="manager-energy" value="Medium">
+                                <label for="manager-energy-medium">🌀 Medium</label>
                                 <input type="radio" id="manager-energy-high" name="manager-energy" value="High">
-                                <label for="manager-energy-high">🔋 High</label>
+                                <label for="manager-energy-high">⚡ High</label>
                             </div>
                         </div>
                     </div>

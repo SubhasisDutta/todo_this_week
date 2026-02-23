@@ -10,7 +10,8 @@ function createTaskItem(item, options = {}) {
     const taskItem = document.createElement('div');
     taskItem.classList.add('task-item', `priority-${task.priority}`);
 
-    const isItemCompleted = isAssignment ? scheduleItem.completed : task.completed;
+    // Derive completion state: for assignments use scheduleItem.completed, for master checkbox use status
+    const isItemCompleted = isAssignment ? scheduleItem.completed : deriveCompletedFromStatus(task.status);
     if (isItemCompleted) {
         taskItem.classList.add('task-completed');
     } else {
@@ -189,6 +190,8 @@ function setupTaskCompletionListeners() {
                 withTaskLock(async () => {
                     const task = await getTaskById(taskId);
                     if (task) {
+                        // Update status based on checkbox state
+                        task.status = deriveStatusFromCompleted(isCompleted, task.status);
                         task.completed = isCompleted;
                         if (task.schedule && task.schedule.length > 0) {
                             task.schedule.forEach(item => item.completed = isCompleted);

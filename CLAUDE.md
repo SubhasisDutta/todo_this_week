@@ -48,7 +48,7 @@ Tasks are stored in `chrome.storage.local` under the `tasks` key as an array of 
   title: string,           // Task title (required)
   url: string,             // Optional URL (default: '')
   priority: string,        // 'CRITICAL' | 'IMPORTANT' | 'SOMEDAY'
-  completed: boolean,      // Completion status
+  completed: boolean,      // DERIVED from status: true if status='done' or 'archive' (v2.1.0)
   deadline: string | null, // ISO date string, required for CRITICAL
   type: string,            // 'home' | 'work'
   displayOrder: number,    // Sort order within priority group
@@ -59,8 +59,8 @@ Tasks are stored in `chrome.storage.local` under the `tasks` key as an array of 
   recurrence: string|null, // null | 'daily' | 'weekly' | 'monthly'
   lastModified: string,    // ISO timestamp when task was last modified (auto-set on create/update)
   colorCode: string|null,  // Custom color: null | 'red' | 'blue' | 'green' | 'purple' | 'orange'
-  // --- Attribute Fields (v2.0.0) ---
-  status: string,          // 'inbox' | 'breakdown' | 'stretch' | 'ready' | 'next-action' | 'blocked' | 'in-progress' | 'influence' | 'monitor' | 'delegate' | 'done' | 'archive'
+  // --- Attribute Fields (v2.0.0, status-checkbox sync v2.1.0) ---
+  status: string,          // DRIVES completion: 'done'|'archive' = completed. 12 values in 3 groups.
   impact: string,          // 'TBD' | 'LOW' | 'Medium' | 'High'
   value: string,           // 'TBD' | 'BUILD' | 'LEARN'
   complexity: string,      // 'TBD' | 'JUST DO IT' | 'Trivial' | 'Simple & Clear' | 'Multiple Steps' | 'Dependent/Risk' | 'Unknown/Broad'
@@ -148,7 +148,9 @@ Defined in `task_utils.js` as `DEFAULT_TIME_BLOCKS`. A `TIME_BLOCKS` alias is ke
 | `addNewTask` | `addNewTask(title, url, priority, deadline, type, energy, notes, recurrence, extraAttrs)` → Promise | Creates task with computed `displayOrder`. `extraAttrs` object supports: status, impact, value, complexity, action, estimates, interval. |
 | `getTaskById` | `getTaskById(taskId)` → Promise | Returns single task or `undefined`. |
 | `updateTask` | `updateTask(updatedTask)` → Promise | Finds task, calls `updateTaskCompletion`, sets `completedAt`, updates `lastModified`, auto-creates recurring instance on completion. Returns boolean. |
-| `updateTaskCompletion` | `updateTaskCompletion(task)` | If all `schedule[].completed === true`, sets `task.completed = true`. |
+| `updateTaskCompletion` | `updateTaskCompletion(task)` | Syncs completion state: if all `schedule[].completed === true`, sets `status = 'done'`. Always derives `completed` from status via `deriveCompletedFromStatus()`. |
+| `deriveCompletedFromStatus` | `deriveCompletedFromStatus(status)` → boolean | Returns true if status is 'done' or 'archive' (completion states). Used to derive the `completed` boolean from status. (v2.1.0) |
+| `deriveStatusFromCompleted` | `deriveStatusFromCompleted(completed, currentStatus)` → string | Returns 'done' if completed (preserves 'archive'), 'inbox' if not completed. Used when checkbox is toggled. (v2.1.0) |
 | `deleteTask` | `deleteTask(taskId)` → Promise | Removes by ID. Returns boolean. |
 | `validateTask` | `validateTask(task)` → string[] | Returns error messages. Checks: title required, CRITICAL needs deadline, URL format. |
 | `getSettings` | `getSettings()` → Promise | Loads settings from storage, merges with `DEFAULT_SETTINGS`. |
@@ -169,6 +171,25 @@ Defined in `task_utils.js` as `DEFAULT_TIME_BLOCKS`. A `TIME_BLOCKS` alias is ke
 | `withTaskLock` | `withTaskLock(asyncFn)` → Promise | Queues async operations sequentially to prevent race conditions. |
 | `debounce` | `debounce(fn, delay)` → Function | Generic debounce utility. Used for auto-save (1500ms) and sync. |
 | `setupStorageSync` | `setupStorageSync(renderCallback)` | Listens to `chrome.storage.onChanged`. Ignores self-triggered changes within 500ms of last save. |
+| `autoMapSelectValues` | `autoMapSelectValues(localOptions, notionOptions)` → Object | Case-insensitive auto-mapping of Notion select values to local values. Returns `{localValue: notionValue}` for matches. (v2.1.0, settings.js) |
+
+### Status-Completion Synchronization (v2.1.0)
+
+The `completed` boolean is now **derived from the `status` field**, not stored independently:
+
+| Action | Result |
+|--------|--------|
+| Checkbox checked | `status = 'done'` (preserves 'archive' if already set) |
+| Checkbox unchecked | `status = 'inbox'` |
+| `status = 'done'` or `'archive'` | Checkbox appears checked |
+| Any other status | Checkbox appears unchecked |
+| All schedule items completed | `status = 'done'` (cascade completion) |
+
+**Completion states:** `'done'` (task completed) and `'archive'` (task dropped/archived).
+
+**Archive tab:** Shows tasks with `status === 'done' || status === 'archive'`.
+
+**Migration:** `getTasks()` backfill automatically syncs inconsistent `completed`/`status` values on load.
 
 ## New Constants (v1.7.0)
 

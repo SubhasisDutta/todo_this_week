@@ -11,7 +11,8 @@ loadScript(path.join(__dirname, '..', 'task_utils.js'), [
     'getSettings', 'saveSettings', 'seedSampleTasks',
     'getTimeBlocks', 'saveTimeBlocks',
     'pushUndoState', 'undo', 'redo',
-    'createRecurringInstance'
+    'createRecurringInstance',
+    'deriveCompletedFromStatus', 'deriveStatusFromCompleted'
 ]);
 
 beforeEach(() => {
@@ -66,6 +67,8 @@ describe('completedAt field', () => {
     test('completedAt is set when task is completed', async () => {
         const task = await addNewTask('Test', '', 'SOMEDAY', null, 'home', 'low');
         const retrieved = await getTaskById(task.id);
+        // Note: completion is now driven by status field
+        retrieved.status = 'done';
         retrieved.completed = true;
         await updateTask(retrieved);
 
@@ -80,11 +83,13 @@ describe('completedAt field', () => {
         const retrieved = await getTaskById(task.id);
 
         // Complete it
+        retrieved.status = 'done';
         retrieved.completed = true;
         await updateTask(retrieved);
 
         // Uncomplete it
         const completed = await getTaskById(task.id);
+        completed.status = 'inbox';
         completed.completed = false;
         await updateTask(completed);
 
@@ -275,13 +280,15 @@ describe('Recurring tasks', () => {
     test('completing a recurring task via updateTask creates new instance', async () => {
         const task = await addNewTask('Recurring', '', 'SOMEDAY', null, 'home', 'low', '', 'daily');
         const retrieved = await getTaskById(task.id);
+        // Note: completion is now driven by status field
+        retrieved.status = 'done';
         retrieved.completed = true;
         await updateTask(retrieved);
 
         const allTasks = await getTasksAsync();
         // Original completed + new recurring instance
         expect(allTasks.length).toBe(2);
-        const activeTask = allTasks.find(t => !t.completed);
+        const activeTask = allTasks.find(t => t.status !== 'done' && t.status !== 'archive');
         expect(activeTask).toBeDefined();
         expect(activeTask.title).toBe('Recurring');
         expect(activeTask.recurrence).toBe('daily');

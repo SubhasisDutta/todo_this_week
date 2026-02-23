@@ -12,7 +12,8 @@ loadScript(path.join(__dirname, '..', 'task_utils.js'), [
     'getSettings', 'saveSettings', 'seedSampleTasks',
     'getTimeBlocks', 'saveTimeBlocks',
     'pushUndoState', 'undo', 'redo',
-    'createRecurringInstance'
+    'createRecurringInstance',
+    'deriveCompletedFromStatus', 'deriveStatusFromCompleted'
 ]);
 
 beforeEach(() => {
@@ -61,12 +62,14 @@ describe('End-to-end: Task lifecycle', () => {
         expect(task).not.toBeNull();
 
         const retrieved = await getTaskById(task.id);
+        // Note: completion is now driven by status field
+        retrieved.status = 'done';
         retrieved.completed = true;
         await updateTask(retrieved);
 
         const allTasks = await getTasksAsync();
-        const active = allTasks.filter(t => !t.completed);
-        const completed = allTasks.filter(t => t.completed);
+        const active = allTasks.filter(t => t.status !== 'done' && t.status !== 'archive');
+        const completed = allTasks.filter(t => t.status === 'done' || t.status === 'archive');
         expect(active.length).toBe(0);
         expect(completed.length).toBe(1);
     });
@@ -267,6 +270,8 @@ describe('End-to-end: Recurring tasks', () => {
         expect(task.recurrence).toBe('daily');
 
         const retrieved = await getTaskById(task.id);
+        // Note: completion is now driven by status field
+        retrieved.status = 'done';
         retrieved.completed = true;
         await updateTask(retrieved);
 
@@ -274,8 +279,8 @@ describe('End-to-end: Recurring tasks', () => {
         // Should have at least 2 tasks: the completed one + the new recurring instance
         expect(allTasks.length).toBeGreaterThanOrEqual(2);
 
-        const completedTasks = allTasks.filter(t => t.completed);
-        const activeTasks = allTasks.filter(t => !t.completed);
+        const completedTasks = allTasks.filter(t => t.status === 'done' || t.status === 'archive');
+        const activeTasks = allTasks.filter(t => t.status !== 'done' && t.status !== 'archive');
         expect(completedTasks.length).toBeGreaterThanOrEqual(1);
         expect(activeTasks.length).toBeGreaterThanOrEqual(1);
     });
@@ -283,6 +288,8 @@ describe('End-to-end: Recurring tasks', () => {
     test('non-recurring task does not create a new instance on completion', async () => {
         const task = await addNewTask('One-time task', '', 'SOMEDAY', null, 'home', 'low', '', null);
         const retrieved = await getTaskById(task.id);
+        // Note: completion is now driven by status field
+        retrieved.status = 'done';
         retrieved.completed = true;
         await updateTask(retrieved);
 
@@ -293,11 +300,13 @@ describe('End-to-end: Recurring tasks', () => {
     test('recurring task instance inherits title and priority', async () => {
         const task = await addNewTask('Weekly Review', '', 'IMPORTANT', null, 'work', 'high', 'Check KPIs', 'weekly');
         const retrieved = await getTaskById(task.id);
+        // Note: completion is now driven by status field
+        retrieved.status = 'done';
         retrieved.completed = true;
         await updateTask(retrieved);
 
         const allTasks = await getTasksAsync();
-        const newInstance = allTasks.find(t => !t.completed);
+        const newInstance = allTasks.find(t => t.status !== 'done' && t.status !== 'archive');
         expect(newInstance).toBeDefined();
         expect(newInstance.title).toBe('Weekly Review');
         expect(newInstance.priority).toBe('IMPORTANT');

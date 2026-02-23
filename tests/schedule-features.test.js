@@ -17,7 +17,8 @@ loadScript(path.join(__dirname, '..', 'task_utils.js'), [
     'pushUndoState', 'undo', 'redo',
     'createRecurringInstance',
     'parseTimeRange',
-    'duplicateTask'
+    'duplicateTask',
+    'deriveCompletedFromStatus', 'deriveStatusFromCompleted'
 ]);
 
 // Load settings.js (dependency of manager.js)

@@ -11,7 +11,8 @@ loadScript(path.join(__dirname, '..', 'task_utils.js'), [
     'getSettings', 'saveSettings', 'seedSampleTasks',
     'getTimeBlocks', 'saveTimeBlocks',
     'pushUndoState', 'undo', 'redo',
-    'createRecurringInstance'
+    'createRecurringInstance',
+    'deriveCompletedFromStatus', 'deriveStatusFromCompleted'
 ]);
 
 loadScript(path.join(__dirname, '..', 'settings.js'), [
