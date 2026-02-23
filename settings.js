@@ -1943,6 +1943,92 @@ async function setupSettingsModalListeners(renderPageCallback) {
 
     // Setup attribute toggle listeners for auto-save
     setupAttributeToggleListeners(renderPageCallback);
+
+    // Setup nuke modal listeners
+    setupNukeModalListeners(renderPageCallback);
+}
+
+// --- Nuke Modal Listeners Setup ---
+function setupNukeModalListeners(renderPageCallback) {
+    const nukeBtn = document.getElementById('nuke-tasks-btn');
+    const nukeModal = document.getElementById('nuke-confirm-modal');
+    const nukeCloseBtn = document.getElementById('nuke-confirm-close-btn');
+    const nukeCancelBtn = document.getElementById('nuke-cancel-btn');
+    const nukeConfirmBtn = document.getElementById('nuke-confirm-btn');
+    const nukeConfirmInput = document.getElementById('nuke-confirm-input');
+
+    if (!nukeBtn || !nukeModal) return;
+
+    // Open nuke confirmation modal
+    nukeBtn.addEventListener('click', () => {
+        nukeModal.classList.remove('hidden');
+        nukeConfirmInput.value = '';
+        nukeConfirmBtn.disabled = true;
+        nukeConfirmInput.focus();
+    });
+
+    // Close modal handlers
+    const closeNukeModal = () => {
+        nukeModal.classList.add('hidden');
+        nukeConfirmInput.value = '';
+        nukeConfirmBtn.disabled = true;
+    };
+
+    if (nukeCloseBtn) {
+        nukeCloseBtn.addEventListener('click', closeNukeModal);
+    }
+
+    if (nukeCancelBtn) {
+        nukeCancelBtn.addEventListener('click', closeNukeModal);
+    }
+
+    // Close on overlay click
+    nukeModal.addEventListener('click', (e) => {
+        if (e.target === nukeModal) closeNukeModal();
+    });
+
+    // Validate confirmation input
+    if (nukeConfirmInput && nukeConfirmBtn) {
+        nukeConfirmInput.addEventListener('input', () => {
+            const inputValue = nukeConfirmInput.value.trim();
+            nukeConfirmBtn.disabled = inputValue !== 'nuke Tasks';
+        });
+
+        // Allow Enter key to confirm when input is valid
+        nukeConfirmInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !nukeConfirmBtn.disabled) {
+                nukeConfirmBtn.click();
+            }
+        });
+    }
+
+    // Perform the nuke action
+    if (nukeConfirmBtn) {
+        nukeConfirmBtn.addEventListener('click', async () => {
+            const inputValue = nukeConfirmInput.value.trim();
+            if (inputValue !== 'nuke Tasks') {
+                showInfoMessage('Please type "nuke Tasks" exactly to confirm.', 'error');
+                return;
+            }
+
+            try {
+                // Delete all tasks by saving an empty array
+                await saveTasksAsync([]);
+
+                closeNukeModal();
+                closeSettingsModal();
+
+                // Refresh the page
+                if (renderPageCallback) {
+                    await renderPageCallback();
+                }
+
+                showInfoMessage('All tasks have been permanently deleted.', 'success');
+            } catch (error) {
+                showInfoMessage(`Error deleting tasks: ${error.message}`, 'error');
+            }
+        });
+    }
 }
 
 // --- Import/Export Modal Listeners Setup ---

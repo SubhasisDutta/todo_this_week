@@ -316,6 +316,52 @@
                 </div>
             </section>
 
+            <!-- Danger Zone -->
+            <section class="settings-section danger-zone-section">
+                <h3>⚠️ Danger Zone</h3>
+                <p class="settings-section-desc">Destructive actions that cannot be undone.</p>
+                <div class="danger-zone-actions">
+                    <div class="danger-action-item">
+                        <div class="danger-action-info">
+                            <h4>☢️ Nuke All Tasks</h4>
+                            <p>Permanently delete ALL tasks (active and completed). This action cannot be undone.</p>
+                        </div>
+                        <button id="nuke-tasks-btn" class="neumorphic-btn danger-btn">Nuke All Tasks</button>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <!-- ============================
+         NUKE CONFIRMATION MODAL
+         ============================ -->
+    <div id="nuke-confirm-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="nuke-confirm-title">
+        <div class="modal-content modal-content-small">
+            <div class="modal-header danger-header">
+                <h2 id="nuke-confirm-title">☢️ Confirm Nuke All Tasks</h2>
+                <button id="nuke-confirm-close-btn" class="neumorphic-btn icon-btn" aria-label="Close">✕</button>
+            </div>
+
+            <div class="nuke-confirm-content">
+                <div class="nuke-warning">
+                    <span class="warning-icon">⚠️</span>
+                    <p><strong>This will permanently delete ALL tasks</strong> — both active and completed. This action cannot be undone!</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="nuke-confirm-input">Type <code>nuke Tasks</code> to confirm:</label>
+                    <input type="text" id="nuke-confirm-input" class="neumorphic-input"
+                        placeholder="nuke Tasks" autocomplete="off" spellcheck="false">
+                </div>
+
+                <div class="nuke-confirm-actions">
+                    <button id="nuke-cancel-btn" class="neumorphic-btn">Cancel</button>
+                    <button id="nuke-confirm-btn" class="neumorphic-btn danger-btn" disabled>Delete All Tasks</button>
+                </div>
+            </div>
         </div>
     </div>
 

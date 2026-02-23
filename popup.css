@@ -3757,6 +3757,146 @@ body.resizing {
 }
 
 /* ===========================================
+   DANGER ZONE - SETTINGS
+   =========================================== */
+
+.danger-zone-section {
+    border: 2px solid var(--priority-critical);
+    border-radius: var(--border-radius-md);
+    padding: 16px;
+    margin-top: 16px;
+    background: rgba(239, 68, 68, 0.03);
+}
+
+:root[data-theme="dark"] .danger-zone-section {
+    background: rgba(239, 68, 68, 0.08);
+}
+
+.danger-zone-section h3 {
+    color: var(--priority-critical);
+}
+
+.danger-zone-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.danger-action-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px;
+    background: var(--bg-primary);
+    border-radius: var(--border-radius-md);
+    box-shadow: 2px 2px 4px var(--shadow-dark), -2px -2px 4px var(--shadow-light);
+}
+
+.danger-action-info h4 {
+    margin: 0 0 4px;
+    font-size: 0.95em;
+    color: var(--text-primary);
+}
+
+.danger-action-info p {
+    margin: 0;
+    font-size: 0.8em;
+    color: var(--text-muted);
+}
+
+.danger-btn {
+    background: var(--priority-critical) !important;
+    color: white !important;
+    border: none;
+    flex-shrink: 0;
+}
+
+.danger-btn:hover {
+    background: #dc2626 !important;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+}
+
+.danger-btn:disabled {
+    background: #ccc !important;
+    color: #888 !important;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* ===========================================
+   NUKE CONFIRMATION MODAL
+   =========================================== */
+
+.modal-content-small {
+    max-width: 450px;
+}
+
+.danger-header {
+    border-bottom: 2px solid var(--priority-critical);
+}
+
+.danger-header h2 {
+    color: var(--priority-critical);
+}
+
+.nuke-confirm-content {
+    padding: 16px 0;
+}
+
+.nuke-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: var(--border-radius-md);
+    margin-bottom: 20px;
+}
+
+.nuke-warning .warning-icon {
+    font-size: 1.5em;
+    flex-shrink: 0;
+}
+
+.nuke-warning p {
+    margin: 0;
+    font-size: 0.9em;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.nuke-confirm-content .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.9em;
+    color: var(--text-secondary);
+}
+
+.nuke-confirm-content .form-group code {
+    background: var(--inset-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    color: var(--priority-critical);
+    font-weight: 600;
+}
+
+.nuke-confirm-content .form-group input {
+    width: 100%;
+}
+
+.nuke-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--inset-bg);
+}
+
+/* ===========================================
    GROUPS TAB - BENTO GRID
    =========================================== */
 
