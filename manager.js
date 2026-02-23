@@ -2498,6 +2498,10 @@ async function openAddTaskModalForEdit(taskId) {
 
     _editingTaskId = taskId;
 
+    // Setup auto-save for edit mode FIRST (before populating form)
+    // This clones elements to remove old listeners - must happen before setting values
+    setupEditModeAutoSave();
+
     // Update modal title and button
     const modalTitle = document.getElementById('add-task-title');
     const submitBtn = document.getElementById('manager-add-task-btn');
@@ -2560,9 +2564,6 @@ async function openAddTaskModalForEdit(taskId) {
 
     const addTaskModal = document.getElementById('add-task-modal');
     if (addTaskModal) addTaskModal.classList.remove('hidden');
-
-    // Setup auto-save for edit mode
-    setupEditModeAutoSave();
 }
 
 // Expand details sections that have non-default values when editing
