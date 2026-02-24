@@ -341,6 +341,44 @@ function renderTasksOnGrid(assignedTasks) {
     });
 }
 
+// --- Shared Rendering Helpers ---
+
+/**
+ * Render tasks into a column element
+ */
+function renderTaskColumn(tasksForColumn, columnElement) {
+    if (!columnElement) return;
+    if (tasksForColumn.length === 0) {
+        columnElement.innerHTML = `<p class="empty-list-msg">No tasks in this category.</p>`;
+        return;
+    }
+    tasksForColumn.forEach((task, index) => {
+        columnElement.appendChild(createTaskElement(task, { context: 'management', index, total: tasksForColumn.length }));
+    });
+}
+
+/**
+ * Render completed tasks section with disclosure toggle
+ */
+function renderCompletedDisclosure(completedTasksForColumn, completedListElement, countElement, disclosureElement) {
+    if (!completedListElement || !countElement || !disclosureElement) return;
+
+    // Update count badge
+    countElement.textContent = completedTasksForColumn.length;
+
+    // Show/hide disclosure based on whether there are completed tasks
+    if (completedTasksForColumn.length === 0) {
+        disclosureElement.classList.add('hidden');
+    } else {
+        disclosureElement.classList.remove('hidden');
+        completedTasksForColumn.forEach((task, index) => {
+            completedListElement.appendChild(createTaskElement(task, { context: 'management', index, total: completedTasksForColumn.length }));
+        });
+    }
+}
+
+// --- End Shared Rendering Helpers ---
+
 function renderPriorityLists(tasks) {
     const criticalList = document.getElementById('critical-tasks-list');
     const importantList = document.getElementById('important-tasks-list');
@@ -361,47 +399,19 @@ function renderPriorityLists(tasks) {
     const importantCompleted = completedTasks.filter(t => t.priority === 'IMPORTANT').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
     const somedayCompleted = completedTasks.filter(t => t.priority === 'SOMEDAY').sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
 
-    const renderColumn = (tasksForColumn, columnElement) => {
-        if (!columnElement) return;
-        if (tasksForColumn.length === 0) {
-            columnElement.innerHTML = `<p class="empty-list-msg">No tasks in this category.</p>`;
-            return;
-        }
-        tasksForColumn.forEach((task, index) => {
-            columnElement.appendChild(createTaskElement(task, { context: 'management', index, total: tasksForColumn.length }));
-        });
-    };
-
-    const renderCompletedSection = (completedTasksForColumn, completedListElement, countElement, disclosureElement) => {
-        if (!completedListElement || !countElement || !disclosureElement) return;
-
-        // Update count badge
-        countElement.textContent = completedTasksForColumn.length;
-
-        // Show/hide disclosure based on whether there are completed tasks
-        if (completedTasksForColumn.length === 0) {
-            disclosureElement.classList.add('hidden');
-        } else {
-            disclosureElement.classList.remove('hidden');
-            completedTasksForColumn.forEach((task, index) => {
-                completedListElement.appendChild(createTaskElement(task, { context: 'management', index, total: completedTasksForColumn.length }));
-            });
-        }
-    };
-
     // Render active tasks
-    renderColumn(criticalActive, criticalList);
-    renderColumn(importantActive, importantList);
-    renderColumn(somedayActive, somedayList);
+    renderTaskColumn(criticalActive, criticalList);
+    renderTaskColumn(importantActive, importantList);
+    renderTaskColumn(somedayActive, somedayList);
 
     // Render completed tasks in disclosure sections
-    renderCompletedSection(criticalCompleted, criticalCompletedList,
+    renderCompletedDisclosure(criticalCompleted, criticalCompletedList,
         document.getElementById('critical-completed-count'),
         document.getElementById('critical-completed-disclosure'));
-    renderCompletedSection(importantCompleted, importantCompletedList,
+    renderCompletedDisclosure(importantCompleted, importantCompletedList,
         document.getElementById('important-completed-count'),
         document.getElementById('important-completed-disclosure'));
-    renderCompletedSection(somedayCompleted, somedayCompletedList,
+    renderCompletedDisclosure(somedayCompleted, somedayCompletedList,
         document.getElementById('someday-completed-count'),
         document.getElementById('someday-completed-disclosure'));
 }
@@ -428,43 +438,15 @@ function renderHomeWorkLists(tasks) {
     const homeCompleted = completedTasks.filter(t => t.type === 'home').sort(sortTasks);
     const workCompleted = completedTasks.filter(t => t.type === 'work').sort(sortTasks);
 
-    const renderColumn = (tasksForColumn, columnElement) => {
-        if (!columnElement) return;
-        if (tasksForColumn.length === 0) {
-            columnElement.innerHTML = `<p class="empty-list-msg">No tasks in this category.</p>`;
-            return;
-        }
-        tasksForColumn.forEach((task, index) => {
-            columnElement.appendChild(createTaskElement(task, { context: 'management', index, total: tasksForColumn.length }));
-        });
-    };
-
-    const renderCompletedSection = (completedTasksForColumn, completedListElement, countElement, disclosureElement) => {
-        if (!completedListElement || !countElement || !disclosureElement) return;
-
-        // Update count badge
-        countElement.textContent = completedTasksForColumn.length;
-
-        // Show/hide disclosure based on whether there are completed tasks
-        if (completedTasksForColumn.length === 0) {
-            disclosureElement.classList.add('hidden');
-        } else {
-            disclosureElement.classList.remove('hidden');
-            completedTasksForColumn.forEach((task, index) => {
-                completedListElement.appendChild(createTaskElement(task, { context: 'management', index, total: completedTasksForColumn.length }));
-            });
-        }
-    };
-
     // Render active tasks
-    renderColumn(homeActive, homeList);
-    renderColumn(workActive, workList);
+    renderTaskColumn(homeActive, homeList);
+    renderTaskColumn(workActive, workList);
 
     // Render completed tasks in disclosure sections
-    renderCompletedSection(homeCompleted, homeCompletedList,
+    renderCompletedDisclosure(homeCompleted, homeCompletedList,
         document.getElementById('home-completed-count'),
         document.getElementById('home-completed-disclosure'));
-    renderCompletedSection(workCompleted, workCompletedList,
+    renderCompletedDisclosure(workCompleted, workCompletedList,
         document.getElementById('work-completed-count'),
         document.getElementById('work-completed-disclosure'));
 }
@@ -1736,76 +1718,51 @@ function applySearchFilter(query, containers, includeGridCells = false) {
     }
 }
 
-function setupScheduleSearch() {
-    const input = document.getElementById('schedule-search-input');
-    const clearBtn = document.getElementById('schedule-search-clear');
+/**
+ * Generic search setup helper - reduces duplication across tab search functions
+ */
+function createSearchHandler(inputId, clearBtnId, containerIds, filterGridCells = false) {
+    const input = document.getElementById(inputId);
+    const clearBtn = document.getElementById(clearBtnId);
     if (!input) return;
 
-    const containers = [
-        document.getElementById('unassigned-tasks-list'),
-        document.getElementById('assigned-tasks-list')
-    ];
-
-    const debouncedFilter = debounce((q) => applySearchFilter(q, containers, true), 300);
+    const containers = containerIds.map(id => document.getElementById(id));
+    const debouncedFilter = debounce((q) => applySearchFilter(q, containers, filterGridCells), 300);
 
     input.addEventListener('input', () => debouncedFilter(input.value));
 
     if (clearBtn) {
         clearBtn.addEventListener('click', () => {
             input.value = '';
-            applySearchFilter('', containers, true);
+            applySearchFilter('', containers, filterGridCells);
         });
     }
+}
+
+function setupScheduleSearch() {
+    createSearchHandler(
+        'schedule-search-input',
+        'schedule-search-clear',
+        ['unassigned-tasks-list', 'assigned-tasks-list'],
+        true
+    );
 }
 
 function setupPrioritySearch() {
-    const input = document.getElementById('priority-search-input');
-    const clearBtn = document.getElementById('priority-search-clear');
-    if (!input) return;
-
-    const containers = [
-        document.getElementById('critical-tasks-list'),
-        document.getElementById('important-tasks-list'),
-        document.getElementById('someday-tasks-list'),
-        document.getElementById('critical-completed-list'),
-        document.getElementById('important-completed-list'),
-        document.getElementById('someday-completed-list')
-    ];
-
-    const debouncedFilter = debounce((q) => applySearchFilter(q, containers), 300);
-
-    input.addEventListener('input', () => debouncedFilter(input.value));
-
-    if (clearBtn) {
-        clearBtn.addEventListener('click', () => {
-            input.value = '';
-            applySearchFilter('', containers);
-        });
-    }
+    createSearchHandler(
+        'priority-search-input',
+        'priority-search-clear',
+        ['critical-tasks-list', 'important-tasks-list', 'someday-tasks-list',
+         'critical-completed-list', 'important-completed-list', 'someday-completed-list']
+    );
 }
 
 function setupLocationSearch() {
-    const input = document.getElementById('location-search-input');
-    const clearBtn = document.getElementById('location-search-clear');
-    if (!input) return;
-
-    const containers = [
-        document.getElementById('home-tasks-list'),
-        document.getElementById('work-tasks-list'),
-        document.getElementById('home-completed-list'),
-        document.getElementById('work-completed-list')
-    ];
-
-    const debouncedFilter = debounce((q) => applySearchFilter(q, containers), 300);
-
-    input.addEventListener('input', () => debouncedFilter(input.value));
-
-    if (clearBtn) {
-        clearBtn.addEventListener('click', () => {
-            input.value = '';
-            applySearchFilter('', containers);
-        });
-    }
+    createSearchHandler(
+        'location-search-input',
+        'location-search-clear',
+        ['home-tasks-list', 'work-tasks-list', 'home-completed-list', 'work-completed-list']
+    );
 }
 
 function setupArchiveSearch() {

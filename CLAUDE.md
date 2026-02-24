@@ -10,10 +10,10 @@ This is a **Weekly Task Manager** — a Chrome/Chromium browser extension (Manif
 
 ### Core Components
 
-- `task_utils.js` (~540 lines) — Shared utilities: Task class, CRUD operations, settings, undo/redo, recurring tasks, time blocks, validation (including time overlap), debounce, operation queue, cross-tab sync
-- `settings.js` (~1000 lines) — Settings management: theme/font application, settings modal UI, tabbed import/export modal (JSON, CSV, Google Sheets, Notion with bidirectional sync), time blocks modal with inline label editing
-- `popup.js` (~390 lines) — Popup interface: task rendering (with notes/recurrence), tab switching, completion handlers, drag-and-drop reordering
-- `manager.js` (~900 lines) — Full-page planner: weekly grid, drag-and-drop scheduling, inline editing, archive tab, stats tab, search/filter, undo toast, keyboard undo, settings wiring, add task modal
+- `task_utils.js` (~1031 lines) — Shared utilities: Task class, CRUD operations, settings, undo/redo, recurring tasks, time blocks, validation (including time overlap), debounce, operation queue, cross-tab sync, status-completion sync
+- `settings.js` (~1575 lines) — Settings management: theme/font application, settings modal UI, tabbed import/export modal (JSON, CSV, Google Sheets, Notion with bidirectional sync), time blocks modal with inline label editing, LOCAL_VALUE_OPTIONS constant
+- `popup.js` (~392 lines) — Popup interface: task rendering (with notes/recurrence), tab switching, completion handlers, drag-and-drop reordering
+- `manager.js` (~4100 lines) — Full-page planner: weekly grid, drag-and-drop scheduling, inline editing, archive tab, stats tab, search/filter, undo toast, keyboard undo, settings wiring, add task modal, shared rendering helpers (renderTaskColumn, renderCompletedDisclosure, createSearchHandler)
 - `popup.html` (~102 lines) — Popup markup (3 tabs: TODAY, Display, ADD — with notes textarea and recurrence select)
 - `manager.html` (~800 lines) — Planner markup (5 tabs: SCHEDULE, PRIORITY, LOCATION, ARCHIVE, STATS + settings/help/add-task/import-export/time-blocks modals, help has 8 tabs including FAQ)
 - `popup.css` (~2000 lines) — Unified styles: neumorphic design, dark mode, modals, charts, archive, help, toast, search, notes, tooltips, FAQ styling, import/export tabs
@@ -28,13 +28,14 @@ This is a **Weekly Task Manager** — a Chrome/Chromium browser extension (Manif
 - `package.json` — Dev dependencies (Jest 29, jest-environment-jsdom)
 - `jest.config.js` — jsdom environment, collects coverage from source files
 - `tests/mocks/chrome.storage.mock.js` — Chrome API mocks, `loadScript` helper, `seedSettings`, `seedTimeBlocks`, `global.fetch` stub
-- `tests/task_utils.test.js` — ~90 tests for task_utils.js (includes new fields, settings, time blocks, undo/redo, recurring, time validation)
+- `tests/task_utils.test.js` — ~104 tests for task_utils.js (includes new fields, settings, time blocks, undo/redo, recurring, time validation, status-completion sync)
 - `tests/popup.test.js` — ~17 tests for popup.js
-- `tests/manager.test.js` — ~75 tests for manager.js (includes async grid, new tabs, search filter, add task modal, tooltips, FAQ)
-- `tests/integration.test.js` — ~25 end-to-end tests (includes recurring tasks, undo lifecycle)
-- `tests/settings.test.js` — ~38 tests for settings.js (includes time block editing, overlap validation, import/export modal tabs)
-- `tests/features.test.js` — ~30 tests for notes, completedAt, undo/redo, recurring tasks, archive grouping
-- `tests/search.test.js` — ~14 tests for search/filter functionality (including schedule search)
+- `tests/manager.test.js` — ~122 tests for manager.js (includes async grid, new tabs, search filter, add task modal, tooltips, FAQ, shared helpers)
+- `tests/integration.test.js` — ~18 end-to-end tests (includes recurring tasks, undo lifecycle)
+- `tests/settings.test.js` — ~61 tests for settings.js (includes time block editing, overlap validation, import/export modal tabs, LOCAL_VALUE_OPTIONS)
+- `tests/features.test.js` — ~35 tests for notes, completedAt, undo/redo, recurring tasks, archive grouping
+- `tests/search.test.js` — ~17 tests for search/filter functionality (including schedule search)
+- `tests/schedule-features.test.js` — ~91 tests for schedule tab features (context menu, magic fill, buffer zones, focus mode, fluid resizing, time tracking, task details modal)
 
 ## Data Model
 
@@ -213,6 +214,20 @@ Default visibility settings for task attributes (v1.8.0 - all now toggleable):
 - `type`: true by default (Location, can be disabled)
 - `energy`: true by default (v1.8.0)
 - All other attributes: false by default
+
+### LOCAL_VALUE_OPTIONS (settings.js, v2.1.0)
+
+Centralized constant in `settings.js` for Notion column mapping. Contains valid local values for each attribute field. Used by `renderValueMappingUI()` and `collectColumnMappingConfig()` to avoid code duplication.
+
+## Key Functions (manager.js)
+
+### Shared Rendering Helpers (v2.1.0)
+
+| Function | Description |
+|----------|-------------|
+| `renderTaskColumn(tasks, element)` | Renders tasks into a column element with empty state handling |
+| `renderCompletedDisclosure(tasks, listEl, countEl, disclosureEl)` | Renders completed tasks section with count badge and disclosure toggle |
+| `createSearchHandler(inputId, clearBtnId, containerIds, filterGridCells)` | Generic search setup factory, reduces duplication across tab search functions |
 
 ## Key Features Implementation
 
@@ -553,7 +568,7 @@ This makes all listed symbols available as globals in the test scope.
 
 The `loadScript` regex also handles `async function` DOMContentLoaded handlers (needed because manager.js and popup.js DOMContentLoaded handlers are now `async`).
 
-### Test Suites (~448 total)
+### Test Suites (~472 total)
 - **task_utils.test.js (~104):** Task class (new fields including lastModified, colorCode, and 10 v1.7.0 attributes), getTasks backfill (including energy migration 'low'→'Low'), CRUD, settings CRUD, time blocks, undo/redo stacks, createRecurringInstance, seedSampleTasks, toast notifications (showInfoMessage), validateTask, debounce, withTaskLock, parseTimeRange, validateTimeBlockOverlap, validate24HourCoverage (gap detection, full coverage, invalid format), ATTRIBUTE_OPTIONS, DEFAULT_ENABLED_ATTRIBUTES
 - **popup.test.js (~17):** createTaskItem (notes, recurrence), renderTasks, renderAllTabs, tab switching, add-task validation, open-manager button
 - **manager.test.js (~122):** generateDayHeaders/generatePlannerGrid (now async), createTaskElement (notes/recurrence badges), renderSidebarLists, Groups tab (calculateAttributeDistribution, createBentoBox, renderGroupsTab), renderArchiveTab (with lastModified sorting), renderStatsTab, applySearchFilter, setupTabSwitching, renderPage, highlightCurrentDay, setupAddTaskModalListeners, header tooltips, FAQ tab, collapsible parking lot, drag guide lines, hover popover, current time indicator

@@ -1,6 +1,6 @@
 # Weekly Task Manager
 
-**Version 2.0.0**
+**Version 2.1.0**
 
 A Chrome/Chromium browser extension for managing weekly tasks with priority levels, categories, energy tracking, 10 toggleable task attributes, and a visual weekly planner grid. Schedule tasks into time blocks, track completion across the week, and keep everything in sync between the popup and full-page planner.
 
@@ -164,15 +164,15 @@ npm run test:watch
 npm run test:coverage
 ```
 
-The test suite includes **425+ tests** across 8 test files:
+The test suite includes **472 tests** across 8 test files:
 
 | Test Suite | Tests | Coverage |
 |-----------|-------|----------|
-| `task_utils.test.js` | ~95 | Task class (10 attribute fields), CRUD, settings, time blocks, undo/redo, recurring tasks, time validation, debounce, sync |
+| `task_utils.test.js` | ~104 | Task class (10 attribute fields), CRUD, settings, time blocks, undo/redo, recurring tasks, time validation, debounce, sync, status-completion sync |
 | `popup.test.js` | ~17 | Task item rendering, tab switching, completion handlers, drag-and-drop |
 | `manager.test.js` | ~122 | Grid generation, Groups tab, archive tab, stats, search filter, add task modal, context menu, focus mode, time tracking |
 | `integration.test.js` | ~18 | Task lifecycle, scheduling, cascade completion, ordering, import/merge, recurring tasks, undo/redo |
-| `settings.test.js` | ~47 | applySettings, initSettings, modal open/close, form population, time block editing, Notion import, enabled attributes |
+| `settings.test.js` | ~61 | applySettings, initSettings, modal open/close, form population, time block editing, Notion import, enabled attributes |
 | `features.test.js` | ~35 | Notes field, completedAt, lastModified, undo/redo stacks, recurring task creation, archive grouping |
 | `search.test.js` | ~17 | applySearchFilter logic, schedule/archive/groups search |
 | `schedule-features.test.js` | ~91 | Context menu, magic fill, buffer zones, focus mode, fluid resizing, time tracking, task details modal |
@@ -208,6 +208,7 @@ todo_this_week/
     settings.test.js           # Unit tests for settings.js
     features.test.js           # Tests for notes, completedAt, undo/redo, recurring tasks
     search.test.js             # Tests for search/filter functionality
+    schedule-features.test.js  # Tests for schedule tab features
 ```
 
 ## Tech Stack
@@ -223,6 +224,7 @@ todo_this_week/
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.1.0 | 2026-02-23 | Status-completion synchronization (completed derived from status), code optimizations (extracted helper functions), 472 tests |
 | 2.0.0 | 2026-02-22 | Removed Projects, Sprint, and Why attributes (10 attributes total), added completed tasks disclosure toggle in Groups tab drill-down, Energy attribute simplified to Low/High |
 | 1.9.0 | 2026-02-22 | Auto-save for task edit modal (800ms debounce), Notion import with full 13-attribute support, Groups tab immediate update after edit, 425+ tests |
 | 1.8.0 | 2026-02-21 | Groups tab with bento grid, Task Details modal, 13 toggleable attributes, double-click task interaction |

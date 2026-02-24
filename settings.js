@@ -15,6 +15,19 @@ const FONT_SIZE_MAP = {
     'large': '17px'
 };
 
+// Local value options for Notion mapping - single source of truth
+const LOCAL_VALUE_OPTIONS = {
+    priority: ['CRITICAL', 'IMPORTANT', 'SOMEDAY'],
+    type: ['home', 'work'],
+    energy: ['TBD', 'Low', 'Medium', 'High'],
+    status: ['inbox', 'breakdown', 'stretch', 'ready', 'next-action', 'blocked', 'in-progress', 'influence', 'monitor', 'delegate', 'done', 'archive'],
+    impact: ['TBD', 'LOW', 'Medium', 'High'],
+    value: ['TBD', 'BUILD', 'LEARN'],
+    complexity: ['TBD', 'JUST DO IT', 'Trivial', 'Simple & Clear', 'Multiple Steps', 'Dependent/Risk', 'Unknown/Broad'],
+    action: ['TBD', 'Question', 'Mandate', 'Delete', 'Simplify', 'Accelerate', 'Automate'],
+    estimates: ['Unknown', '0 HR', '1 Hr', '2 Hr', '4 HR', '8 Hr - 1 Day', '16 Hr - 2 Day', '24 Hr - 3 Day', '40 Hr - 5 Day', '56 Hr - 1 Week', '112 Hr - 2 Week', '224 Hr - 1 Month']
+};
+
 // Apply settings to the current document
 function applySettings(settings) {
     const root = document.documentElement;
@@ -810,19 +823,7 @@ function renderValueMappingUI(field, notionOptions, savedMappings = null) {
     const container = document.getElementById(`notion-${field}-values`);
     if (!container) return;
 
-    const localValues = {
-        priority: ['CRITICAL', 'IMPORTANT', 'SOMEDAY'],
-        type: ['home', 'work'],
-        energy: ['TBD', 'Low', 'Medium', 'High'],
-        status: ['inbox', 'breakdown', 'stretch', 'ready', 'next-action', 'blocked', 'in-progress', 'influence', 'monitor', 'delegate', 'done', 'archive'],
-        impact: ['TBD', 'LOW', 'Medium', 'High'],
-        value: ['TBD', 'BUILD', 'LEARN'],
-        complexity: ['TBD', 'JUST DO IT', 'Trivial', 'Simple & Clear', 'Multiple Steps', 'Dependent/Risk', 'Unknown/Broad'],
-        action: ['TBD', 'Question', 'Mandate', 'Delete', 'Simplify', 'Accelerate', 'Automate'],
-        estimates: ['Unknown', '0 HR', '1 Hr', '2 Hr', '4 HR', '8 Hr - 1 Day', '16 Hr - 2 Day', '24 Hr - 3 Day', '40 Hr - 5 Day', '56 Hr - 1 Week', '112 Hr - 2 Week', '224 Hr - 1 Month']
-    };
-
-    const values = localValues[field];
+    const values = LOCAL_VALUE_OPTIONS[field];
     if (!values) return;
 
     // Auto-map if no saved mappings exist or all are empty
@@ -862,21 +863,9 @@ function collectColumnMappingConfig() {
         columnMapping[field] = select?.value || '';
 
         // Collect value mappings for select fields
-        if (['priority', 'type', 'energy', 'status', 'impact', 'value', 'complexity', 'action', 'estimates'].includes(field)) {
-            const localValues = {
-                priority: ['CRITICAL', 'IMPORTANT', 'SOMEDAY'],
-                type: ['home', 'work'],
-                energy: ['Low', 'High'],
-                status: ['inbox', 'breakdown', 'stretch', 'ready', 'next-action', 'blocked', 'in-progress', 'influence', 'monitor', 'delegate', 'done', 'archive'],
-                impact: ['TBD', 'LOW', 'Medium', 'High'],
-                value: ['TBD', 'BUILD', 'LEARN'],
-                complexity: ['TBD', 'JUST DO IT', 'Trivial', 'Simple & Clear', 'Multiple Steps', 'Dependent/Risk', 'Unknown/Broad'],
-                action: ['TBD', 'Question', 'Mandate', 'Delete', 'Simplify', 'Accelerate', 'Automate'],
-                estimates: ['Unknown', '0 HR', '1 Hr', '2 Hr', '4 HR', '8 Hr - 1 Day', '16 Hr - 2 Day', '24 Hr - 3 Day', '40 Hr - 5 Day', '56 Hr - 1 Week', '112 Hr - 2 Week', '224 Hr - 1 Month']
-            };
-
+        if (LOCAL_VALUE_OPTIONS[field]) {
             valueMappings[field] = {};
-            localValues[field]?.forEach(val => {
+            LOCAL_VALUE_OPTIONS[field].forEach(val => {
                 const valueSelect = document.getElementById(`notion-value-${field}-${val}`);
                 valueMappings[field][val] = valueSelect?.value || '';
             });
