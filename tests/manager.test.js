@@ -274,7 +274,9 @@ const MANAGER_EXPORTS = [
     'renderGroupsTab', 'calculateAttributeDistribution', 'createBentoBox', 'renderMiniPieChart',
     'openGroupsDrilldown', 'closeGroupsDrilldown', 'renderGroupsDrilldownColumns',
     // Stats helpers
-    'renderStatusDistributionBars', 'renderAttributeDistributionBars'
+    'renderStatusDistributionBars', 'renderAttributeDistributionBars',
+    // Event/MIT helpers
+    'setupEventCreationListeners', 'setupMITListeners', 'checkEventExpiry', 'checkMITRetrospective', 'updateMITStatus'
 ];
 
 beforeEach(() => {
@@ -459,6 +461,22 @@ describe('createTaskElement', () => {
         const task = { id: 't1', title: 'Test', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], notes: '', recurrence: null };
         const el = createTaskElement(task);
         expect(el.querySelector('.task-notes-toggle')).toBeNull();
+    });
+
+    test('event note styling', () => {
+        const task = { id: 'e1', title: 'Event', isEvent: true, priority: 'SOMEDAY', completed: false, schedule: [] };
+        const el = createTaskElement(task);
+        expect(el.classList.contains('event-note')).toBe(true);
+        // Should not have checkbox
+        expect(el.querySelector('.task-complete-checkbox')).toBeNull();
+    });
+
+    test('MIT star button', () => {
+        const task = { id: 't1', title: 'Task', isMIT: true, priority: 'IMPORTANT', completed: false, schedule: [] };
+        const el = createTaskElement(task);
+        const star = el.querySelector('.mit-star-btn');
+        expect(star).not.toBeNull();
+        expect(star.classList.contains('active')).toBe(true);
     });
 });
 

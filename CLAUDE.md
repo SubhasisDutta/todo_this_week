@@ -13,10 +13,10 @@ This is a **Weekly Task Manager** — a Chrome/Chromium browser extension (Manif
 - `task_utils.js` (~1031 lines) — Shared utilities: Task class, CRUD operations, settings, undo/redo, recurring tasks, time blocks, validation (including time overlap), debounce, operation queue, cross-tab sync, status-completion sync
 - `settings.js` (~1575 lines) — Settings management: theme/font application, settings modal UI, tabbed import/export modal (JSON, CSV, Google Sheets, Notion with bidirectional sync), time blocks modal with inline label editing, LOCAL_VALUE_OPTIONS constant
 - `popup.js` (~392 lines) — Popup interface: task rendering (with notes/recurrence), tab switching, completion handlers, drag-and-drop reordering
-- `manager.js` (~4100 lines) — Full-page planner: weekly grid, drag-and-drop scheduling, inline editing, archive tab, stats tab, search/filter, undo toast, keyboard undo, settings wiring, add task modal, shared rendering helpers (renderTaskColumn, renderCompletedDisclosure, createSearchHandler)
+- `manager.js` (~4300 lines) — Full-page planner: weekly grid, drag-and-drop scheduling (including event cloning), inline editing, archive tab, stats tab, search/filter, undo toast, keyboard undo, settings wiring, add task modal, shared rendering helpers, Event Notes creation/expiry, MIT logic
 - `popup.html` (~102 lines) — Popup markup (3 tabs: TODAY, Display, ADD — with notes textarea and recurrence select)
-- `manager.html` (~800 lines) — Planner markup (5 tabs: SCHEDULE, PRIORITY, LOCATION, ARCHIVE, STATS + settings/help/add-task/import-export/time-blocks modals, help has 8 tabs including FAQ)
-- `popup.css` (~2000 lines) — Unified styles: neumorphic design, dark mode, modals, charts, archive, help, toast, search, notes, tooltips, FAQ styling, import/export tabs
+- `manager.html` (~850 lines) — Planner markup (5 tabs: SCHEDULE, PRIORITY, LOCATION, ARCHIVE, STATS + settings/help/add-task/import-export/time-blocks modals + Event Notes/MIT Retrospective modals)
+- `popup.css` (~2100 lines) — Unified styles: neumorphic design, dark mode, modals, charts, archive, help, toast, search, notes, tooltips, FAQ styling, import/export tabs, Event Notes styling, MIT Star styling
 
 ### Extension Configuration
 
@@ -67,7 +67,11 @@ Tasks are stored in `chrome.storage.local` under the `tasks` key as an array of 
   complexity: string,      // 'TBD' | 'JUST DO IT' | 'Trivial' | 'Simple & Clear' | 'Multiple Steps' | 'Dependent/Risk' | 'Unknown/Broad'
   action: string,          // 'TBD' | 'Question' | 'Mandate' | 'Delete' | 'Simplify' | 'Accelerate' | 'Automate'
   estimates: string,       // 'Unknown' | '0 HR' | '1 Hr' | '2 Hr' | '4 HR' | '8 Hr - 1 Day' | ... | '224 Hr - 1 Month'
-  interval: object|null    // { startDate: string|null, endDate: string|null } or null
+  interval: object|null,   // { startDate: string|null, endDate: string|null } or null
+  // --- Event & MIT fields (v2.2.0) ---
+  isEvent: boolean,        // true for Event Notes (no completion checkbox, clonable, expiring)
+  isMIT: boolean,          // true if marked as Most Important Task (Star)
+  mitStatus: string        // 'pending' | 'completed' | 'missed' (for MIT retrospective)
 }
 ```
 

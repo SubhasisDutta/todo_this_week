@@ -224,7 +224,11 @@ class Task {
         complexity = 'TBD',
         action = 'TBD',
         estimates = 'Unknown',
-        interval = null  // { startDate: string|null, endDate: string|null }
+        interval = null,  // { startDate: string|null, endDate: string|null }
+        // --- Event & MIT fields ---
+        isEvent = false,
+        isMIT = false,
+        mitStatus = 'pending' // 'pending' | 'completed' | 'missed'
     ) {
         this.id = id || `task_${new Date().getTime()}_${Math.random().toString(36).substring(2, 11)}`;
         this.title = title;
@@ -250,6 +254,10 @@ class Task {
         this.action = action;
         this.estimates = estimates;
         this.interval = interval;
+        // --- Event & MIT fields ---
+        this.isEvent = isEvent;
+        this.isMIT = isMIT;
+        this.mitStatus = mitStatus;
     }
 }
 
@@ -364,6 +372,19 @@ function getTasks(callback) {
                     taskInstance.interval = null;
                     needsSave = true;
                 }
+                // --- Event & MIT fields backfill ---
+                if (typeof taskInstance.isEvent === 'undefined') {
+                    taskInstance.isEvent = false;
+                    needsSave = true;
+                }
+                if (typeof taskInstance.isMIT === 'undefined') {
+                    taskInstance.isMIT = false;
+                    needsSave = true;
+                }
+                if (typeof taskInstance.mitStatus === 'undefined') {
+                    taskInstance.mitStatus = 'pending';
+                    needsSave = true;
+                }
                 // Remove deprecated fields (cleanup)
                 if ('why' in taskInstance) {
                     delete taskInstance.why;
@@ -443,13 +464,17 @@ async function addNewTask(title, url, priority, deadline, type, energy = 'TBD', 
                 complexity = 'TBD',
                 action = 'TBD',
                 estimates = 'Unknown',
-                interval = null
+                interval = null,
+                isEvent = false,
+                isMIT = false,
+                mitStatus = 'pending'
             } = extraAttrs;
 
             const newTask = new Task(
                 null, title, url, priority, false, deadline, type, newDisplayOrder, [],
                 energy, notes, null, recurrence || null, null, null, null,
-                status, impact, value, complexity, action, estimates, interval
+                status, impact, value, complexity, action, estimates, interval,
+                isEvent, isMIT, mitStatus
             );
             tasks.push(newTask);
 
@@ -568,7 +593,10 @@ function createRecurringInstance(task) {
         task.complexity || 'TBD',
         task.action || 'TBD',
         task.estimates || 'Unknown',
-        newInterval
+        newInterval,
+        task.isEvent || false,
+        task.isMIT || false,
+        'pending' // Reset mitStatus for recurring instance
     );
 }
 
@@ -971,7 +999,10 @@ function duplicateTask(task) {
         task.complexity || 'TBD',
         task.action || 'TBD',
         task.estimates || 'Unknown',
-        task.interval ? { ...task.interval } : null
+        task.interval ? { ...task.interval } : null,
+        task.isEvent || false,
+        task.isMIT || false,
+        task.mitStatus || 'pending'
     );
     return newTask;
 }
