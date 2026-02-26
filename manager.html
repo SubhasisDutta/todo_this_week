@@ -64,6 +64,10 @@
                             <span class="btn-icon">✨</span>
                             <span class="btn-text">Magic Fill</span>
                         </button>
+                        <button id="add-event-btn" class="neumorphic-btn" aria-label="Add Event Note">
+                            <span class="btn-icon">📝</span>
+                            <span class="btn-text">Add Note</span>
+                        </button>
                         <button id="focus-mode-btn" class="neumorphic-btn icon-btn has-tooltip" aria-label="Toggle Focus Mode">
                             <span class="btn-icon-text">🎯</span>
                             <span class="btn-tooltip">Focus Mode</span>
@@ -742,6 +746,22 @@
                     </div>
 
                     <div class="help-tip">💡 All actions support Undo (Ctrl+Z). The hover popover shows task details when you hover over grid tasks for 400ms.</div>
+
+                    <div class="help-step">
+                        <div class="help-step-number">8</div>
+                        <div class="help-step-content">
+                            <h4>Event Notes 📝</h4>
+                            <p>Click the <strong>Add Note</strong> button to create Event Notes. These are different from tasks—they don't have completion checkboxes. Drag them from the Parking Lot to the schedule grid to clone them. You can use them for reminders like "Go to gym" or "Call Mom". Event instances on the grid expire and are deleted once their time block passes.</p>
+                        </div>
+                    </div>
+
+                    <div class="help-step">
+                        <div class="help-step-number">9</div>
+                        <div class="help-step-content">
+                            <h4>MIT (Most Important Task) ⭐</h4>
+                            <p>Click the star icon (☆) on any task or event to mark it as a Most Important Task (MIT) for the day. The Planner tracks your MIT completion rate in the Stats tab. If you forget to complete an MIT, the app will ask you about it the next time you visit.</p>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- FAQ -->
@@ -1441,6 +1461,48 @@
             <div class="modal-actions">
                 <button id="details-edit-btn" class="neumorphic-btn">✏️ Edit</button>
                 <button id="details-delete-btn" class="neumorphic-btn delete-btn">🗑️ Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Event Note Modal -->
+    <div id="add-event-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="add-event-title">
+        <div class="modal-content modal-content-small">
+            <div class="modal-header">
+                <h2 id="add-event-title">📝 Add Event Note</h2>
+                <button id="add-event-close-btn" class="neumorphic-btn icon-btn" aria-label="Close">✕</button>
+            </div>
+            <div class="add-task-form">
+                <div class="form-group">
+                    <label for="event-note-content">Note Content:</label>
+                    <textarea id="event-note-content" class="neumorphic-input" rows="3" placeholder="e.g. Go to Costco, Visit Friend X"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="event-recurrence">🔄 Recurrence:</label>
+                    <select id="event-recurrence" class="neumorphic-select">
+                        <option value="">None</option>
+                        <option value="daily">🔄 Daily</option>
+                        <option value="weekly">🔄 Weekly</option>
+                        <option value="monthly">🔄 Monthly</option>
+                    </select>
+                </div>
+                <button id="save-event-btn" class="neumorphic-btn" style="width: 100%; margin-top: 10px;">Add Note</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MIT Retrospective Modal -->
+    <div id="mit-retro-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="mit-retro-title">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="mit-retro-title">⭐ MIT Retrospective</h2>
+            </div>
+            <p style="margin-bottom: 15px; color: var(--text-secondary);">You missed checking off some Most Important Tasks from previous days. Did you complete them?</p>
+            <div id="mit-retro-list" class="mit-retro-list">
+                <!-- Dynamically populated -->
+            </div>
+            <div class="modal-actions" style="margin-top: 20px; justify-content: flex-end;">
+                <button id="mit-retro-close-btn" class="neumorphic-btn">Done</button>
             </div>
         </div>
     </div>

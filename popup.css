@@ -4559,3 +4559,120 @@ body.resizing {
 .groups-drilldown-column .task-item:hover {
     background: var(--inset-bg);
 }
+
+/* ===========================================
+   EVENT NOTES & MIT (NEW FEATURES)
+   =========================================== */
+
+/* Event Note Styles */
+.task-item.event-note {
+    background-color: #fff9c4 !important; /* Light yellow background */
+    border-left: 5px solid #fbc02d !important; /* Darker yellow border */
+}
+
+:root[data-theme="dark"] .task-item.event-note {
+    background-color: #423e20 !important;
+    border-left: 5px solid #f6e05e !important;
+}
+
+.task-item.event-note .task-title {
+    font-style: italic;
+    color: #555;
+}
+
+:root[data-theme="dark"] .task-item.event-note .task-title {
+    color: #ddd;
+}
+
+/* Hide checkbox for event notes (unless we decide otherwise) */
+.task-item.event-note .task-complete-checkbox,
+.task-item.event-note .neumorphic-checkbox-label {
+    display: none !important;
+}
+
+/* MIT Star Styles */
+.mit-star-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2em;
+    padding: 0 5px;
+    color: var(--text-muted); /* Default gray */
+    transition: color 0.2s, transform 0.2s;
+    line-height: 1;
+    margin-right: 5px;
+}
+
+.mit-star-btn.active {
+    color: #ffc107; /* Gold */
+    text-shadow: 0 0 5px rgba(255, 193, 7, 0.5);
+    transform: scale(1.1);
+}
+
+.mit-star-btn:hover {
+    transform: scale(1.2);
+}
+
+/* MIT Retrospective List */
+.mit-retro-list {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 10px;
+    background: var(--inset-bg);
+    border-radius: var(--border-radius-md);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.mit-retro-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    background: var(--bg-primary);
+    border-radius: var(--border-radius-sm);
+    box-shadow: 2px 2px 5px var(--shadow-dark);
+}
+
+.mit-retro-label {
+    flex: 1;
+    font-size: 0.9em;
+    color: var(--text-primary);
+    margin-right: 10px;
+}
+
+.mit-retro-date {
+    display: block;
+    font-size: 0.75em;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+}
+
+.mit-retro-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.mit-retro-btn {
+    padding: 4px 8px;
+    font-size: 0.8em;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+}
+
+.mit-retro-btn.yes {
+    background: var(--success-bg);
+    color: var(--success-text);
+}
+
+.mit-retro-btn.no {
+    background: var(--error-bg);
+    color: var(--error-text);
+}
+
+.mit-retro-item.completed {
+    opacity: 0.5;
+    pointer-events: none;
+}

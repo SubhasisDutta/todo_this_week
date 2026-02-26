@@ -27,6 +27,8 @@ A Chrome/Chromium browser extension for managing weekly tasks with priority leve
 - **Task Details Modal:** Double-click any task to view full details with colorful attribute tags
 - **Race Condition Protection:** An operation queue serializes rapid concurrent operations (e.g., fast checkbox clicks)
 - **Undo/Redo:** Ctrl+Z / Ctrl+Shift+Z undo/redo support (up to 5 history entries); undo toast appears after destructive actions
+- **Event Notes:** Add non-task events (e.g., "Go to gym") via the "Add Note" button. These notes sit in the Parking Lot and can be dragged to the schedule grid to create clones. Instances on the grid expire and are deleted when their time block passes.
+- **MIT (Most Important Task):** Mark any task or event as an MIT with the Star icon. Track MIT completion stats. A retrospective modal asks about missed MITs from previous days.
 - **Sample Tasks:** On first run, 6 sample tasks are automatically created to demonstrate all features
 
 ### Popup Interface
@@ -224,6 +226,7 @@ todo_this_week/
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.2.0 | 2026-02-24 | Event Notes (clonable, auto-expiring), MIT (Most Important Task) tracking with star toggle and retrospective modal, MIT stats, updated help guide |
 | 2.1.0 | 2026-02-23 | Status-completion synchronization (completed derived from status), code optimizations (extracted helper functions), 472 tests |
 | 2.0.0 | 2026-02-22 | Removed Projects, Sprint, and Why attributes (10 attributes total), added completed tasks disclosure toggle in Groups tab drill-down, Energy attribute simplified to Low/High |
 | 1.9.0 | 2026-02-22 | Auto-save for task edit modal (800ms debounce), Notion import with full 13-attribute support, Groups tab immediate update after edit, 425+ tests |

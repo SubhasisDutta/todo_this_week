@@ -40,6 +40,9 @@ describe('Task class', () => {
         expect(task.status).toBe('inbox');
         expect(task.impact).toBe('TBD');
         expect(task.complexity).toBe('TBD');
+        expect(task.isEvent).toBe(false);
+        expect(task.isMIT).toBe(false);
+        expect(task.mitStatus).toBe('pending');
     });
 
     test('generates unique ID when none provided', () => {
@@ -80,6 +83,18 @@ describe('Task class', () => {
         expect(task.action).toBe('Accelerate');
         expect(task.estimates).toBe('2 Hr');
         expect(task.interval).toEqual({ start: '2025-01-01', end: '2025-01-07' });
+    });
+
+    test('accepts event/MIT parameters', () => {
+        const task = new Task(
+            'id1', 'Event', '', 'SOMEDAY', false, null, 'home', 0, [], 'Low',
+            '', null, null, null, null, null,
+            'inbox', 'TBD', 'TBD', 'TBD', 'TBD', 'Unknown', null,
+            true, true, 'completed' // isEvent, isMIT, mitStatus
+        );
+        expect(task.isEvent).toBe(true);
+        expect(task.isMIT).toBe(true);
+        expect(task.mitStatus).toBe('completed');
     });
 });
 
@@ -155,6 +170,9 @@ describe('getTasks', () => {
             expect(tasks[0].impact).toBe('TBD');
             expect(tasks[0].complexity).toBe('TBD');
             expect(tasks[0].estimates).toBe('Unknown');
+            expect(tasks[0].isEvent).toBe(false);
+            expect(tasks[0].isMIT).toBe(false);
+            expect(tasks[0].mitStatus).toBe('pending');
             done();
         });
     });
