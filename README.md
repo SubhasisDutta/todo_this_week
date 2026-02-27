@@ -1,8 +1,8 @@
 # Weekly Task Manager
 
-**Version 2.1.0**
+**Version 2.2.0**
 
-A Chrome/Chromium browser extension for managing weekly tasks with priority levels, categories, energy tracking, 10 toggleable task attributes, and a visual weekly planner grid. Schedule tasks into time blocks, track completion across the week, and keep everything in sync between the popup and full-page planner.
+A Chrome/Chromium browser extension for managing weekly tasks with priority levels, categories, energy tracking, 10 toggleable task attributes, Event Notes with auto-expiry and recurrence, a Most Important Thing (MIT) daily star system, and a visual weekly planner grid. Schedule tasks and events into time blocks, track completion and MIT streaks across the week, and keep everything in sync between the popup and full-page planner.
 
 ## Features
 
@@ -18,7 +18,9 @@ A Chrome/Chromium browser extension for managing weekly tasks with priority leve
 - **Cascade Completion:** When all scheduled assignments for a task are completed, the parent task is automatically marked complete
 - **Last Modified Tracking:** Every task has a `lastModified` timestamp that updates automatically on any change
 - **Auto-Save:** Inline edits in the planner auto-save after 1.5 seconds; task edit modal auto-saves after 800ms with visual "Saving.../Saved ✓" indicator
-- **Cross-Tab Sync:** Changes in the popup are reflected in the planner page in real-time, and vice versa
+- **Event Notes:** Lightweight event/appointment entries (e.g., "Go to Shopping", "Visit friend") — visually distinct from tasks with dashed purple borders, no completion tracking, auto-expire when assigned time block passes, support for recurring (daily/weekly/monthly) with automatic next-instance creation
+- **MIT Star System:** Mark one task or event per day as your Most Important Thing (MIT) with a star. Track MIT completion streaks and 30-day completion rate in Stats. Past unresolved MITs prompt a follow-up modal on next planner visit.
+- **Cross-Tab Sync:** Changes in the popup are reflected in the planner page in real-time, and vice versa (tasks, events, and MIT history)
 - **Import/Export:** Back up tasks to JSON or CSV (timestamped files), or import from JSON with smart merge logic (matching IDs update, new IDs create)
 - **Notion Import:** Import tasks from a Notion database with full attribute mapping support (priority, type, energy, impact, value, complexity, action, estimates, interval)
 - **Google Sheets Import:** Import tasks from a published Google Sheets CSV (via Settings)
@@ -44,10 +46,12 @@ Access the planner by clicking the "PLANNER" button in the popup. It opens in a 
 - **Help (?)** and **Settings (⚙️)** buttons with hover tooltips
 
 - **SCHEDULE Tab** — A three-column layout:
-  - *Unassigned Tasks* sidebar listing tasks with no schedule
+  - *Parking Lot* sidebar listing unscheduled tasks and events (events shown with purple separator)
   - *Weekly Grid* with 7 rotating days (starting from today) and configurable time blocks for drag-and-drop scheduling
   - *Assigned Tasks* sidebar with an "Unassign All" button
   - Today's column is visually highlighted. Time block slot limits are enforced during drag-and-drop.
+  - **Add Event** button creates event notes that appear in the Parking Lot
+  - **MIT Stars** on grid items: click to mark as your Most Important Thing for that day (exactly 1 per day)
 
 - **GROUPS Tab** — Bento grid view of tasks grouped by enabled attributes:
   - Each attribute box shows active task count and mini donut chart showing distribution
@@ -59,7 +63,7 @@ Access the planner by clicking the "PLANNER" button in the popup. It opens in a 
 
 - **ARCHIVE Tab** — Completed tasks grouped by completion date, sorted by last modified (most recent first) within each group. Features a wider search bar and individual restore buttons; a "Clear All Completed" button removes all completed tasks (with undo support).
 
-- **STATS Tab** — Visual HTML/CSS charts showing task completion rate, priority distribution, energy distribution, and tasks per day of the week.
+- **STATS Tab** — Visual HTML/CSS charts showing task completion rate, priority distribution, energy distribution, tasks per day, event stats (total, scheduled today, day distribution), and MIT stats (streak, 30-day completion rate, weekly status).
 
 ### Settings Modal
 
@@ -89,7 +93,7 @@ Access via the "Time Blocks" button in the SCHEDULE tab header:
 
 ### Help Modal
 
-Click the ? button to open the interactive Help guide with 8 sections: Overview, Quick Start, Schedule, Priority, Location, Settings, Import/Export, and FAQ.
+Click the ? button to open the interactive Help guide with 8 sections: Overview, Quick Start, Schedule, Priority, Location, Settings, Import/Export, and FAQ. Includes documentation for Event Notes and MIT Star System.
 
 ### Time Blocks
 
@@ -164,7 +168,7 @@ npm run test:watch
 npm run test:coverage
 ```
 
-The test suite includes **472 tests** across 8 test files:
+The test suite includes **541+ tests** across 10 test files:
 
 | Test Suite | Tests | Coverage |
 |-----------|-------|----------|
@@ -176,6 +180,8 @@ The test suite includes **472 tests** across 8 test files:
 | `features.test.js` | ~35 | Notes field, completedAt, lastModified, undo/redo stacks, recurring task creation, archive grouping |
 | `search.test.js` | ~17 | applySearchFilter logic, schedule/archive/groups search |
 | `schedule-features.test.js` | ~91 | Context menu, magic fill, buffer zones, focus mode, fluid resizing, time tracking, task details modal |
+| `events.test.js` | ~40 | EventNote class, CRUD, backfill, duplicate, recurrence, expiry, cleanupExpiredEvents, withEventLock |
+| `mit.test.js` | ~29 | MIT CRUD, 1-per-day enforcement, resolution, streak calculation, completion rate, weekly status |
 
 ### Debugging
 
@@ -187,20 +193,22 @@ The test suite includes **472 tests** across 8 test files:
 
 ```
 todo_this_week/
-  manifest.json          # Chrome Extension Manifest V3 config (v1.2.0)
+  manifest.json          # Chrome Extension Manifest V3 config (v2.2.0)
   popup.html             # Popup interface markup (TODAY, Display, ADD tabs)
   popup.js               # Popup logic (rendering, tabs, completion, drag-and-drop)
   popup.css              # Unified styles (popup + manager): neumorphic + dark mode
-  manager.html           # Full-page planner (SCHEDULE, PRIORITY, LOCATION, ARCHIVE, STATS)
-  manager.js             # Planner logic (grid, scheduling, archive, stats, search, undo toast)
+  manager.html           # Full-page planner (SCHEDULE, GROUPS, ARCHIVE, STATS + modals)
+  manager.js             # Planner logic (grid, events, MIT stars, scheduling, archive, stats)
   task_utils.js          # Shared utilities (Task class, storage, settings, undo/redo, recurring)
   settings.js            # Settings management: theme/font, Notion import, Sheets import, time blocks
+  events.js              # Event Notes module (EventNote class, CRUD, expiry, recurrence)
+  mit.js                 # MIT Star System module (CRUD, resolution, stats calculations)
   images/                # Extension icons (16px, 48px, 128px)
   tests/
     package.json               # Test dependencies (Jest)
     jest.config.js             # Jest configuration
     mocks/
-      chrome.storage.mock.js   # Chrome API mocks + loadScript helper + seedSettings/seedTimeBlocks
+      chrome.storage.mock.js   # Chrome API mocks + loadScript + seedSettings/seedTimeBlocks/seedEvents/seedMitHistory
     task_utils.test.js         # Unit tests for task_utils.js
     popup.test.js              # Unit tests for popup.js
     manager.test.js            # Unit tests for manager.js
@@ -209,6 +217,8 @@ todo_this_week/
     features.test.js           # Tests for notes, completedAt, undo/redo, recurring tasks
     search.test.js             # Tests for search/filter functionality
     schedule-features.test.js  # Tests for schedule tab features
+    events.test.js             # Unit tests for events.js
+    mit.test.js                # Unit tests for mit.js
 ```
 
 ## Tech Stack
@@ -224,6 +234,7 @@ todo_this_week/
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.2.0 | 2026-02-26 | Event Notes with auto-expiry and recurrence, MIT (Most Important Thing) daily star system with streak tracking and follow-up modal, event and MIT stats in Stats tab, cross-tab sync for events and MIT history, 541+ tests |
 | 2.1.0 | 2026-02-23 | Status-completion synchronization (completed derived from status), code optimizations (extracted helper functions), 472 tests |
 | 2.0.0 | 2026-02-22 | Removed Projects, Sprint, and Why attributes (10 attributes total), added completed tasks disclosure toggle in Groups tab drill-down, Energy attribute simplified to Low/High |
 | 1.9.0 | 2026-02-22 | Auto-save for task edit modal (800ms debounce), Notion import with full 13-attribute support, Groups tab immediate update after edit, 425+ tests |

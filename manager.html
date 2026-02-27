@@ -60,6 +60,10 @@
                         <button id="schedule-search-clear" class="neumorphic-btn search-clear-btn">Clear</button>
                     </div>
                     <div class="schedule-header-actions">
+                        <button id="add-event-btn" class="neumorphic-btn" aria-label="Add New Event Note">
+                            <span class="btn-icon">📌</span>
+                            <span class="btn-text">Add Event</span>
+                        </button>
                         <button id="magic-fill-btn" class="neumorphic-btn" aria-label="Auto-fill empty time blocks">
                             <span class="btn-icon">✨</span>
                             <span class="btn-text">Magic Fill</span>
@@ -425,13 +429,17 @@
                         <li>🗓️ <strong>SOMEDAY</strong> — Backlog items with no fixed timeline.</li>
                         <li>🏠 <strong>Home</strong> / 💼 <strong>Work</strong> — Category for filtering.</li>
                         <li>🍃 <strong>Low</strong> / ⚡ <strong>Medium</strong> / 🔋 <strong>High</strong> energy — Match tasks to your energy levels.</li>
-                        <li>🔄 <strong>Recurring</strong> — Tasks that auto-renew daily/weekly/monthly.</li>
+                        <li>🔄 <strong>Recurring</strong> — Tasks and events that auto-renew daily/weekly/monthly.</li>
+                        <li>📌 <strong>Event Notes</strong> — Lightweight appointments/errands with no completion status. Auto-expire when the time block passes.</li>
+                        <li>🌟 <strong>MIT Star</strong> — Mark one task or event per day as your Most Important Thing. Track streaks in Stats.</li>
                         <li>📊 <strong>Groups Tab</strong> — View tasks grouped by any enabled attribute with bento grid visualization.</li>
                     </ul>
 
                     <p><strong>Schedule Tab Features:</strong></p>
                     <ul>
-                        <li>🧩 <strong>Parking Lot</strong> — Collapsible sidebar for unscheduled tasks. Drag to grid to schedule.</li>
+                        <li>🧩 <strong>Parking Lot</strong> — Collapsible sidebar for unscheduled tasks and events. Drag to grid to schedule.</li>
+                        <li>📌 <strong>Event Notes</strong> — Add events via the "Add Event" button. Visually distinct from tasks with purple dashed borders.</li>
+                        <li>🌟 <strong>MIT Stars</strong> — Star any grid item as your Most Important Thing for the day. Exactly 1 per day.</li>
                         <li>🤏 <strong>Snap Guides</strong> — Visual row/column guides when dragging tasks for precise placement.</li>
                         <li>🕵️ <strong>Hover Details</strong> — Hover over grid tasks to see full details without opening edit form.</li>
                         <li>🌗 <strong>Time Indicator</strong> — Red line shows current time. Past blocks are dimmed.</li>
@@ -454,21 +462,37 @@
                     <div class="help-step">
                         <div class="help-step-number">2</div>
                         <div class="help-step-content">
-                            <h4>Schedule tasks to time blocks</h4>
-                            <p>In the <strong>SCHEDULE tab</strong>, drag tasks from the left sidebar onto the grid
-                                cells. Each column is a day; each row is a time block.</p>
+                            <h4>Add events for appointments</h4>
+                            <p>Click <strong>📌 Add Event</strong> in the SCHEDULE tab to create lightweight event notes
+                                for appointments, errands, or meetings. Events appear in the Parking Lot with a purple style.</p>
                         </div>
                     </div>
                     <div class="help-step">
                         <div class="help-step-number">3</div>
                         <div class="help-step-content">
-                            <h4>Work through your day</h4>
-                            <p>Open the popup and go to <strong>TODAY tab</strong> to see tasks scheduled for today,
-                                grouped by time block. Check them off as you complete them.</p>
+                            <h4>Schedule tasks &amp; events to time blocks</h4>
+                            <p>In the <strong>SCHEDULE tab</strong>, drag tasks and events from the Parking Lot sidebar
+                                onto the grid cells. Each column is a day; each row is a time block.</p>
                         </div>
                     </div>
                     <div class="help-step">
                         <div class="help-step-number">4</div>
+                        <div class="help-step-content">
+                            <h4>Star your Most Important Thing</h4>
+                            <p>Click the <strong>☆ star</strong> on any grid item to mark it as your MIT for the day.
+                                Only 1 per day — this keeps you focused on what matters most.</p>
+                        </div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">5</div>
+                        <div class="help-step-content">
+                            <h4>Work through your day</h4>
+                            <p>Open the popup and go to <strong>TODAY tab</strong> to see tasks scheduled for today,
+                                grouped by time block. Check them off as you complete them. Events auto-expire when their time passes.</p>
+                        </div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">6</div>
                         <div class="help-step-content">
                             <h4>Review completed tasks</h4>
                             <p>Visit the <strong>ARCHIVE tab</strong> to see all completed tasks grouped by date. You
@@ -476,69 +500,75 @@
                         </div>
                     </div>
                     <div class="help-step">
-                        <div class="help-step-number">5</div>
+                        <div class="help-step-number">7</div>
                         <div class="help-step-content">
                             <h4>Review your progress</h4>
-                            <p>Check the <strong>STATS tab</strong> for completion rates, priority distribution, and
-                                productivity charts.</p>
+                            <p>Check the <strong>STATS tab</strong> for completion rates, priority distribution, MIT
+                                streak, event stats, and productivity charts.</p>
                         </div>
                     </div>
 
                     <div class="help-tip">💡 <strong>Tip:</strong> Press <kbd>Ctrl+Z</kbd> to undo the last destructive
-                        action (delete, complete, unassign all).</div>
+                        action (delete, complete, unassign all). When you reopen the planner, a check-in modal will ask about past unresolved MITs.</div>
                 </div>
 
                 <!-- Schedule Tab -->
                 <div id="help-schedule" class="help-panel">
                     <h3 class="help-section-title">🗓️ Schedule Tab</h3>
-                    <p>The Schedule tab is the heart of the planner — a weekly grid of days × time blocks.</p>
+                    <p>The Schedule tab is the heart of the planner — a weekly grid of days × time blocks. Schedule both <strong>tasks</strong> and <strong>events</strong> into your week.</p>
 
-                    <div class="help-diagram"> 
+                    <div class="help-diagram">
                         ──────────┬──────┬──────┬──────┬──────┬──────
                         Time      | Mon  | Tue  | Wed  | Thu  | Fri
                         ──────────┼──────┼──────┼──────┼──────┼──────
-                        [1PM-3PM] │ 🔥   │      │ ⭐   │      │
-                        Deep Work │Task A│      │Task C│      │
+                        [1PM-3PM] │ 🔥⭐ │      │ 📌   │      │
+                        Deep Work │Task A│      │Event │      │
                         ──────────┼──────┼──────┼──────┼──────┼──────
                         [3PM-6PM] │      │ 🗓️   │      │      │
-                        Deep Wk 2 │      │Task B│      │      │ 
+                        Deep Wk 2 │      │Task B│      │      │
                     </div>
 
                     <div class="help-step">
                         <div class="help-step-number">1</div>
                         <div class="help-step-content">
                             <h4>Drag to schedule</h4>
-                            <p>Drag a task from the <strong>Unassigned</strong> sidebar onto any grid cell to schedule
-                                it for that day and time block.</p>
+                            <p>Drag a task or event from the <strong>Parking Lot</strong> sidebar onto any grid cell to schedule
+                                it for that day and time block. Events appear below tasks in the sidebar, separated by a purple line.</p>
                         </div>
                     </div>
                     <div class="help-step">
                         <div class="help-step-number">2</div>
                         <div class="help-step-content">
-                            <h4>Use the schedule form</h4>
-                            <p>Click ⏱️ on a task to open a scheduling grid — select multiple day/block combinations at
-                                once.</p>
+                            <h4>Add events</h4>
+                            <p>Click <strong>📌 Add Event</strong> to create event notes for appointments and errands. Events have a distinct purple dashed style, no completion status, and auto-expire when their time block passes. Recurring events regenerate automatically.</p>
                         </div>
                     </div>
                     <div class="help-step">
                         <div class="help-step-number">3</div>
                         <div class="help-step-content">
-                            <h4>Slot limits</h4>
-                            <p>Some blocks (marked grey) are <strong>blocked</strong> (Sleep, Morning Prep, Lunch) and
-                                cannot receive tasks. Deep Work blocks accept only 1 task.</p>
+                            <h4>Star your MIT</h4>
+                            <p>Click the <strong>☆ star</strong> on any grid item to mark it as your <strong>Most Important Thing</strong> for that day. Only 1 per day is allowed. The starred item gets a golden glow. Track your MIT completion in the Stats tab.</p>
                         </div>
                     </div>
                     <div class="help-step">
                         <div class="help-step-number">4</div>
                         <div class="help-step-content">
-                            <h4>Unassign tasks</h4>
-                            <p>Drag a task from the grid back to the <strong>Unassigned</strong> sidebar to remove its
+                            <h4>Slot limits</h4>
+                            <p>Some blocks (marked grey) are <strong>blocked</strong> (Sleep, Morning Prep, Lunch) and
+                                cannot receive tasks or events. Deep Work blocks accept only 1 item.</p>
+                        </div>
+                    </div>
+                    <div class="help-step">
+                        <div class="help-step-number">5</div>
+                        <div class="help-step-content">
+                            <h4>Unassign items</h4>
+                            <p>Drag a task from the grid back to the <strong>Parking Lot</strong> sidebar to remove its
                                 schedule. Use <em>Unassign All</em> to clear the entire week.</p>
                         </div>
                     </div>
 
                     <div class="help-tip">💡 Today's column is highlighted in blue. Tasks in the Assigned sidebar can be
-                        expanded to see their individual schedule items and check them off.</div>
+                        expanded to see their individual schedule items and check them off. Events auto-expire — no need to check them off.</div>
                 </div>
 
                 <!-- Groups Tab -->
@@ -676,7 +706,7 @@
 
                 <!-- Advanced Features -->
                 <div id="help-advanced" class="help-panel">
-                    <h3 class="help-section-title">🚀 Advanced Features (v1.5.0)</h3>
+                    <h3 class="help-section-title">🚀 Advanced Features</h3>
                     <p>These powerful features help you work more efficiently with your schedule.</p>
 
                     <div class="help-step">
@@ -738,6 +768,22 @@
                         <div class="help-step-content">
                             <h4>Buffer Zones</h4>
                             <p>When you have back-to-back tasks, a "5m buffer" indicator appears between them as a visual reminder to take a short break and transition mentally.</p>
+                        </div>
+                    </div>
+
+                    <div class="help-step">
+                        <div class="help-step-number">8</div>
+                        <div class="help-step-content">
+                            <h4>Event Notes 📌</h4>
+                            <p>Click the <strong>Add Event</strong> button to create lightweight event notes (appointments, errands) that are visually distinct from tasks. Events have no completion status — they auto-expire when their assigned time block passes. Recurring events auto-regenerate in the Parking Lot. Events can be duplicated across multiple time blocks.</p>
+                        </div>
+                    </div>
+
+                    <div class="help-step">
+                        <div class="help-step-number">9</div>
+                        <div class="help-step-content">
+                            <h4>MIT Star ⭐ (Most Important Thing)</h4>
+                            <p>Click the star icon on any grid task or event to mark it as your <strong>Most Important Thing</strong> for that day. Only 1 MIT per day is allowed — choosing a new one replaces the previous. When you open the planner with past unresolved MITs, a check-in modal asks if you completed them. Track your MIT streak and completion rate in the Stats tab.</p>
                         </div>
                     </div>
 
@@ -841,6 +887,26 @@
                     <div class="faq-item">
                         <h4 class="faq-question">How does Notion auto-mapping work?</h4>
                         <p class="faq-answer">When you fetch your Notion database schema, the extension automatically maps select field values that match (case-insensitive) between local values and Notion values. For example, if your Notion has "Critical" and the local option is "CRITICAL", they're automatically mapped. You can always manually adjust mappings after auto-mapping.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">What are Event Notes and how are they different from tasks?</h4>
+                        <p class="faq-answer">Event Notes are lightweight items for appointments and errands (e.g., "Go to Costco", "Visit friend"). Unlike tasks, events have no completion status or priority. They auto-expire when their assigned time block passes. Recurring events regenerate in the Parking Lot. Events appear with a distinct purple/dashed style so you can tell them apart from tasks at a glance.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">What happens when an event expires?</h4>
+                        <p class="faq-answer">When the time block an event is assigned to passes (based on the actual date and time), the event is automatically removed from the grid. For recurring events, a fresh instance is created in the Parking Lot so you can schedule it for next time. Non-recurring events are deleted entirely.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">What is MIT (Most Important Thing)?</h4>
+                        <p class="faq-answer">MIT lets you mark exactly one task or event per day as your Most Important Thing by clicking the star icon. This helps you focus on what matters most. The Stats tab tracks your MIT completion streak and rate. When you open the planner with past unresolved MITs, a check-in modal asks if you completed them.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">Can I have more than one MIT per day?</h4>
+                        <p class="faq-answer">No, MIT is intentionally limited to exactly one per day. This forces you to identify the single most important thing. If you star a different item, it replaces the previous MIT for that day. This constraint is a key part of the productivity methodology.</p>
                     </div>
                 </div>
 
@@ -1452,8 +1518,75 @@
         <button id="undo-dismiss-btn" class="undo-dismiss">✕</button>
     </div>
 
+    <!-- ============================
+         ADD EVENT NOTE MODAL
+         ============================ -->
+    <div id="add-event-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="add-event-title">
+        <div class="modal-content modal-content-small">
+            <div class="modal-header">
+                <h2 id="add-event-title">📌 Add Event Note</h2>
+                <button id="add-event-close-btn" class="neumorphic-btn icon-btn" aria-label="Close">✕</button>
+            </div>
+            <div class="add-event-form">
+                <div class="form-group">
+                    <label for="event-title-input">Title <span class="required">*</span></label>
+                    <input type="text" id="event-title-input" class="neumorphic-input"
+                        placeholder="Go to Costco, Visit friend X..." aria-required="true">
+                </div>
+                <div class="form-group">
+                    <label for="event-notes-input">Notes (Optional)</label>
+                    <textarea id="event-notes-input" class="neumorphic-input" rows="2"
+                        placeholder="Details, address, reminders..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="event-recurrence-input">Recurrence</label>
+                    <select id="event-recurrence-input" class="neumorphic-input">
+                        <option value="">None (one-time)</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Color</label>
+                    <div class="event-color-picker-row">
+                        <button type="button" class="color-swatch event-color-opt selected" data-color="" title="Default"></button>
+                        <button type="button" class="color-swatch event-color-opt" data-color="red" title="Red"></button>
+                        <button type="button" class="color-swatch event-color-opt" data-color="blue" title="Blue"></button>
+                        <button type="button" class="color-swatch event-color-opt" data-color="green" title="Green"></button>
+                        <button type="button" class="color-swatch event-color-opt" data-color="purple" title="Purple"></button>
+                        <button type="button" class="color-swatch event-color-opt" data-color="orange" title="Orange"></button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="save-event-btn" class="neumorphic-btn primary-btn">📌 Add Event</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================
+         MIT FOLLOW-UP MODAL
+         ============================ -->
+    <div id="mit-followup-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="mit-followup-title">
+        <div class="modal-content modal-content-medium">
+            <div class="modal-header">
+                <h2 id="mit-followup-title">⭐ MIT Check-In</h2>
+                <button id="mit-followup-close-btn" class="neumorphic-btn icon-btn" aria-label="Close">✕</button>
+            </div>
+            <p class="mit-followup-desc">How did your Most Important Things go?</p>
+            <div id="mit-followup-content" class="mit-followup-content">
+                <!-- Dynamically populated by checkMitFollowUp() -->
+            </div>
+        </div>
+    </div>
+
     <script src="task_utils.js"></script>
     <script src="settings.js"></script>
+    <script src="events.js"></script>
+    <script src="mit.js"></script>
     <script src="manager.js"></script>
 </body>
 

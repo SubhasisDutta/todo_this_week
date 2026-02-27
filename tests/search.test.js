@@ -21,6 +21,17 @@ loadScript(path.join(__dirname, '..', 'settings.js'), [
     'setupSettingsModalListeners'
 ]);
 
+// Load events.js and mit.js (dependencies of manager.js v2.2.0)
+loadScript(path.join(__dirname, '..', 'events.js'), [
+    'EventNote', 'getEventsAsync', 'saveEventsAsync',
+    'cleanupExpiredEvents', 'calculateEventExpiry'
+]);
+loadScript(path.join(__dirname, '..', 'mit.js'), [
+    'getMitHistory', 'saveMitHistory', 'setMitForDay', 'removeMitForDay',
+    'getMitForDay', 'getUnresolvedMits', 'resolveMit',
+    'calculateMitStreak', 'calculateMitCompletionRate', 'getMitWeeklyStatus'
+]);
+
 // Setup DOM for search tests
 function setupSearchDOM() {
     document.body.innerHTML = `

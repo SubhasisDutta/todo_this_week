@@ -26,6 +26,19 @@ loadScript(path.join(__dirname, '..', 'settings.js'), [
     'getEnabledAttributes'
 ]);
 
+// Load events.js and mit.js (dependencies of manager.js v2.2.0)
+loadScript(path.join(__dirname, '..', 'events.js'), [
+    'EventNote', 'getEvents', 'getEventsAsync', 'saveEvents', 'saveEventsAsync',
+    'addNewEvent', 'getEventById', 'updateEvent', 'deleteEvent',
+    'duplicateEvent', 'createRecurringEventInstance',
+    'cleanupExpiredEvents', 'calculateEventExpiry', 'withEventLock'
+]);
+loadScript(path.join(__dirname, '..', 'mit.js'), [
+    'getMitHistory', 'saveMitHistory', 'setMitForDay', 'removeMitForDay',
+    'getMitForDay', 'getUnresolvedMits', 'resolveMit',
+    'calculateMitStreak', 'calculateMitCompletionRate', 'getMitWeeklyStatus'
+]);
+
 // Setup manager HTML before loading manager.js
 function setupManagerDOM() {
     document.body.innerHTML = `
@@ -475,7 +488,7 @@ describe('renderSidebarLists', () => {
     test('shows empty message when no unassigned tasks', () => {
         renderSidebarLists([], []);
         const list = document.getElementById('unassigned-tasks-list');
-        expect(list.innerHTML).toContain('All tasks assigned');
+        expect(list.innerHTML).toContain('All items assigned');
     });
 
     test('renders assigned tasks', () => {

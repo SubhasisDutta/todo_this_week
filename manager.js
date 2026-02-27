@@ -3,6 +3,7 @@
 // --- CONSTANTS ---
 const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 let currentDays = [];
+let currentDayDates = {};  // Maps day names to Date objects for current week view
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', async function() {
@@ -18,6 +19,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     setupCollapsibleSidebar();
     setupHoverPopover();
     startTimeIndicatorUpdates();
+
+    // Event & MIT Features
+    setupEventModalListeners();
+    await checkMitFollowUp();
 });
 
 function setupAllListeners() {
@@ -45,15 +50,27 @@ function setupAllListeners() {
 async function renderPage() {
     const tasks = await getTasksAsync();
 
+    // --- Cleanup expired events ---
+    await cleanupExpiredEvents();
+
+    // --- Load events ---
+    const events = await getEventsAsync();
+    const unassignedEvents = events.filter(e => !e.schedule || e.schedule.length === 0);
+    const assignedEvents = events.filter(e => e.schedule && e.schedule.length > 0);
+
     // --- Render Planner Tab (only active tasks) ---
     clearPlannerTasks();
     const activeTasks = tasks.filter(t => !t.completed);
     const unassignedTasks = activeTasks.filter(t => !t.schedule || t.schedule.length === 0);
     const assignedTasks = activeTasks.filter(t => t.schedule && t.schedule.length > 0);
-    renderSidebarLists(unassignedTasks, assignedTasks);
+    renderSidebarLists(unassignedTasks, assignedTasks, unassignedEvents);
 
     const assignedGridTasks = tasks.filter(t => t.schedule && t.schedule.length > 0);
     renderTasksOnGrid(assignedGridTasks);
+    renderEventsOnGrid(assignedEvents);
+
+    // --- Render MIT stars on grid items ---
+    await renderMitStars();
 
     // --- Render Groups Tab (if active) ---
     const groupsTab = document.getElementById('groups-tab');
@@ -80,6 +97,7 @@ async function generateDayHeaders() {
 
     const rotatedDays = [...DAYS.slice(dayIndex), ...DAYS.slice(0, dayIndex)];
     currentDays = rotatedDays;
+    currentDayDates = {};
 
     const plannerGrid = document.getElementById('planner-grid');
     plannerGrid.innerHTML = '';
@@ -92,6 +110,9 @@ async function generateDayHeaders() {
     for (let i = 0; i < 7; i++) {
         const date = new Date(now);
         date.setDate(now.getDate() + i);
+
+        // Store date mapping for event expiry and MIT calculations
+        currentDayDates[rotatedDays[i]] = new Date(date);
 
         const header = document.createElement('div');
         header.classList.add('grid-header');
@@ -305,19 +326,35 @@ function clearHomeWorkLists() {
     });
 }
 
-function renderSidebarLists(unassigned, assigned) {
+function renderSidebarLists(unassigned, assigned, unassignedEvents = []) {
     const unassignedListEl = document.getElementById('unassigned-tasks-list');
     const assignedListEl = document.getElementById('assigned-tasks-list');
 
     unassignedListEl.innerHTML = '';
-    if (unassigned.length > 0) {
+    const totalUnassigned = unassigned.length + unassignedEvents.length;
+    if (totalUnassigned > 0) {
+        // Events section header + events on top
+        if (unassignedEvents.length > 0) {
+            const eventHeader = document.createElement('div');
+            eventHeader.classList.add('parking-lot-separator');
+            eventHeader.innerHTML = '<span>📌 Events</span>';
+            unassignedListEl.appendChild(eventHeader);
+            unassignedEvents.forEach(event => unassignedListEl.appendChild(createEventElement(event, { context: 'sidebar' })));
+        }
+        // Tasks section header + tasks below
+        if (unassigned.length > 0) {
+            const taskHeader = document.createElement('div');
+            taskHeader.classList.add('parking-lot-separator');
+            taskHeader.innerHTML = '<span>📋 Tasks</span>';
+            unassignedListEl.appendChild(taskHeader);
+        }
         unassigned.forEach(task => unassignedListEl.appendChild(createTaskElement(task, { context: 'sidebar' })));
     } else {
-        unassignedListEl.innerHTML = '<p class="empty-list-msg">All tasks assigned!</p>';
+        unassignedListEl.innerHTML = '<p class="empty-list-msg">All items assigned!</p>';
     }
 
-    // Update parking lot badge count
-    updateUnassignedCount(unassigned.length);
+    // Update parking lot badge count (tasks + events)
+    updateUnassignedCount(totalUnassigned);
 
     assignedListEl.innerHTML = '';
     if (assigned.length > 0) {
@@ -327,6 +364,77 @@ function renderSidebarLists(unassigned, assigned) {
     } else {
         assignedListEl.innerHTML = '<p class="empty-list-msg">No tasks scheduled.</p>';
     }
+}
+
+// --- Event Rendering ---
+
+function createEventElement(event, options = {}) {
+    const { context = 'sidebar' } = options;
+
+    const eventItem = document.createElement('div');
+    eventItem.classList.add('event-item');
+    if (event.colorCode) {
+        eventItem.setAttribute('data-color-code', event.colorCode);
+    }
+    eventItem.setAttribute('data-event-id', event.id);
+    eventItem.setAttribute('data-item-type', 'event');
+
+    if (context === 'sidebar' || context === 'grid') {
+        eventItem.setAttribute('draggable', 'true');
+    }
+
+    // Event icon
+    const iconSpan = document.createElement('span');
+    iconSpan.classList.add('event-type-icon');
+    iconSpan.textContent = '📌';
+    eventItem.appendChild(iconSpan);
+
+    // Title
+    const titleSpan = document.createElement('span');
+    titleSpan.classList.add('event-title');
+    titleSpan.textContent = event.title;
+    eventItem.appendChild(titleSpan);
+
+    // Recurrence badge
+    if (event.recurrence) {
+        const badge = document.createElement('span');
+        badge.classList.add('recurrence-badge');
+        badge.textContent = '🔄 ' + event.recurrence;
+        eventItem.appendChild(badge);
+    }
+
+    // Notes toggle (sidebar only)
+    if (context === 'sidebar' && event.notes && event.notes.trim()) {
+        eventItem.classList.add('has-notes');
+        const notesToggle = document.createElement('button');
+        notesToggle.classList.add('notes-toggle');
+        notesToggle.textContent = '📝';
+        notesToggle.title = 'Toggle notes';
+        eventItem.appendChild(notesToggle);
+
+        const notesContent = document.createElement('div');
+        notesContent.classList.add('task-notes-content');
+        notesContent.textContent = event.notes;
+        eventItem.appendChild(notesContent);
+
+        notesToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            notesContent.classList.toggle('visible');
+        });
+    }
+
+    return eventItem;
+}
+
+function renderEventsOnGrid(assignedEvents) {
+    assignedEvents.forEach(event => {
+        event.schedule.forEach(item => {
+            const cell = document.querySelector(`.grid-cell[data-day='${item.day}'][data-block-id='${item.blockId}']`);
+            if (cell) {
+                cell.appendChild(createEventElement(event, { context: 'grid' }));
+            }
+        });
+    });
 }
 
 function renderTasksOnGrid(assignedTasks) {
@@ -1691,8 +1799,94 @@ async function renderStatsTab() {
                 ${renderAttributeDistributionBars(estimatesCounts, total, ATTRIBUTE_OPTIONS.estimates)}
             </div>
             ` : ''}
+
+            ${await renderEventAndMitStats()}
         </div>
     `;
+}
+
+async function renderEventAndMitStats() {
+    // --- Event Stats ---
+    const events = await getEventsAsync();
+    const totalEvents = events.length;
+    const todayName = currentDays[0];
+    const eventsToday = events.filter(e =>
+        e.schedule && e.schedule.some(s => s.day === todayName)
+    ).length;
+    const recurringEvents = events.filter(e => e.recurrence).length;
+
+    // --- MIT Stats ---
+    const mitHistory = await getMitHistory();
+    const mitStreak = calculateMitStreak(mitHistory);
+    const mitRate = calculateMitCompletionRate(mitHistory, 30);
+
+    // Build dayDates array for weekly status
+    const dayDatesArr = currentDays.map(day => ({
+        day: day,
+        dateStr: getDayDateStr(day) || ''
+    }));
+    const mitWeekly = getMitWeeklyStatus(mitHistory, dayDatesArr);
+
+    let html = '';
+
+    // MIT Stats Card
+    html += `
+        <div class="stats-glass-card stats-card-lg stats-mit-card">
+            <div class="stats-section-header">
+                <span class="stats-section-icon">⭐</span>
+                <span class="stats-section-title">Most Important Thing</span>
+            </div>
+            <div class="stats-mit-metrics">
+                <div class="stats-mit-metric">
+                    <span class="stats-mit-metric-value">${mitStreak}</span>
+                    <span class="stats-mit-metric-label">Day Streak</span>
+                </div>
+                <div class="stats-mit-metric">
+                    <span class="stats-mit-metric-value">${mitRate}%</span>
+                    <span class="stats-mit-metric-label">Completion (30d)</span>
+                </div>
+            </div>
+            <div class="stats-mit-weekly">
+                ${mitWeekly.map(d => {
+                    const icon = d.status === 'completed' ? '✓' :
+                                 d.status === 'missed' ? '✕' :
+                                 d.status === 'unresolved' ? '?' :
+                                 d.status === 'pending' ? '⭐' : '·';
+                    const dayAbbr = d.day.charAt(0).toUpperCase() + d.day.slice(1, 3);
+                    return `<div class="stats-mit-day ${d.status}">
+                        <span class="stats-mit-day-label">${dayAbbr}</span>
+                        <span class="stats-mit-day-icon">${icon}</span>
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>
+    `;
+
+    // Event Stats Card
+    html += `
+        <div class="stats-glass-card stats-card-md stats-event-card">
+            <div class="stats-section-header">
+                <span class="stats-section-icon">📌</span>
+                <span class="stats-section-title">Event Notes</span>
+            </div>
+            <div class="stats-event-metrics">
+                <div class="stats-event-metric">
+                    <span class="stats-event-metric-value">${totalEvents}</span>
+                    <span class="stats-event-metric-label">Total</span>
+                </div>
+                <div class="stats-event-metric">
+                    <span class="stats-event-metric-value">${eventsToday}</span>
+                    <span class="stats-event-metric-label">Today</span>
+                </div>
+                <div class="stats-event-metric">
+                    <span class="stats-event-metric-value">${recurringEvents}</span>
+                    <span class="stats-event-metric-label">Recurring</span>
+                </div>
+            </div>
+        </div>
+    `;
+
+    return html;
 }
 
 // --- SEARCH / FILTER ---
@@ -1701,19 +1895,19 @@ function applySearchFilter(query, containers, includeGridCells = false) {
     const q = query.trim().toLowerCase();
     containers.forEach(container => {
         if (!container) return;
-        container.querySelectorAll('.task-item').forEach(taskEl => {
-            const titleEl = taskEl.querySelector('.task-title');
+        container.querySelectorAll('.task-item, .event-item').forEach(el => {
+            const titleEl = el.querySelector('.task-title') || el.querySelector('.event-title');
             const title = titleEl ? titleEl.textContent.toLowerCase() : '';
-            taskEl.style.display = (!q || title.includes(q)) ? '' : 'none';
+            el.style.display = (!q || title.includes(q)) ? '' : 'none';
         });
     });
 
-    // Also filter tasks in grid cells for schedule tab
+    // Also filter tasks and events in grid cells for schedule tab
     if (includeGridCells) {
-        document.querySelectorAll('.grid-cell .task-item').forEach(taskEl => {
-            const titleEl = taskEl.querySelector('.task-title');
+        document.querySelectorAll('.grid-cell .task-item, .grid-cell .event-item').forEach(el => {
+            const titleEl = el.querySelector('.task-title') || el.querySelector('.event-title');
             const title = titleEl ? titleEl.textContent.toLowerCase() : '';
-            taskEl.style.display = (!q || title.includes(q)) ? '' : 'none';
+            el.style.display = (!q || title.includes(q)) ? '' : 'none';
         });
     }
 }
@@ -2178,21 +2372,28 @@ function setupDragAndDropListeners() {
     const plannerContainer = document.querySelector('.planner-container');
     if (!plannerContainer) return;
 
-    let draggedTaskInfo = null;
+    let draggedItemInfo = null;
 
     plannerContainer.addEventListener('dragstart', (event) => {
         const taskItem = event.target.closest('.task-item');
-        if (taskItem && taskItem.getAttribute('draggable')) {
-            const taskId = taskItem.getAttribute('data-task-id');
-            const sourceCell = taskItem.closest('.grid-cell');
-            draggedTaskInfo = {
-                taskId,
+        const eventItem = event.target.closest('.event-item');
+        const draggable = taskItem || eventItem;
+
+        if (draggable && draggable.getAttribute('draggable')) {
+            const isEvent = !!eventItem;
+            const itemId = isEvent
+                ? draggable.getAttribute('data-event-id')
+                : draggable.getAttribute('data-task-id');
+            const sourceCell = draggable.closest('.grid-cell');
+            draggedItemInfo = {
+                itemId,
+                itemType: isEvent ? 'event' : 'task',
                 sourceDay: sourceCell ? sourceCell.dataset.day : null,
                 sourceBlockId: sourceCell ? sourceCell.dataset.blockId : null
             };
-            event.dataTransfer.setData('text/plain', taskId);
+            event.dataTransfer.setData('text/plain', itemId);
             event.dataTransfer.effectAllowed = 'move';
-            setTimeout(() => taskItem.classList.add('dragging'), 0);
+            setTimeout(() => draggable.classList.add('dragging'), 0);
         }
     });
 
@@ -2213,7 +2414,7 @@ function setupDragAndDropListeners() {
 
         if (dropTarget.classList.contains('grid-cell')) {
             const limit = dropTarget.dataset.taskLimit;
-            const tasksInCell = dropTarget.querySelectorAll('.task-item:not(.dragging)').length;
+            const tasksInCell = dropTarget.querySelectorAll('.task-item:not(.dragging), .event-item:not(.dragging)').length;
 
             // Show guide lines
             showDragGuides(dropTarget);
@@ -2253,7 +2454,7 @@ function setupDragAndDropListeners() {
             el.classList.remove('drag-over', 'snap-target', 'drop-invalid');
         });
         clearDragGuides();
-        draggedTaskInfo = null;
+        draggedItemInfo = null;
     };
 
     plannerContainer.addEventListener('dragover', handleDragOver);
@@ -2262,50 +2463,93 @@ function setupDragAndDropListeners() {
 
     plannerContainer.addEventListener('drop', async (event) => {
         event.preventDefault();
-        if (!draggedTaskInfo) return;
+        if (!draggedItemInfo) return;
 
         // Capture dragged info immediately before any async operations
-        const currentDragInfo = { ...draggedTaskInfo };
-        draggedTaskInfo = null;
+        const currentDragInfo = { ...draggedItemInfo };
+        draggedItemInfo = null;
 
         const dropTarget = event.target.closest('.grid-cell, #unassigned-tasks-list');
         if (!dropTarget) return;
 
-        const tasks = await getTasksAsync();
-        const task = tasks.find(t => t.id === currentDragInfo.taskId);
-        if (!task) return;
+        if (currentDragInfo.itemType === 'event') {
+            // --- Event drop handling ---
+            const events = await getEventsAsync();
+            const eventNote = events.find(e => e.id === currentDragInfo.itemId);
+            if (!eventNote) return;
 
-        let scheduleChanged = false;
+            let changed = false;
 
-        if (dropTarget.id === 'unassigned-tasks-list') {
-            if (currentDragInfo.sourceDay && currentDragInfo.sourceBlockId) {
-                const idx = task.schedule.findIndex(item => item.day === currentDragInfo.sourceDay && item.blockId === currentDragInfo.sourceBlockId);
-                if (idx > -1) { task.schedule.splice(idx, 1); scheduleChanged = true; }
-            } else if (!currentDragInfo.sourceDay && task.schedule.length > 0) {
-                task.schedule = [];
+            if (dropTarget.id === 'unassigned-tasks-list') {
+                if (currentDragInfo.sourceDay && currentDragInfo.sourceBlockId) {
+                    const idx = eventNote.schedule.findIndex(item => item.day === currentDragInfo.sourceDay && item.blockId === currentDragInfo.sourceBlockId);
+                    if (idx > -1) { eventNote.schedule.splice(idx, 1); changed = true; }
+                } else if (!currentDragInfo.sourceDay && eventNote.schedule.length > 0) {
+                    eventNote.schedule = [];
+                    changed = true;
+                }
+            } else if (dropTarget.classList.contains('grid-cell')) {
+                const day = dropTarget.dataset.day;
+                const blockId = dropTarget.dataset.blockId;
+
+                if (day === currentDragInfo.sourceDay && blockId === currentDragInfo.sourceBlockId) return;
+
+                // Remove from source if moving within grid
+                if (currentDragInfo.sourceDay && currentDragInfo.sourceBlockId) {
+                    const idx = eventNote.schedule.findIndex(item => item.day === currentDragInfo.sourceDay && item.blockId === currentDragInfo.sourceBlockId);
+                    if (idx > -1) eventNote.schedule.splice(idx, 1);
+                }
+
+                // Calculate expiry timestamp
+                const timeBlocks = await getTimeBlocks();
+                const expiresAt = calculateEventExpiry(day, blockId, timeBlocks, currentDayDates);
+
+                eventNote.schedule.push({ day, blockId, expiresAt });
+                changed = true;
+            }
+
+            if (changed) {
+                await saveEventsAsync(events);
+                setTimeout(renderPage, 0);
+            }
+        } else {
+            // --- Task drop handling (existing logic) ---
+            const tasks = await getTasksAsync();
+            const task = tasks.find(t => t.id === currentDragInfo.itemId);
+            if (!task) return;
+
+            let scheduleChanged = false;
+
+            if (dropTarget.id === 'unassigned-tasks-list') {
+                if (currentDragInfo.sourceDay && currentDragInfo.sourceBlockId) {
+                    const idx = task.schedule.findIndex(item => item.day === currentDragInfo.sourceDay && item.blockId === currentDragInfo.sourceBlockId);
+                    if (idx > -1) { task.schedule.splice(idx, 1); scheduleChanged = true; }
+                } else if (!currentDragInfo.sourceDay && task.schedule.length > 0) {
+                    task.schedule = [];
+                    scheduleChanged = true;
+                }
+            } else if (dropTarget.classList.contains('grid-cell')) {
+                const day = dropTarget.dataset.day;
+                const blockId = dropTarget.dataset.blockId;
+
+                if (day === currentDragInfo.sourceDay && blockId === currentDragInfo.sourceBlockId) {
+                    return;
+                }
+                const alreadyExists = task.schedule.some(item => item.day === day && item.blockId === blockId);
+                if (alreadyExists) return;
+
+                if (currentDragInfo.sourceDay && currentDragInfo.sourceBlockId) {
+                    const idx = task.schedule.findIndex(item => item.day === currentDragInfo.sourceDay && item.blockId === currentDragInfo.sourceBlockId);
+                    if (idx > -1) task.schedule.splice(idx, 1);
+                }
+                task.schedule.push({ day, blockId, completed: false });
                 scheduleChanged = true;
             }
-        } else if (dropTarget.classList.contains('grid-cell')) {
-            const day = dropTarget.dataset.day;
-            const blockId = dropTarget.dataset.blockId;
 
-            if (day === currentDragInfo.sourceDay && blockId === currentDragInfo.sourceBlockId) {
-                return;
+            if (scheduleChanged) {
+                await saveTasksAsync(tasks);
+                setTimeout(renderPage, 0);
             }
-            const alreadyExists = task.schedule.some(item => item.day === day && item.blockId === blockId);
-            if (alreadyExists) return;
-
-            if (currentDragInfo.sourceDay && currentDragInfo.sourceBlockId) {
-                const idx = task.schedule.findIndex(item => item.day === currentDragInfo.sourceDay && item.blockId === currentDragInfo.sourceBlockId);
-                if (idx > -1) task.schedule.splice(idx, 1);
-            }
-            task.schedule.push({ day, blockId, completed: false });
-            scheduleChanged = true;
-        }
-
-        if (scheduleChanged) {
-            await saveTasksAsync(tasks);
-            setTimeout(renderPage, 0);
         }
     });
 }
@@ -4233,6 +4477,169 @@ function setupNewScheduleFeatures() {
 }
 
 // Hook into original renderPage to add new features
+// --- Event Modal Listeners ---
+
+function setupEventModalListeners() {
+    const addEventBtn = document.getElementById('add-event-btn');
+    const modal = document.getElementById('add-event-modal');
+    const closeBtn = document.getElementById('add-event-close-btn');
+    const saveBtn = document.getElementById('save-event-btn');
+    if (!addEventBtn || !modal) return;
+
+    let selectedEventColor = null;
+
+    addEventBtn.addEventListener('click', () => modal.classList.remove('hidden'));
+    closeBtn?.addEventListener('click', () => modal.classList.add('hidden'));
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
+
+    // Color picker
+    modal.querySelectorAll('.event-color-opt').forEach(btn => {
+        btn.addEventListener('click', () => {
+            modal.querySelectorAll('.event-color-opt').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            selectedEventColor = btn.dataset.color || null;
+        });
+    });
+
+    saveBtn?.addEventListener('click', async () => {
+        const titleInput = document.getElementById('event-title-input');
+        const title = titleInput.value.trim();
+        if (!title) { showInfoMessage('Event title is required.', 'error'); return; }
+
+        const notes = document.getElementById('event-notes-input').value.trim();
+        const recurrence = document.getElementById('event-recurrence-input').value || null;
+
+        await addNewEvent(title, notes, recurrence, selectedEventColor);
+
+        // Reset form
+        titleInput.value = '';
+        document.getElementById('event-notes-input').value = '';
+        document.getElementById('event-recurrence-input').value = '';
+        modal.querySelectorAll('.event-color-opt').forEach(b => b.classList.remove('selected'));
+        modal.querySelector('.event-color-opt[data-color=""]')?.classList.add('selected');
+        selectedEventColor = null;
+
+        modal.classList.add('hidden');
+        showInfoMessage('Event added to Parking Lot!', 'success');
+        renderPage();
+    });
+}
+
+// --- MIT Star Rendering ---
+
+function getDayDateStr(dayName) {
+    const date = currentDayDates[dayName];
+    if (!date) return null;
+    return date.toISOString().split('T')[0];
+}
+
+async function renderMitStars() {
+    const history = await getMitHistory();
+
+    document.querySelectorAll('.grid-cell').forEach(cell => {
+        const dayName = cell.dataset.day;
+        const dateStr = getDayDateStr(dayName);
+        if (!dateStr) return;
+
+        const mitForDay = history.find(m => m.date === dateStr);
+
+        cell.querySelectorAll('.task-item, .event-item').forEach(item => {
+            const isEvent = item.classList.contains('event-item');
+            const itemId = isEvent ? item.getAttribute('data-event-id') : item.getAttribute('data-task-id');
+
+            const starBtn = document.createElement('button');
+            starBtn.classList.add('mit-star-btn');
+            starBtn.setAttribute('aria-label', 'Set as Most Important Thing');
+
+            if (mitForDay && mitForDay.itemId === itemId) {
+                starBtn.classList.add('active');
+                starBtn.textContent = '⭐';
+                item.classList.add('mit-item');
+            } else {
+                starBtn.textContent = '☆';
+            }
+
+            starBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                if (mitForDay && mitForDay.itemId === itemId) {
+                    await removeMitForDay(dateStr);
+                } else {
+                    const itemType = isEvent ? 'event' : 'task';
+                    await setMitForDay(dateStr, itemId, itemType);
+                }
+                renderPage();
+            });
+
+            item.style.position = 'relative';
+            item.appendChild(starBtn);
+        });
+    });
+}
+
+// --- MIT Follow-Up Modal ---
+
+async function checkMitFollowUp() {
+    const unresolvedMits = await getUnresolvedMits();
+    if (unresolvedMits.length === 0) return;
+
+    const content = document.getElementById('mit-followup-content');
+    const modal = document.getElementById('mit-followup-modal');
+    const closeBtn = document.getElementById('mit-followup-close-btn');
+    if (!content || !modal) return;
+
+    content.innerHTML = '';
+
+    for (const mit of unresolvedMits) {
+        let title = 'Unknown item';
+        if (mit.itemType === 'task') {
+            const task = await getTaskById(mit.itemId);
+            title = task ? task.title : 'Deleted task';
+        } else {
+            const event = await getEventById(mit.itemId);
+            title = event ? event.title : 'Deleted event';
+        }
+
+        const row = document.createElement('div');
+        row.classList.add('mit-followup-row');
+        const icon = mit.itemType === 'event' ? '📌' : '📋';
+        row.innerHTML = `
+            <div class="mit-followup-item">
+                <span class="mit-followup-date">${mit.date}</span>
+                <span class="mit-followup-title">${icon} ${escapeHtml(title)}</span>
+            </div>
+            <div class="mit-followup-actions">
+                <button class="neumorphic-btn mit-resolve-btn mit-done-btn" data-date="${mit.date}" data-completed="true">✓ Done</button>
+                <button class="neumorphic-btn mit-resolve-btn mit-missed-btn" data-date="${mit.date}" data-completed="false">✕ Missed</button>
+            </div>
+        `;
+        content.appendChild(row);
+    }
+
+    modal.classList.remove('hidden');
+
+    // Close button
+    closeBtn?.addEventListener('click', () => modal.classList.add('hidden'));
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
+
+    // Resolution handlers
+    content.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.mit-resolve-btn');
+        if (!btn) return;
+        const date = btn.dataset.date;
+        const completed = btn.dataset.completed === 'true';
+        await resolveMit(date, completed);
+        btn.closest('.mit-followup-row')?.remove();
+
+        if (content.querySelectorAll('.mit-followup-row').length === 0) {
+            modal.classList.add('hidden');
+            showInfoMessage('MIT check-in complete!', 'success');
+        }
+    });
+}
+
+// --- Monkey-Patched renderPage (v1.5.0 enhancements) ---
+
 const _originalRenderPage = renderPage;
 renderPage = async function() {
     await _originalRenderPage();

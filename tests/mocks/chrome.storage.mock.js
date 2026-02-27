@@ -74,6 +74,16 @@ global.seedTimeBlocks = (timeBlocks) => {
     store.timeBlocks = JSON.parse(JSON.stringify(timeBlocks));
 };
 
+// Helper to seed storage with event notes
+global.seedEvents = (events) => {
+    store.eventNotes = JSON.parse(JSON.stringify(events));
+};
+
+// Helper to seed storage with MIT history
+global.seedMitHistory = (history) => {
+    store.mitHistory = JSON.parse(JSON.stringify(history));
+};
+
 // Stub global.fetch for Notion/Sheets import tests
 global.fetch = jest.fn(() =>
     Promise.resolve({

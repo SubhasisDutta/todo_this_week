@@ -28,6 +28,19 @@ loadScript(path.join(__dirname, '..', 'settings.js'), [
     'setupSettingsModalListeners'
 ]);
 
+// Load events.js and mit.js (dependencies of manager.js v2.2.0)
+loadScript(path.join(__dirname, '..', 'events.js'), [
+    'EventNote', 'getEventsAsync', 'saveEventsAsync',
+    'addNewEvent', 'getEventById', 'updateEvent', 'deleteEvent',
+    'duplicateEvent', 'createRecurringEventInstance',
+    'cleanupExpiredEvents', 'calculateEventExpiry', 'withEventLock'
+]);
+loadScript(path.join(__dirname, '..', 'mit.js'), [
+    'getMitHistory', 'saveMitHistory', 'setMitForDay', 'removeMitForDay',
+    'getMitForDay', 'getUnresolvedMits', 'resolveMit',
+    'calculateMitStreak', 'calculateMitCompletionRate', 'getMitWeeklyStatus'
+]);
+
 // Setup manager HTML before loading manager.js
 function setupManagerDOM() {
     document.body.innerHTML = `

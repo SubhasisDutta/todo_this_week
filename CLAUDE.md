@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **Weekly Task Manager** — a Chrome/Chromium browser extension (Manifest V3) for managing tasks with priority levels (Critical, Important, Someday), categories (Home, Work), energy levels (Low, High), and a visual weekly planner grid with 11 time blocks. The extension provides a compact popup interface and a full-page planner view, both kept in sync via `chrome.storage.onChanged`. Data is persisted using `chrome.storage.local` with no external runtime dependencies.
+This is a **Weekly Task Manager** — a Chrome/Chromium browser extension (Manifest V3) for managing tasks with priority levels (Critical, Important, Someday), categories (Home, Work), energy levels (Low, High), Event Notes with auto-expiry and recurrence, a Most Important Thing (MIT) daily star system, and a visual weekly planner grid with 11 time blocks. The extension provides a compact popup interface and a full-page planner view, both kept in sync via `chrome.storage.onChanged`. Data is persisted using `chrome.storage.local` with no external runtime dependencies.
 
 ## Architecture
 
@@ -12,11 +12,13 @@ This is a **Weekly Task Manager** — a Chrome/Chromium browser extension (Manif
 
 - `task_utils.js` (~1031 lines) — Shared utilities: Task class, CRUD operations, settings, undo/redo, recurring tasks, time blocks, validation (including time overlap), debounce, operation queue, cross-tab sync, status-completion sync
 - `settings.js` (~1575 lines) — Settings management: theme/font application, settings modal UI, tabbed import/export modal (JSON, CSV, Google Sheets, Notion with bidirectional sync), time blocks modal with inline label editing, LOCAL_VALUE_OPTIONS constant
+- `events.js` (~190 lines) — Event Notes module: EventNote class, CRUD operations, expiry logic, recurrence, operation queue, cross-tab sync timestamp patch
+- `mit.js` (~170 lines) — MIT Star System module: MIT history CRUD, 1-per-day enforcement, resolution, streak/completion rate/weekly status calculations
 - `popup.js` (~392 lines) — Popup interface: task rendering (with notes/recurrence), tab switching, completion handlers, drag-and-drop reordering
-- `manager.js` (~4100 lines) — Full-page planner: weekly grid, drag-and-drop scheduling, inline editing, archive tab, stats tab, search/filter, undo toast, keyboard undo, settings wiring, add task modal, shared rendering helpers (renderTaskColumn, renderCompletedDisclosure, createSearchHandler)
+- `manager.js` (~4600 lines) — Full-page planner: weekly grid, event rendering, MIT stars, drag-and-drop scheduling (tasks + events), inline editing, archive tab, stats tab (including event and MIT stats), search/filter, undo toast, keyboard undo, settings wiring, add task/event modals, MIT follow-up modal, shared rendering helpers
 - `popup.html` (~102 lines) — Popup markup (3 tabs: TODAY, Display, ADD — with notes textarea and recurrence select)
-- `manager.html` (~800 lines) — Planner markup (5 tabs: SCHEDULE, PRIORITY, LOCATION, ARCHIVE, STATS + settings/help/add-task/import-export/time-blocks modals, help has 8 tabs including FAQ)
-- `popup.css` (~2000 lines) — Unified styles: neumorphic design, dark mode, modals, charts, archive, help, toast, search, notes, tooltips, FAQ styling, import/export tabs
+- `manager.html` (~900 lines) — Planner markup (5 tabs: SCHEDULE, GROUPS, ARCHIVE, STATS + settings/help/add-task/add-event/MIT-followup/import-export/time-blocks modals, help has 8 tabs including FAQ)
+- `popup.css` (~2300 lines) — Unified styles: neumorphic design, dark mode, modals, charts, archive, help, toast, search, notes, tooltips, FAQ styling, import/export tabs, event items, MIT stars
 
 ### Extension Configuration
 
@@ -27,7 +29,7 @@ This is a **Weekly Task Manager** — a Chrome/Chromium browser extension (Manif
 
 - `package.json` — Dev dependencies (Jest 29, jest-environment-jsdom)
 - `jest.config.js` — jsdom environment, collects coverage from source files
-- `tests/mocks/chrome.storage.mock.js` — Chrome API mocks, `loadScript` helper, `seedSettings`, `seedTimeBlocks`, `global.fetch` stub
+- `tests/mocks/chrome.storage.mock.js` — Chrome API mocks, `loadScript` helper, `seedSettings`, `seedTimeBlocks`, `seedEvents`, `seedMitHistory`, `global.fetch` stub
 - `tests/task_utils.test.js` — ~104 tests for task_utils.js (includes new fields, settings, time blocks, undo/redo, recurring, time validation, status-completion sync)
 - `tests/popup.test.js` — ~17 tests for popup.js
 - `tests/manager.test.js` — ~122 tests for manager.js (includes async grid, new tabs, search filter, add task modal, tooltips, FAQ, shared helpers)
@@ -36,6 +38,8 @@ This is a **Weekly Task Manager** — a Chrome/Chromium browser extension (Manif
 - `tests/features.test.js` — ~35 tests for notes, completedAt, undo/redo, recurring tasks, archive grouping
 - `tests/search.test.js` — ~17 tests for search/filter functionality (including schedule search)
 - `tests/schedule-features.test.js` — ~91 tests for schedule tab features (context menu, magic fill, buffer zones, focus mode, fluid resizing, time tracking, task details modal)
+- `tests/events.test.js` — ~40 tests for events.js (EventNote class, CRUD, backfill, duplicate, recurrence, expiry, cleanup, withEventLock)
+- `tests/mit.test.js` — ~29 tests for mit.js (MIT CRUD, 1-per-day enforcement, resolution, streak, completion rate, weekly status)
 
 ## Data Model
 
@@ -102,6 +106,50 @@ Tasks are stored in `chrome.storage.local` under the `tasks` key as an array of 
 }
 
 'timeBlocks': Array<{id, label, time, limit, colorClass}>  // Optional; falls back to DEFAULT_TIME_BLOCKS
+
+'eventNotes': EventNote[]  // All event notes (v2.2.0)
+
+'mitHistory': MitEntry[]   // MIT star history (v2.2.0)
+```
+
+### EventNote Object (v2.2.0)
+
+Event notes are stored in `chrome.storage.local` under the `eventNotes` key as an array:
+
+```javascript
+{
+  id: string,              // Unique: `event_${timestamp}_${random9chars}`
+  title: string,           // Event title (required)
+  notes: string,           // Optional notes/description (default: '')
+  createdAt: string,       // ISO timestamp when event was created
+  recurrence: string|null, // null | 'daily' | 'weekly' | 'monthly'
+  colorCode: string|null,  // Custom color: null | 'red' | 'blue' | 'green' | 'purple' | 'orange'
+  schedule: EventScheduleItem[]  // Assigned time blocks (no completion tracking)
+}
+```
+
+### Event Schedule Item
+
+```javascript
+{
+  day: string,              // 'sunday' | 'monday' | ... | 'saturday'
+  blockId: string,          // TIME_BLOCKS id (e.g., 'deep-work-1')
+  expiresAt: string|null    // ISO timestamp when the time block ends on the calendar date
+}
+```
+
+### MIT History Entry (v2.2.0)
+
+MIT entries are stored in `chrome.storage.local` under the `mitHistory` key as an array:
+
+```javascript
+{
+  date: string,             // 'YYYY-MM-DD' — exactly 1 MIT per day enforced
+  itemId: string,           // Task or event ID
+  itemType: string,         // 'task' | 'event'
+  completed: boolean|null,  // null = unresolved, true = completed, false = missed
+  resolvedAt: string|null   // ISO timestamp when resolved
+}
 ```
 
 ### Schedule Item
@@ -174,6 +222,40 @@ Defined in `task_utils.js` as `DEFAULT_TIME_BLOCKS`. A `TIME_BLOCKS` alias is ke
 | `setupStorageSync` | `setupStorageSync(renderCallback)` | Listens to `chrome.storage.onChanged`. Ignores self-triggered changes within 500ms of last save. |
 | `autoMapSelectValues` | `autoMapSelectValues(localOptions, notionOptions)` → Object | Case-insensitive auto-mapping of Notion select values to local values. Returns `{localValue: notionValue}` for matches. (v2.1.0, settings.js) |
 
+## Key Functions (events.js)
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `EventNote` | `new EventNote(id, title, notes, createdAt, recurrence, colorCode, schedule)` | Constructor with defaults. Auto-generates ID (`event_${timestamp}_${random}`) if null. |
+| `getEvents` | `getEvents(callback)` | Reads events from storage. Backfills missing fields. |
+| `getEventsAsync` | `getEventsAsync()` → Promise | Promise wrapper for `getEvents`. |
+| `saveEvents` | `saveEvents(events, callback)` | Serializes to plain objects and saves. Updates `_lastSaveTimestamp`. |
+| `saveEventsAsync` | `saveEventsAsync(events)` → Promise | Promise wrapper for `saveEvents`. |
+| `addNewEvent` | `addNewEvent(title, notes, recurrence, colorCode)` → Promise | Creates event and returns it. |
+| `getEventById` | `getEventById(eventId)` → Promise | Returns single event or `undefined`. |
+| `updateEvent` | `updateEvent(updatedEvent)` → Promise | Updates event by ID. Returns boolean. |
+| `deleteEvent` | `deleteEvent(eventId)` → Promise | Removes by ID. Returns boolean. |
+| `duplicateEvent` | `duplicateEvent(event)` → EventNote | Creates copy with new ID and empty schedule. |
+| `createRecurringEventInstance` | `createRecurringEventInstance(event)` → EventNote | Creates next instance for recurring event (new ID, empty schedule). |
+| `calculateEventExpiry` | `calculateEventExpiry(day, blockId, timeBlocks, dayDates)` → string\|null | Computes ISO timestamp for when a time block ends on the actual calendar date. |
+| `cleanupExpiredEvents` | `cleanupExpiredEvents()` → Promise | Removes expired schedule entries. Deletes fully-expired non-recurring events. Creates next instance for recurring events. |
+| `withEventLock` | `withEventLock(asyncFn)` → Promise | Sequential operation queue for event operations. |
+
+## Key Functions (mit.js)
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `getMitHistory` | `getMitHistory()` → Promise | Reads MIT history from storage. Returns `[]` on error. |
+| `saveMitHistory` | `saveMitHistory(entries)` → Promise | Persists MIT history. Updates `_lastSaveTimestamp`. |
+| `setMitForDay` | `setMitForDay(date, itemId, itemType)` → Promise | Sets MIT for a date. Enforces exactly 1 per day (replaces existing). |
+| `removeMitForDay` | `removeMitForDay(date)` → Promise | Removes MIT for a specific date. |
+| `getMitForDay` | `getMitForDay(date)` → Promise | Returns MIT entry or `null`. |
+| `getUnresolvedMits` | `getUnresolvedMits()` → Promise | Returns entries where `completed === null` AND `date < today`. |
+| `resolveMit` | `resolveMit(date, completed)` → Promise | Sets `completed` and `resolvedAt`. Returns boolean. |
+| `calculateMitStreak` | `calculateMitStreak(history)` → number | Consecutive days with `completed === true` going back from yesterday. |
+| `calculateMitCompletionRate` | `calculateMitCompletionRate(history, days)` → number | Percentage of resolved MITs completed in last N days. |
+| `getMitWeeklyStatus` | `getMitWeeklyStatus(history, dayDates)` → Array | Returns status for each day: `'completed'|'missed'|'unresolved'|'pending'|'none'`. |
+
 ### Status-Completion Synchronization (v2.1.0)
 
 The `completed` boolean is now **derived from the `status` field**, not stored independently:
@@ -229,6 +311,25 @@ Centralized constant in `settings.js` for Notion column mapping. Contains valid 
 | `renderCompletedDisclosure(tasks, listEl, countEl, disclosureEl)` | Renders completed tasks section with count badge and disclosure toggle |
 | `createSearchHandler(inputId, clearBtnId, containerIds, filterGridCells)` | Generic search setup factory, reduces duplication across tab search functions |
 
+### Event and MIT Functions (v2.2.0)
+
+| Function | Description |
+|----------|-------------|
+| `createEventElement(event, options)` | Creates `.event-item` div with 📌 icon, title, recurrence badge, notes toggle. Draggable. |
+| `renderEventsOnGrid(assignedEvents)` | Places event elements in grid cells by matching schedule day and blockId |
+| `renderMitStars()` | Adds ☆/⭐ toggle buttons to all `.task-item` and `.event-item` on grid. Enforces 1 MIT per day. |
+| `checkMitFollowUp()` | Shows `#mit-followup-modal` for past unresolved MITs. Called once on DOMContentLoaded. |
+| `renderEventAndMitStats()` | Returns HTML string for MIT and Event stats cards in Stats tab. |
+| `setupEventModalListeners()` | Modal open/close, color picker, form validation, save via `addNewEvent()` |
+| `getDayDateStr(dayName)` | Maps grid column day name to `YYYY-MM-DD` date string using `currentDayDates` |
+
+### Module-Level Variables (v2.2.0)
+
+| Variable | Description |
+|----------|-------------|
+| `currentDayDates` | `{}` — Maps day names (e.g., 'monday') to `Date` objects. Computed in `generateDayHeaders()`. Used by `calculateEventExpiry()` and MIT date calculations. |
+| `draggedItemInfo` | `null` — Replaces old `draggedTaskInfo`. Contains `{ itemId, itemType: 'task'\|'event', sourceDay, sourceBlockId }` during drag operations. |
+
 ## Key Features Implementation
 
 ### Priority System
@@ -240,12 +341,46 @@ Centralized constant in `settings.js` for Notion column mapping. Contains valid 
 - Type: `home` or `work` — grouped in Groups tab drill-down
 - Energy: `TBD` | `Low` | `Medium` | `High` — visual indicator via CSS classes `energy-low-incomplete` / `energy-medium-incomplete` / `energy-high-incomplete`
 
+### Event Notes (v2.2.0)
+- Lightweight event/appointment entities — no completion tracking, auto-expire after time block passes
+- Stored separately under `eventNotes` key in `chrome.storage.local`
+- Created via "Add Event" button next to Magic Fill, or via event modal
+- Unassigned events appear in Parking Lot sidebar after tasks, separated by `.parking-lot-separator`
+- Drag-and-drop onto grid cells assigns `schedule` entries with `expiresAt` timestamp
+- Events can be duplicated across multiple time blocks
+- `cleanupExpiredEvents()` called on each `renderPage()`:
+  - Removes expired schedule entries where `expiresAt < now`
+  - Deletes fully-expired non-recurring events
+  - Creates next instance for recurring events via `createRecurringEventInstance()`
+- Recurrence: daily/weekly/monthly — new instance appears in Parking Lot with empty schedule
+- Visually distinct: `.event-item` with dashed purple border, lavender gradient, pill shape (border-radius: 16px)
+- Color coding: red, blue, green, purple, orange variants via `data-color-code` attribute
+- Stats: total events, events scheduled today, distribution by day in Stats tab
+- CSS: `.event-item`, `.event-type-icon`, `.event-title`, `.parking-lot-separator`, `.event-color-picker-row`, `.color-swatch`
+- JS: `createEventElement()`, `renderEventsOnGrid()`, `setupEventModalListeners()`
+- HTML: `#add-event-btn`, `#add-event-modal`
+
+### MIT Star System (v2.2.0)
+- Most Important Thing: exactly 1 task or event per day can be starred
+- Star button (☆/⭐) appears on every `.task-item` and `.event-item` in the grid
+- `setMitForDay(date, itemId, itemType)` enforces 1-per-day by replacing existing
+- `renderMitStars()` called after events are rendered on grid in `renderPage()`
+- `currentDayDates` map (built in `generateDayHeaders()`) converts grid column day names to `YYYY-MM-DD` dates
+- MIT follow-up modal (`#mit-followup-modal`):
+  - `checkMitFollowUp()` called once on DOMContentLoaded
+  - Shows unresolved MITs where `completed === null` AND `date < today`
+  - Each row: date, item title (looked up via `getTaskById`/`getEventById`), Done/Missed buttons
+  - Resolution: updates `completed` and `resolvedAt`, removes row, closes when all resolved
+- Stats: MIT streak (consecutive completed days), 30-day completion rate, weekly status (7 colored dots)
+- CSS: `.mit-star-btn`, `.mit-star-btn.active`, `.mit-item`, `.mit-followup-row`, `.mit-followup-actions`, `.stats-mit-card`, `.stats-mit-weekly`
+- Storage: `mitHistory` key in `chrome.storage.local`
+
 ### Weekly Scheduling
-- Tasks have a `schedule` array of `{ day, blockId, completed }` items
+- Tasks have a `schedule` array of `{ day, blockId, completed }` items; events have `{ day, blockId, expiresAt }`
 - Planner grid: 7 days (rotated to start from today) x 11 time blocks
-- Drag-and-drop from Unassigned sidebar onto grid cells
-- Slot limits enforced: blocks with `limit: '0'` reject drops, `limit: '1'` allows one task
-- `generateDayHeaders()` rotates `DAYS` array so today is first column
+- Drag-and-drop from Unassigned sidebar onto grid cells (supports both tasks and events)
+- Slot limits enforced: blocks with `limit: '0'` reject drops, `limit: '1'` allows one task/event
+- `generateDayHeaders()` rotates `DAYS` array so today is first column, populates `currentDayDates` map
 - `highlightCurrentDay()` adds `.current-day` class to today's column
 
 ### Cascade Completion
@@ -259,8 +394,8 @@ Centralized constant in `settings.js` for Notion column mapping. Contains valid 
 
 ### Cross-Tab Sync
 - `setupStorageSync(renderCallback)` in `task_utils.js`
-- Uses `chrome.storage.onChanged` listener
-- `_lastSaveTimestamp` is set to `Date.now()` on every `saveTasks` call (via monkey-patched wrapper)
+- Uses `chrome.storage.onChanged` listener — watches `tasks`, `eventNotes`, and `mitHistory` keys (v2.2.0)
+- `_lastSaveTimestamp` is set to `Date.now()` on every `saveTasks`, `saveEvents`, or `saveMitHistory` call (via monkey-patched wrappers)
 - Listener ignores changes within 500ms of last save to prevent self-triggered re-renders
 
 ### Import/Export Modal (settings.js)
@@ -274,7 +409,7 @@ Tab switching is handled by `setupImportExportTabs()` in settings.js. Uses `.imp
 
 ### Drag and Drop
 - **Popup (Display tab):** Reorder within same priority group. Updates `displayOrder` values.
-- **Manager (SCHEDULE tab):** Drag from Unassigned sidebar onto grid cells. Creates schedule entries. Drag from Assigned sidebar to grid. Drag from grid cell to unassign.
+- **Manager (SCHEDULE tab):** Drag tasks or events from Parking Lot sidebar onto grid cells. Uses `draggedItemInfo = { itemId, itemType: 'task'|'event', sourceDay, sourceBlockId }` to branch by item type. Task drops create schedule entries with `completed: false`. Event drops calculate `expiresAt` via `calculateEventExpiry()`. Both respect slot limits.
 
 ### Operation Queue
 - `withTaskLock(asyncFn)` in `task_utils.js` chains async operations on a shared promise
@@ -432,6 +567,38 @@ Replaces the Priority and Location tabs with a unified, attribute-based grouping
 - Stored in `task.colorCode`
 - CSS: `.task-item[data-color-code="red"]` etc.
 
+### Version 2.2.0 Changes
+
+#### Event Notes
+- New `events.js` module with `EventNote` class, CRUD, expiry, and recurrence logic
+- Events appear in Parking Lot sidebar with purple separator, visually distinct from tasks (dashed border, lavender gradient, pill shape)
+- Drag-and-drop onto grid cells with `expiresAt` timestamp calculation
+- `cleanupExpiredEvents()` auto-deletes expired events and creates recurring next instances
+- Color coding support (same 5 colors as tasks)
+- Add Event modal with title, notes, recurrence, and color picker
+- Event stats card in Stats tab
+
+#### MIT Star System
+- New `mit.js` module with MIT history CRUD, resolution, and stats calculations
+- Star toggle (☆/⭐) on all grid items, enforces exactly 1 MIT per day
+- Follow-up modal on planner open for past unresolved MITs (Done/Missed resolution)
+- MIT stats: streak counter, 30-day completion rate, weekly status dots
+- MIT stats card in Stats tab with yellow gradient
+
+#### Drag-and-Drop Generalization
+- `draggedTaskInfo` → `draggedItemInfo = { itemId, itemType: 'task'|'event', sourceDay, sourceBlockId }`
+- Drop handler branches by `itemType` for different storage operations
+- `handleDragOver` counts both `.task-item` and `.event-item` for cell limits
+
+#### Cross-Tab Sync Expansion
+- `setupStorageSync()` now watches `eventNotes` and `mitHistory` changes in addition to `tasks`
+- `saveEvents()` and `saveMitHistory()` update `_lastSaveTimestamp` for sync guard
+
+#### Test Coverage
+- 2 new test files: `events.test.js` (~40 tests), `mit.test.js` (~29 tests)
+- Updated `manager.test.js`, `search.test.js`, `schedule-features.test.js` to load events.js and mit.js
+- Total test count: 541+ tests
+
 ### Version 1.9.0 Changes
 
 #### Task Edit Modal Auto-Save
@@ -505,6 +672,16 @@ Defined in `:root` in `popup.css`:
 - `save-status`, `.saving`, `.saved`, `.unsaved` — Auto-save indicator states
 - `import-export-tabs`, `.ie-panel`, `.ie-section-title`, `.ie-action-card` — Import/export modal tabbed interface
 - `completed-disclosure`, `.completed-disclosure-summary`, `.completed-count`, `.completed-tasks-list` — Completed tasks accordion
+- `event-item` — Event note styling: pill shape, dashed purple border, lavender gradient (v2.2.0)
+- `event-item[data-color-code="red|blue|green|purple|orange"]` — Event color variants
+- `parking-lot-separator` — Dashed purple line separating tasks from events in Parking Lot
+- `mit-star-btn`, `.mit-star-btn.active` — MIT star toggle button on grid items
+- `mit-item` — Golden glow box-shadow on starred items
+- `mit-followup-row`, `.mit-followup-actions` — MIT follow-up modal row layout
+- `stats-mit-card` — Yellow gradient stats card for MIT data
+- `stats-event-card` — Purple gradient stats card for event data
+- `stats-mit-weekly` — 7-day MIT status indicator row
+- `modal-content-small`, `.modal-content-medium` — Modal size variants (480px, 560px)
 
 ## Accessibility
 
@@ -529,7 +706,7 @@ The codebase uses the following ARIA patterns:
 ```bash
 cd tests             # All test infrastructure is in tests/
 npm install          # Install Jest + jsdom
-npm test             # Run all ~436 tests
+npm test             # Run all ~541+ tests
 npm run test:watch   # Watch mode
 npm run test:coverage # Coverage report
 ```
@@ -565,10 +742,12 @@ This makes all listed symbols available as globals in the test scope.
 - `seedTasks(tasks)` — Seeds storage with task data for test setup
 - `seedSettings(settings)` — Seeds storage with settings data
 - `seedTimeBlocks(timeBlocks)` — Seeds storage with time block data
+- `seedEvents(events)` — Seeds storage with event notes data (v2.2.0)
+- `seedMitHistory(history)` — Seeds storage with MIT history data (v2.2.0)
 
 The `loadScript` regex also handles `async function` DOMContentLoaded handlers (needed because manager.js and popup.js DOMContentLoaded handlers are now `async`).
 
-### Test Suites (~472 total)
+### Test Suites (~541+ total)
 - **task_utils.test.js (~104):** Task class (new fields including lastModified, colorCode, and 10 v1.7.0 attributes), getTasks backfill (including energy migration 'low'→'Low'), CRUD, settings CRUD, time blocks, undo/redo stacks, createRecurringInstance, seedSampleTasks, toast notifications (showInfoMessage), validateTask, debounce, withTaskLock, parseTimeRange, validateTimeBlockOverlap, validate24HourCoverage (gap detection, full coverage, invalid format), ATTRIBUTE_OPTIONS, DEFAULT_ENABLED_ATTRIBUTES
 - **popup.test.js (~17):** createTaskItem (notes, recurrence), renderTasks, renderAllTabs, tab switching, add-task validation, open-manager button
 - **manager.test.js (~122):** generateDayHeaders/generatePlannerGrid (now async), createTaskElement (notes/recurrence badges), renderSidebarLists, Groups tab (calculateAttributeDistribution, createBentoBox, renderGroupsTab), renderArchiveTab (with lastModified sorting), renderStatsTab, applySearchFilter, setupTabSwitching, renderPage, highlightCurrentDay, setupAddTaskModalListeners, header tooltips, FAQ tab, collapsible parking lot, drag guide lines, hover popover, current time indicator
@@ -577,6 +756,8 @@ The `loadScript` regex also handles `async function` DOMContentLoaded handlers (
 - **features.test.js (~35):** Notes field (CRUD, backfill), completedAt (set on complete, clear on uncomplete, backfill), lastModified field (auto-set, update on modify, backfill), undo/redo cycle, createRecurringInstance (daily/weekly/monthly deadline shift, fresh lastModified), recurring auto-instance via updateTask, archive date grouping
 - **search.test.js (~17):** applySearchFilter (hide non-matching, show all for empty query, case insensitive, multi-container, partial match, grid cell filtering), setupScheduleSearch, setupArchiveSearch, setupGroupsDrilldownSearch
 - **schedule-features.test.js (~91):** v1.5.0 schedule enhancements: context menu (creation, actions, visibility), task actions (duplicate, color code, split), magic fill (gap detection, today only), buffer zones (back-to-back detection), focus mode (toggle, highlight current), fluid resizing (handle creation, span blocks), time tracking (start/stop, deviation calculation), task details modal (open/close, populate)
+- **events.test.js (~40):** EventNote class (constructor, defaults, ID generation), CRUD (get/save/add/getById/update/delete), backfill, duplicateEvent (new ID, empty schedule), recurrence (createRecurringEventInstance), withEventLock (sequential queue), calculateEventExpiry (timestamps, missing data), cleanupExpiredEvents (removal, recurring next instance), cross-tab sync timestamp, error handling
+- **mit.test.js (~29):** MIT CRUD (getMitHistory, saveMitHistory), setMitForDay (1-per-day enforcement, replaces existing), removeMitForDay, getMitForDay, getUnresolvedMits (past dates, null completed), resolveMit (sets completed/resolvedAt), calculateMitStreak (streak counting, break on miss), calculateMitCompletionRate (percentage, date range), getMitWeeklyStatus (status mapping), cross-tab sync, error handling
 
 ### Known Limitation
 Coverage reporting via `jest --coverage` shows 0% because `new Function()` execution bypasses Istanbul's code instrumentation. Tests still validate behavior correctly.
@@ -604,15 +785,16 @@ Coverage reporting via `jest --coverage` shows 0% because `new Function()` execu
 
 ## Important Notes
 
-- **Chrome Storage:** `chrome.storage.local` — no external dependencies, no backend. Keys: `tasks`, `settings`, `timeBlocks`
+- **Chrome Storage:** `chrome.storage.local` — no external dependencies, no backend. Keys: `tasks`, `settings`, `timeBlocks`, `eventNotes`, `mitHistory`
 - **Permissions:** `storage` (data persistence), `tabs` (open manager page), `host_permissions` for `https://api.notion.com/*`
 - **Cross-Page Sync:** Popup and manager stay in sync via `chrome.storage.onChanged` listener with 500ms self-change guard
 - **Task IDs:** Format `task_{timestamp}_{random9chars}` for uniqueness
 - **Backfill/Migration:** `getTasks()` auto-adds missing `displayOrder`, `schedule`, `schedule[].completed`, `energy`, `notes`, `completedAt`, `recurrence`, and `lastModified` fields on read
-- **Script Load Order:** `task_utils.js` → `settings.js` → `manager.js` / `popup.js`. Both HTML files must follow this order.
+- **Event IDs:** Format `event_{timestamp}_{random9chars}` for uniqueness (v2.2.0)
+- **Script Load Order:** `task_utils.js` → `settings.js` → `events.js` → `mit.js` → `manager.js` / `popup.js`. Manager.html must follow this order. Tests must load events.js and mit.js before manager.js.
 - **Async DOMContentLoaded:** Both `manager.js` and `popup.js` DOMContentLoaded handlers are `async`. The `loadScript` helper in tests handles both `function` and `async function` variants.
 - **Undo/Redo Stacks:** `_undoStack` and `_redoStack` are module-level variables in `task_utils.js`. They persist between tests in the same test file since `loadScript` runs once at the top of non-beforeEach files. Ensure tests that depend on an empty redo stack call `pushUndoState()` first (which clears `_redoStack`).
 - **Recurring Task Auto-Instance:** Created inside `updateTask()` within the same `getTasks` callback before `saveTasks()` is called — avoids double-read race condition.
 - **Dark Mode:** Applied via `data-theme` attribute on `<html>` element. CSS uses `:root[data-theme="dark"]` selector. `initSettings()` must be `await`-ed before any render.
 - **No Build Process:** Load directly as unpacked extension; vanilla JS with no transpilation
-- **Test Coverage Limitation:** `new Function()` bypasses Istanbul instrumentation; behavioral coverage is validated through ~280 passing tests
+- **Test Coverage Limitation:** `new Function()` bypasses Istanbul instrumentation; behavioral coverage is validated through ~541+ passing tests

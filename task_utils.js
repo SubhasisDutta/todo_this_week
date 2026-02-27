@@ -1013,7 +1013,7 @@ let _lastSaveTimestamp = 0;
 
 function setupStorageSync(renderCallback) {
     chrome.storage.onChanged.addListener((changes, namespace) => {
-        if (namespace === 'local' && changes.tasks) {
+        if (namespace === 'local' && (changes.tasks || changes.eventNotes || changes.mitHistory)) {
             // Ignore changes we just made ourselves (within last 500ms)
             if (Date.now() - _lastSaveTimestamp > 500) {
                 renderCallback();

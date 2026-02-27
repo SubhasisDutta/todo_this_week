@@ -4559,3 +4559,403 @@ body.resizing {
 .groups-drilldown-column .task-item:hover {
     background: var(--inset-bg);
 }
+
+/* ============================
+   EVENT NOTES STYLES (v2.2.0)
+   ============================ */
+
+/* Parking Lot separator for events section */
+.parking-lot-separator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    margin: 6px 0 4px;
+    border-top: 1px dashed #9b59b6;
+    font-size: 0.75em;
+    color: #9b59b6;
+    font-weight: 600;
+    opacity: 0.8;
+}
+
+/* Event item — visually distinct from task items */
+.event-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    margin-bottom: 4px;
+    border-radius: 16px;
+    border-left: 3px dashed #9b59b6;
+    background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 100%);
+    cursor: grab;
+    font-size: 0.85em;
+    transition: all var(--transition-speed);
+    position: relative;
+}
+
+.event-item:hover {
+    transform: translateY(-1px);
+    box-shadow: 3px 3px 8px #babecc, -3px -3px 8px #ffffff;
+}
+
+.event-item.dragging {
+    opacity: 0.4;
+}
+
+/* Event color variants */
+.event-item[data-color-code="red"] { border-left-color: #e74c3c; background: linear-gradient(135deg, #ffe5e5 0%, #fdd 100%); }
+.event-item[data-color-code="blue"] { border-left-color: #3498db; background: linear-gradient(135deg, #e5f0ff 0%, #dbeafe 100%); }
+.event-item[data-color-code="green"] { border-left-color: #2ecc71; background: linear-gradient(135deg, #e5ffe5 0%, #d1fae5 100%); }
+.event-item[data-color-code="purple"] { border-left-color: #9b59b6; background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 100%); }
+.event-item[data-color-code="orange"] { border-left-color: #e67e22; background: linear-gradient(135deg, #fff5e5 0%, #fed7aa 100%); }
+
+.event-type-icon {
+    font-size: 1em;
+    flex-shrink: 0;
+}
+
+.event-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+/* Event in grid — more compact, pill shape */
+.grid-cell .event-item {
+    font-size: 0.75em;
+    padding: 2px 8px;
+    margin-bottom: 2px;
+    border-left: none;
+    border: 1.5px dashed #9b59b6;
+    border-radius: 12px;
+    cursor: grab;
+    box-shadow: 1px 1px 3px rgba(155, 89, 182, 0.2);
+}
+
+.grid-cell .event-item[data-color-code="red"] { border-color: #e74c3c; }
+.grid-cell .event-item[data-color-code="blue"] { border-color: #3498db; }
+.grid-cell .event-item[data-color-code="green"] { border-color: #2ecc71; }
+.grid-cell .event-item[data-color-code="purple"] { border-color: #9b59b6; }
+.grid-cell .event-item[data-color-code="orange"] { border-color: #e67e22; }
+
+/* Event notes toggle */
+.event-item .task-notes-toggle {
+    font-size: 0.75em;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #9b59b6;
+    padding: 0 4px;
+}
+
+.event-item .task-notes-content {
+    display: none;
+    font-size: 0.8em;
+    padding: 4px 8px;
+    color: var(--text-secondary);
+    border-top: 1px dashed #d8b4fe;
+    margin-top: 4px;
+    width: 100%;
+}
+
+.event-item .task-notes-content.visible {
+    display: block;
+}
+
+/* Event color picker in modal */
+.event-color-picker-row {
+    display: flex;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.color-swatch {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.color-swatch:hover {
+    transform: scale(1.15);
+}
+
+.color-swatch.selected {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 6px rgba(66, 153, 225, 0.5);
+}
+
+.color-swatch[data-color=""] { background-color: #a0aec0; }
+.color-swatch[data-color="red"] { background-color: #e74c3c; }
+.color-swatch[data-color="blue"] { background-color: #3498db; }
+.color-swatch[data-color="green"] { background-color: #2ecc71; }
+.color-swatch[data-color="purple"] { background-color: #9b59b6; }
+.color-swatch[data-color="orange"] { background-color: #e67e22; }
+
+/* ============================
+   MIT STAR STYLES (v2.2.0)
+   ============================ */
+
+.mit-star-btn {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.15em;
+    opacity: 0.45;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 2;
+    line-height: 1;
+    padding: 0;
+}
+
+.mit-star-btn:hover {
+    opacity: 0.8;
+    transform: scale(1.2);
+}
+
+.mit-star-btn.active {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.mit-item {
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.45) !important;
+    border-color: #fbbf24 !important;
+}
+
+.grid-cell .event-item.mit-item {
+    border-color: #fbbf24 !important;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.45) !important;
+}
+
+/* MIT Follow-Up Modal */
+.mit-followup-desc {
+    color: var(--text-secondary);
+    margin: 0 0 16px;
+    font-size: 0.95em;
+}
+
+.mit-followup-content {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.mit-followup-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    border-radius: var(--border-radius-md);
+    background: var(--bg-primary);
+    box-shadow: 2px 2px 4px var(--shadow-dark), -2px -2px 4px var(--shadow-light);
+}
+
+.mit-followup-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mit-followup-date {
+    font-size: 0.75em;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.mit-followup-title {
+    font-weight: 600;
+    font-size: 0.95em;
+}
+
+.mit-followup-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.mit-done-btn {
+    color: #22c55e !important;
+    font-weight: 600;
+}
+
+.mit-missed-btn {
+    color: #ef4444 !important;
+    font-weight: 600;
+}
+
+/* ============================
+   EVENT & MIT STATS (v2.2.0)
+   ============================ */
+
+/* MIT Stats Card */
+.stats-mit-card {
+    background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%) !important;
+}
+
+:root[data-theme="dark"] .stats-mit-card {
+    background: linear-gradient(135deg, #422006 0%, #451a03 100%) !important;
+}
+
+.stats-mit-metrics {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    margin: 12px 0;
+}
+
+.stats-mit-metric {
+    text-align: center;
+}
+
+.stats-mit-metric-value {
+    display: block;
+    font-size: 1.8em;
+    font-weight: 700;
+    color: #ca8a04;
+}
+
+:root[data-theme="dark"] .stats-mit-metric-value {
+    color: #fbbf24;
+}
+
+.stats-mit-metric-label {
+    font-size: 0.75em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stats-mit-weekly {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-top: 8px;
+}
+
+.stats-mit-day {
+    text-align: center;
+    flex: 1;
+    max-width: 48px;
+    padding: 4px 2px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+:root[data-theme="dark"] .stats-mit-day {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.stats-mit-day-label {
+    display: block;
+    font-size: 0.65em;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.stats-mit-day-icon {
+    display: block;
+    font-size: 1em;
+    margin-top: 2px;
+}
+
+.stats-mit-day.completed .stats-mit-day-icon { color: #22c55e; }
+.stats-mit-day.missed .stats-mit-day-icon { color: #ef4444; }
+.stats-mit-day.unresolved .stats-mit-day-icon { color: #f59e0b; }
+.stats-mit-day.pending .stats-mit-day-icon { color: #fbbf24; }
+.stats-mit-day.none .stats-mit-day-icon { color: var(--text-muted); }
+
+/* Event Stats Card */
+.stats-event-card {
+    background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 100%) !important;
+}
+
+:root[data-theme="dark"] .stats-event-card {
+    background: linear-gradient(135deg, #2e1065 0%, #1e1b4b 100%) !important;
+}
+
+.stats-event-metrics {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-top: 12px;
+}
+
+.stats-event-metric {
+    text-align: center;
+}
+
+.stats-event-metric-value {
+    display: block;
+    font-size: 1.6em;
+    font-weight: 700;
+    color: #7c3aed;
+}
+
+:root[data-theme="dark"] .stats-event-metric-value {
+    color: #a78bfa;
+}
+
+.stats-event-metric-label {
+    font-size: 0.7em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ============================
+   DARK MODE — EVENTS (v2.2.0)
+   ============================ */
+
+:root[data-theme="dark"] .event-item {
+    background: linear-gradient(135deg, #2d1b69 0%, #1e1145 100%);
+    border-left-color: #a78bfa;
+}
+
+:root[data-theme="dark"] .event-item:hover {
+    box-shadow: 3px 3px 8px #1a1a2e, -3px -3px 8px #2d2d44;
+}
+
+:root[data-theme="dark"] .event-item[data-color-code="red"] { border-left-color: #f87171; background: linear-gradient(135deg, #450a0a 0%, #3b0a0a 100%); }
+:root[data-theme="dark"] .event-item[data-color-code="blue"] { border-left-color: #60a5fa; background: linear-gradient(135deg, #172554 0%, #1e3a5f 100%); }
+:root[data-theme="dark"] .event-item[data-color-code="green"] { border-left-color: #4ade80; background: linear-gradient(135deg, #052e16 0%, #064e3b 100%); }
+:root[data-theme="dark"] .event-item[data-color-code="purple"] { border-left-color: #a78bfa; background: linear-gradient(135deg, #2d1b69 0%, #1e1145 100%); }
+:root[data-theme="dark"] .event-item[data-color-code="orange"] { border-left-color: #fb923c; background: linear-gradient(135deg, #431407 0%, #451a03 100%); }
+
+:root[data-theme="dark"] .grid-cell .event-item { border-color: #a78bfa; }
+:root[data-theme="dark"] .grid-cell .event-item[data-color-code="red"] { border-color: #f87171; }
+:root[data-theme="dark"] .grid-cell .event-item[data-color-code="blue"] { border-color: #60a5fa; }
+:root[data-theme="dark"] .grid-cell .event-item[data-color-code="green"] { border-color: #4ade80; }
+:root[data-theme="dark"] .grid-cell .event-item[data-color-code="purple"] { border-color: #a78bfa; }
+:root[data-theme="dark"] .grid-cell .event-item[data-color-code="orange"] { border-color: #fb923c; }
+
+:root[data-theme="dark"] .parking-lot-separator {
+    border-top-color: #a78bfa;
+    color: #a78bfa;
+}
+
+:root[data-theme="dark"] .color-swatch.selected {
+    border-color: #60a5fa;
+}
+
+:root[data-theme="dark"] .mit-followup-row {
+    box-shadow: 2px 2px 4px #1a1a2e, -2px -2px 4px #2d2d44;
+}
+
+/* Modal size variant for event creation */
+.modal-content-small {
+    max-width: 480px;
+}
+
+.modal-content-medium {
+    max-width: 560px;
+}

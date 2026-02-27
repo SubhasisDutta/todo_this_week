@@ -16,6 +16,21 @@ loadScript(path.join(__dirname, '..', 'task_utils.js'), [
     'deriveCompletedFromStatus', 'deriveStatusFromCompleted'
 ]);
 
+// Load events.js
+loadScript(path.join(__dirname, '..', 'events.js'), [
+    'EventNote', 'getEvents', 'getEventsAsync', 'saveEventsAsync',
+    'addNewEvent', 'getEventById', 'updateEvent', 'deleteEvent',
+    'duplicateEvent', 'createRecurringEventInstance',
+    'cleanupExpiredEvents', 'calculateEventExpiry', 'withEventLock'
+]);
+
+// Load mit.js
+loadScript(path.join(__dirname, '..', 'mit.js'), [
+    'getMitHistory', 'saveMitHistory', 'setMitForDay', 'removeMitForDay',
+    'getMitForDay', 'getUnresolvedMits', 'resolveMit',
+    'calculateMitStreak', 'calculateMitCompletionRate', 'getMitWeeklyStatus'
+]);
+
 beforeEach(() => {
     resetChromeStorage();
     document.body.innerHTML = '<div id="info-message-area" class="info-message" style="display: none;"></div>';
@@ -356,4 +371,266 @@ describe('End-to-end: Undo/Redo lifecycle', () => {
         // 6th undo should be a no-op (stack empty)
         await undo(); // Should not throw
     });
+});
+
+// =============================================
+// Event Notes Integration Tests (v2.2.0)
+// =============================================
+
+describe('End-to-end: Event Note lifecycle', () => {
+    test('add event -> retrieve -> update -> verify', async () => {
+        const event = await addNewEvent('Go to Costco', 'Buy groceries and supplies', null, null);
+        expect(event).not.toBeNull();
+        expect(event.title).toBe('Go to Costco');
+        expect(event.notes).toBe('Buy groceries and supplies');
+        expect(event.id).toMatch(/^event_/);
+
+        const retrieved = await getEventById(event.id);
+        expect(retrieved).toBeDefined();
+        expect(retrieved.title).toBe('Go to Costco');
+
+        retrieved.title = 'Go to Costco (Updated)';
+        retrieved.colorCode = 'blue';
+        const updateResult = await updateEvent(retrieved);
+        expect(updateResult).toBe(true);
+
+        const afterUpdate = await getEventById(event.id);
+        expect(afterUpdate.title).toBe('Go to Costco (Updated)');
+        expect(afterUpdate.colorCode).toBe('blue');
+    });
+
+    test('add event -> delete -> verify removed', async () => {
+        const event = await addNewEvent('Temporary Event', '', null, null);
+        expect(event).not.toBeNull();
+
+        const deleteResult = await deleteEvent(event.id);
+        expect(deleteResult).toBe(true);
+
+        const afterDelete = await getEventById(event.id);
+        expect(afterDelete).toBeUndefined();
+    });
+
+    test('add event -> schedule -> verify schedule with expiresAt', async () => {
+        const event = await addNewEvent('Meeting', 'Team standup', null, null);
+
+        const retrieved = await getEventById(event.id);
+        retrieved.schedule = [
+            { day: 'monday', blockId: 'engagement', expiresAt: '2026-03-02T12:00:00.000Z' },
+            { day: 'wednesday', blockId: 'deep-work-1', expiresAt: '2026-03-04T15:00:00.000Z' }
+        ];
+        await updateEvent(retrieved);
+
+        const afterSchedule = await getEventById(event.id);
+        expect(afterSchedule.schedule.length).toBe(2);
+        expect(afterSchedule.schedule[0].expiresAt).toBe('2026-03-02T12:00:00.000Z');
+        expect(afterSchedule.schedule[1].day).toBe('wednesday');
+    });
+
+    test('duplicate event creates independent copy', async () => {
+        const event = await addNewEvent('Original Event', 'Some notes', 'weekly', 'green');
+        event.schedule = [{ day: 'monday', blockId: 'ai-study', expiresAt: '2026-03-02T08:00:00.000Z' }];
+
+        const duplicate = duplicateEvent(event);
+        expect(duplicate.id).not.toBe(event.id);
+        expect(duplicate.title).toBe('Original Event');
+        expect(duplicate.notes).toBe('Some notes');
+        expect(duplicate.recurrence).toBe('weekly');
+        expect(duplicate.colorCode).toBe('green');
+        expect(duplicate.schedule).toEqual([]); // Empty schedule on duplicate
+    });
+
+    test('recurring event creates new instance', async () => {
+        const event = await addNewEvent('Daily Standup', '', 'daily', null);
+        const newInstance = createRecurringEventInstance(event);
+
+        expect(newInstance.id).not.toBe(event.id);
+        expect(newInstance.title).toBe('Daily Standup');
+        expect(newInstance.recurrence).toBe('daily');
+        expect(newInstance.schedule).toEqual([]);
+    });
+
+    test('cleanupExpiredEvents removes expired non-recurring events', async () => {
+        const pastDate = new Date(Date.now() - 86400000).toISOString(); // 24 hours ago
+        seedEvents([{
+            id: 'event_expired',
+            title: 'Expired Event',
+            notes: '',
+            createdAt: new Date().toISOString(),
+            recurrence: null,
+            colorCode: null,
+            schedule: [{ day: 'monday', blockId: 'ai-study', expiresAt: pastDate }]
+        }]);
+
+        await cleanupExpiredEvents();
+        const events = await getEventsAsync();
+        expect(events.length).toBe(0);
+    });
+
+    test('cleanupExpiredEvents creates new instance for recurring events', async () => {
+        const pastDate = new Date(Date.now() - 86400000).toISOString();
+        seedEvents([{
+            id: 'event_recurring_expired',
+            title: 'Weekly Team Meeting',
+            notes: 'Review progress',
+            createdAt: new Date().toISOString(),
+            recurrence: 'weekly',
+            colorCode: 'purple',
+            schedule: [{ day: 'monday', blockId: 'engagement', expiresAt: pastDate }]
+        }]);
+
+        await cleanupExpiredEvents();
+        const events = await getEventsAsync();
+        // Original should be deleted, new recurring instance should be created
+        expect(events.length).toBe(1);
+        expect(events[0].id).not.toBe('event_recurring_expired');
+        expect(events[0].title).toBe('Weekly Team Meeting');
+        expect(events[0].recurrence).toBe('weekly');
+        expect(events[0].schedule).toEqual([]);
+    });
+});
+
+// =============================================
+// MIT Star System Integration Tests (v2.2.0)
+// =============================================
+
+describe('End-to-end: MIT Star lifecycle', () => {
+    test('set MIT -> retrieve -> verify', async () => {
+        const task = await addNewTask('Critical Presentation', '', 'CRITICAL', '2026-03-01', 'work', 'High');
+        await setMitForDay('2026-02-26', task.id, 'task');
+
+        const mit = await getMitForDay('2026-02-26');
+        expect(mit).toBeTruthy();
+        expect(mit.itemId).toBe(task.id);
+        expect(mit.itemType).toBe('task');
+        expect(mit.completed).toBeNull();
+    });
+
+    test('MIT enforces 1 per day — replacing star', async () => {
+        const task1 = await addNewTask('Task A', '', 'IMPORTANT', null, 'work', 'High');
+        const task2 = await addNewTask('Task B', '', 'IMPORTANT', null, 'home', 'Low');
+
+        await setMitForDay('2026-02-26', task1.id, 'task');
+        await setMitForDay('2026-02-26', task2.id, 'task');
+
+        const history = await getMitHistory();
+        const forDay = history.filter(m => m.date === '2026-02-26');
+        expect(forDay).toHaveLength(1);
+        expect(forDay[0].itemId).toBe(task2.id);
+    });
+
+    test('MIT can be set for an event', async () => {
+        const event = await addNewEvent('Visit Friend', '', null, null);
+        await setMitForDay('2026-02-26', event.id, 'event');
+
+        const mit = await getMitForDay('2026-02-26');
+        expect(mit.itemId).toBe(event.id);
+        expect(mit.itemType).toBe('event');
+    });
+
+    test('resolve MIT as completed', async () => {
+        const task = await addNewTask('Finish Report', '', 'CRITICAL', '2026-03-01', 'work', 'High');
+        await setMitForDay('2026-02-25', task.id, 'task');
+
+        const result = await resolveMit('2026-02-25', true);
+        expect(result).toBe(true);
+
+        const resolved = await getMitForDay('2026-02-25');
+        expect(resolved.completed).toBe(true);
+        expect(resolved.resolvedAt).toBeTruthy();
+    });
+
+    test('resolve MIT as missed', async () => {
+        const task = await addNewTask('Missed Task', '', 'SOMEDAY', null, 'home', 'Low');
+        await setMitForDay('2026-02-24', task.id, 'task');
+
+        const result = await resolveMit('2026-02-24', false);
+        expect(result).toBe(true);
+
+        const resolved = await getMitForDay('2026-02-24');
+        expect(resolved.completed).toBe(false);
+    });
+
+    test('MIT streak calculation with task completion', async () => {
+        // Create 3 consecutive completed days
+        const history = [];
+        for (let i = 1; i <= 3; i++) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            history.push({ date: dateStr, itemId: `task_${i}`, itemType: 'task', completed: true, resolvedAt: new Date().toISOString() });
+        }
+
+        const streak = calculateMitStreak(history);
+        expect(streak).toBe(3);
+    });
+
+    test('MIT streak breaks on missed day', async () => {
+        const d1 = new Date(); d1.setDate(d1.getDate() - 1);
+        const d2 = new Date(); d2.setDate(d2.getDate() - 2);
+        const d3 = new Date(); d3.setDate(d3.getDate() - 3);
+
+        const history = [
+            { date: d1.toISOString().split('T')[0], itemId: 'task_1', itemType: 'task', completed: true, resolvedAt: new Date().toISOString() },
+            { date: d2.toISOString().split('T')[0], itemId: 'task_2', itemType: 'task', completed: false, resolvedAt: new Date().toISOString() },
+            { date: d3.toISOString().split('T')[0], itemId: 'task_3', itemType: 'task', completed: true, resolvedAt: new Date().toISOString() }
+        ];
+
+        expect(calculateMitStreak(history)).toBe(1);
+    });
+
+    test('remove MIT -> verify removed', async () => {
+        const task = await addNewTask('Starred Task', '', 'IMPORTANT', null, 'work', 'High');
+        await setMitForDay('2026-02-26', task.id, 'task');
+
+        await removeMitForDay('2026-02-26');
+        const mit = await getMitForDay('2026-02-26');
+        expect(mit).toBeNull();
+    });
+
+    test('unresolved MITs only returns past dates', async () => {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        await setMitForDay(yesterdayStr, 'task_1', 'task');
+        await setMitForDay(todayStr, 'task_2', 'task');
+
+        const unresolved = await getUnresolvedMits();
+        expect(unresolved).toHaveLength(1);
+        expect(unresolved[0].date).toBe(yesterdayStr);
+    });
+});
+
+describe('End-to-end: Cross-tab sync for events and MIT', () => {
+    test('storage change listener fires for eventNotes changes', (done) => {
+        const renderCallback = jest.fn();
+        setupStorageSync(renderCallback);
+
+        // Wait for 600ms so the internal _lastSaveTimestamp is > 500ms ago
+        setTimeout(() => {
+            const listenerCalls = chrome.storage.onChanged.addListener.mock.calls;
+            const listener = listenerCalls[listenerCalls.length - 1][0];
+            const changes = { eventNotes: { newValue: [{ id: 'e1', title: 'External Event' }] } };
+            listener(changes, 'local');
+
+            expect(renderCallback).toHaveBeenCalled();
+            done();
+        }, 600);
+    }, 10000);
+
+    test('storage change listener fires for mitHistory changes', (done) => {
+        const renderCallback = jest.fn();
+        setupStorageSync(renderCallback);
+
+        setTimeout(() => {
+            const listenerCalls = chrome.storage.onChanged.addListener.mock.calls;
+            const listener = listenerCalls[listenerCalls.length - 1][0];
+            const changes = { mitHistory: { newValue: [{ date: '2026-02-26', itemId: 't1' }] } };
+            listener(changes, 'local');
+
+            expect(renderCallback).toHaveBeenCalled();
+            done();
+        }, 600);
+    }, 10000);
 });
