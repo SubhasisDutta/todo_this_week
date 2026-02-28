@@ -63,7 +63,7 @@ async function renderPage() {
     const activeTasks = tasks.filter(t => !t.completed);
     const unassignedTasks = activeTasks.filter(t => !t.schedule || t.schedule.length === 0);
     const assignedTasks = activeTasks.filter(t => t.schedule && t.schedule.length > 0);
-    renderSidebarLists(unassignedTasks, assignedTasks, unassignedEvents);
+    renderSidebarLists(unassignedTasks, assignedTasks, unassignedEvents, assignedEvents);
 
     const assignedGridTasks = tasks.filter(t => t.schedule && t.schedule.length > 0);
     renderTasksOnGrid(assignedGridTasks);
@@ -326,29 +326,44 @@ function clearHomeWorkLists() {
     });
 }
 
-function renderSidebarLists(unassigned, assigned, unassignedEvents = []) {
+function renderSidebarLists(unassigned, assigned, unassignedEvents = [], assignedEvents = []) {
     const unassignedListEl = document.getElementById('unassigned-tasks-list');
     const assignedListEl = document.getElementById('assigned-tasks-list');
 
     unassignedListEl.innerHTML = '';
     const totalUnassigned = unassigned.length + unassignedEvents.length;
     if (totalUnassigned > 0) {
+        // Sort events by createdAt descending (latest first)
+        const sortedEvents = [...unassignedEvents].sort((a, b) => {
+            const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return bTime - aTime;
+        });
+
         // Events section header + events on top
-        if (unassignedEvents.length > 0) {
+        if (sortedEvents.length > 0) {
             const eventHeader = document.createElement('div');
             eventHeader.classList.add('parking-lot-separator');
             eventHeader.innerHTML = '<span>📌 Events</span>';
             unassignedListEl.appendChild(eventHeader);
-            unassignedEvents.forEach(event => unassignedListEl.appendChild(createEventElement(event, { context: 'sidebar' })));
+            sortedEvents.forEach(event => unassignedListEl.appendChild(createEventElement(event, { context: 'sidebar' })));
         }
+
+        // Sort tasks by lastModified descending (latest first)
+        const sortedTasks = [...unassigned].sort((a, b) => {
+            const aTime = a.lastModified ? new Date(a.lastModified).getTime() : 0;
+            const bTime = b.lastModified ? new Date(b.lastModified).getTime() : 0;
+            return bTime - aTime;
+        });
+
         // Tasks section header + tasks below
-        if (unassigned.length > 0) {
+        if (sortedTasks.length > 0) {
             const taskHeader = document.createElement('div');
             taskHeader.classList.add('parking-lot-separator');
             taskHeader.innerHTML = '<span>📋 Tasks</span>';
             unassignedListEl.appendChild(taskHeader);
         }
-        unassigned.forEach(task => unassignedListEl.appendChild(createTaskElement(task, { context: 'sidebar' })));
+        sortedTasks.forEach(task => unassignedListEl.appendChild(createTaskElement(task, { context: 'sidebar' })));
     } else {
         unassignedListEl.innerHTML = '<p class="empty-list-msg">All items assigned!</p>';
     }
@@ -357,12 +372,41 @@ function renderSidebarLists(unassigned, assigned, unassignedEvents = []) {
     updateUnassignedCount(totalUnassigned);
 
     assignedListEl.innerHTML = '';
-    if (assigned.length > 0) {
-        assigned.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)).forEach(task => {
-            assignedListEl.appendChild(createTaskElement(task, { context: 'sidebar', isAssigned: true }));
-        });
+    const hasAssignedItems = assigned.length > 0 || assignedEvents.length > 0;
+
+    if (hasAssignedItems) {
+        // Assigned tasks section
+        if (assigned.length > 0) {
+            const taskHeader = document.createElement('div');
+            taskHeader.classList.add('parking-lot-separator');
+            taskHeader.innerHTML = '<span>📋 Tasks</span>';
+            assignedListEl.appendChild(taskHeader);
+
+            assigned.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)).forEach(task => {
+                assignedListEl.appendChild(createTaskElement(task, { context: 'sidebar', isAssigned: true }));
+            });
+        }
+
+        // Assigned events section (allows dragging to additional blocks)
+        if (assignedEvents.length > 0) {
+            const eventHeader = document.createElement('div');
+            eventHeader.classList.add('parking-lot-separator');
+            eventHeader.innerHTML = '<span>📌 Events</span>';
+            assignedListEl.appendChild(eventHeader);
+
+            // Sort by createdAt descending
+            const sortedAssignedEvents = [...assignedEvents].sort((a, b) => {
+                const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return bTime - aTime;
+            });
+
+            sortedAssignedEvents.forEach(event => {
+                assignedListEl.appendChild(createEventElement(event, { context: 'sidebar', isAssigned: true }));
+            });
+        }
     } else {
-        assignedListEl.innerHTML = '<p class="empty-list-msg">No tasks scheduled.</p>';
+        assignedListEl.innerHTML = '<p class="empty-list-msg">No items scheduled.</p>';
     }
 }
 
@@ -1815,6 +1859,24 @@ async function renderEventAndMitStats() {
     ).length;
     const recurringEvents = events.filter(e => e.recurrence).length;
 
+    // Event color distribution
+    const settings = await getSettings();
+    const colorLabels = settings.eventColorLabels || {
+        red: 'Red', blue: 'Blue', green: 'Green', purple: 'Purple',
+        orange: 'Orange', yellow: 'Yellow', brown: 'Brown'
+    };
+    const colorCounts = {};
+    const allColors = ['red', 'blue', 'green', 'purple', 'orange', 'yellow', 'brown'];
+    allColors.forEach(c => colorCounts[c] = 0);
+    let noColorCount = 0;
+    events.forEach(e => {
+        if (e.colorCode && allColors.includes(e.colorCode)) {
+            colorCounts[e.colorCode]++;
+        } else {
+            noColorCount++;
+        }
+    });
+
     // --- MIT Stats ---
     const mitHistory = await getMitHistory();
     const mitStreak = calculateMitStreak(mitHistory);
@@ -1883,6 +1945,42 @@ async function renderEventAndMitStats() {
                     <span class="stats-event-metric-label">Recurring</span>
                 </div>
             </div>
+            ${totalEvents > 0 ? `
+            <div class="stats-event-colors">
+                <div class="stats-subsection-title">By Category</div>
+                <div class="stats-color-bars">
+                    ${allColors.map(color => {
+                        const count = colorCounts[color];
+                        if (count === 0) return '';
+                        const pct = Math.round((count / totalEvents) * 100);
+                        const colorHex = {
+                            red: '#e74c3c', blue: '#3498db', green: '#2ecc71',
+                            purple: '#9b59b6', orange: '#e67e22', yellow: '#f1c40f', brown: '#8b4513'
+                        }[color];
+                        return `<div class="stats-color-bar-item">
+                            <div class="stats-color-bar-label">
+                                <span class="stats-color-dot" style="background-color: ${colorHex};"></span>
+                                <span>${colorLabels[color]}</span>
+                            </div>
+                            <div class="stats-color-bar-track">
+                                <div class="stats-color-bar-fill" style="width: ${pct}%; background-color: ${colorHex};"></div>
+                            </div>
+                            <span class="stats-color-bar-count">${count}</span>
+                        </div>`;
+                    }).join('')}
+                    ${noColorCount > 0 ? `
+                    <div class="stats-color-bar-item">
+                        <div class="stats-color-bar-label">
+                            <span class="stats-color-dot" style="background-color: #a0aec0;"></span>
+                            <span>Uncategorized</span>
+                        </div>
+                        <div class="stats-color-bar-track">
+                            <div class="stats-color-bar-fill" style="width: ${Math.round((noColorCount / totalEvents) * 100)}%; background-color: #a0aec0;"></div>
+                        </div>
+                        <span class="stats-color-bar-count">${noColorCount}</span>
+                    </div>` : ''}
+                </div>
+            </div>` : ''}
         </div>
     `;
 
@@ -2494,6 +2592,10 @@ function setupDragAndDropListeners() {
 
                 if (day === currentDragInfo.sourceDay && blockId === currentDragInfo.sourceBlockId) return;
 
+                // Prevent duplicate schedule entries
+                const alreadyExists = eventNote.schedule.some(item => item.day === day && item.blockId === blockId);
+                if (alreadyExists) return;
+
                 // Remove from source if moving within grid
                 if (currentDragInfo.sourceDay && currentDragInfo.sourceBlockId) {
                     const idx = eventNote.schedule.findIndex(item => item.day === currentDragInfo.sourceDay && item.blockId === currentDragInfo.sourceBlockId);
@@ -2703,11 +2805,19 @@ async function openAddTaskModalForEdit(taskId) {
     // This clones elements to remove old listeners - must happen before setting values
     setupEditModeAutoSave();
 
-    // Update modal title and button
+    // Update modal title and hide submit button (auto-save replaces manual save)
     const modalTitle = document.getElementById('add-task-title');
     const submitBtn = document.getElementById('manager-add-task-btn');
+    const autosaveStatus = document.getElementById('edit-autosave-status');
     if (modalTitle) modalTitle.textContent = '✏️ Edit Task';
-    if (submitBtn) submitBtn.textContent = 'Save Changes';
+    // Hide submit button in edit mode - auto-save handles saving
+    if (submitBtn) submitBtn.style.display = 'none';
+    // Show auto-save status indicator
+    if (autosaveStatus) {
+        autosaveStatus.classList.remove('hidden');
+        autosaveStatus.textContent = '✓ Auto-saved';
+        autosaveStatus.className = 'autosave-status saved';
+    }
 
     // Populate form with task data
     document.getElementById('manager-task-title').value = task.title || '';
@@ -2832,11 +2942,11 @@ function setupEditModeAutoSave() {
 
 // Trigger debounced auto-save
 function triggerEditAutoSave() {
-    // Show saving status
-    const submitBtn = document.getElementById('manager-add-task-btn');
-    if (submitBtn) {
-        submitBtn.textContent = 'Saving...';
-        submitBtn.disabled = true;
+    // Show saving status in the autosave indicator
+    const autosaveStatus = document.getElementById('edit-autosave-status');
+    if (autosaveStatus) {
+        autosaveStatus.textContent = 'Saving...';
+        autosaveStatus.className = 'autosave-status saving';
     }
 
     // Clear existing timer
@@ -2860,11 +2970,11 @@ async function performEditAutoSave() {
     const titleInput = document.getElementById('manager-task-title');
     const title = titleInput?.value.trim();
     if (!title) {
-        // Don't save if title is empty
-        const submitBtn = document.getElementById('manager-add-task-btn');
-        if (submitBtn) {
-            submitBtn.textContent = 'Save Changes';
-            submitBtn.disabled = false;
+        // Don't save if title is empty - show error status
+        const autosaveStatus = document.getElementById('edit-autosave-status');
+        if (autosaveStatus) {
+            autosaveStatus.textContent = 'Title required';
+            autosaveStatus.className = 'autosave-status error';
         }
         return;
     }
@@ -2912,17 +3022,11 @@ async function performEditAutoSave() {
 
     await updateTask(task);
 
-    // Show saved status
-    const submitBtn = document.getElementById('manager-add-task-btn');
-    if (submitBtn) {
-        submitBtn.textContent = 'Saved ✓';
-        submitBtn.disabled = false;
-        // Reset button text after 1.5s
-        setTimeout(() => {
-            if (_editingTaskId && submitBtn) {
-                submitBtn.textContent = 'Save Changes';
-            }
-        }, 1500);
+    // Show saved status in the autosave indicator
+    const autosaveStatus = document.getElementById('edit-autosave-status');
+    if (autosaveStatus) {
+        autosaveStatus.textContent = '✓ Saved';
+        autosaveStatus.className = 'autosave-status saved';
     }
 
     // Re-render page to update Groups tab and other views
@@ -2938,10 +3042,18 @@ function resetAddTaskModalToAddMode() {
     _editingTaskId = null;
     const modalTitle = document.getElementById('add-task-title');
     const submitBtn = document.getElementById('manager-add-task-btn');
+    const autosaveStatus = document.getElementById('edit-autosave-status');
     if (modalTitle) modalTitle.textContent = '➕ Add New Task';
+    // Show submit button again for add mode
     if (submitBtn) {
         submitBtn.textContent = 'Add Task';
         submitBtn.disabled = false;
+        submitBtn.style.display = '';
+    }
+    // Hide auto-save status indicator
+    if (autosaveStatus) {
+        autosaveStatus.classList.add('hidden');
+        autosaveStatus.textContent = '';
     }
     clearAddTaskForm();
 }
@@ -4479,6 +4591,10 @@ function setupNewScheduleFeatures() {
 // Hook into original renderPage to add new features
 // --- Event Modal Listeners ---
 
+let _editingEventId = null;
+let _selectedEventColor = null;
+let _eventEditAutoSaveTimer = null;
+
 function setupEventModalListeners() {
     const addEventBtn = document.getElementById('add-event-btn');
     const modal = document.getElementById('add-event-modal');
@@ -4486,18 +4602,30 @@ function setupEventModalListeners() {
     const saveBtn = document.getElementById('save-event-btn');
     if (!addEventBtn || !modal) return;
 
-    let selectedEventColor = null;
+    addEventBtn.addEventListener('click', async () => {
+        resetEventModalToAddMode();
+        await updateEventColorLabels();
+        modal.classList.remove('hidden');
+    });
 
-    addEventBtn.addEventListener('click', () => modal.classList.remove('hidden'));
-    closeBtn?.addEventListener('click', () => modal.classList.add('hidden'));
-    modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
+    closeBtn?.addEventListener('click', () => {
+        modal.classList.add('hidden');
+        resetEventModalToAddMode();
+    });
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.add('hidden');
+            resetEventModalToAddMode();
+        }
+    });
 
     // Color picker
     modal.querySelectorAll('.event-color-opt').forEach(btn => {
         btn.addEventListener('click', () => {
             modal.querySelectorAll('.event-color-opt').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
-            selectedEventColor = btn.dataset.color || null;
+            _selectedEventColor = btn.dataset.color || null;
         });
     });
 
@@ -4509,19 +4637,298 @@ function setupEventModalListeners() {
         const notes = document.getElementById('event-notes-input').value.trim();
         const recurrence = document.getElementById('event-recurrence-input').value || null;
 
-        await addNewEvent(title, notes, recurrence, selectedEventColor);
+        if (_editingEventId) {
+            // Edit mode - update existing event
+            const event = await getEventById(_editingEventId);
+            if (event) {
+                event.title = title;
+                event.notes = notes;
+                event.recurrence = recurrence;
+                event.colorCode = _selectedEventColor;
+                await updateEvent(event);
+                showInfoMessage('Event updated!', 'success');
+            }
+        } else {
+            // Add mode - create new event
+            await addNewEvent(title, notes, recurrence, _selectedEventColor);
+            showInfoMessage('Event added to Parking Lot!', 'success');
+        }
 
-        // Reset form
-        titleInput.value = '';
-        document.getElementById('event-notes-input').value = '';
-        document.getElementById('event-recurrence-input').value = '';
+        // Reset form and close modal
+        resetEventModalToAddMode();
+        modal.classList.add('hidden');
+        renderPage();
+    });
+
+    // Delete button handler
+    const deleteBtn = document.getElementById('delete-event-btn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', async () => {
+            if (!_editingEventId) return;
+
+            if (confirm('Are you sure you want to delete this event?')) {
+                await deleteEvent(_editingEventId);
+                resetEventModalToAddMode();
+                modal.classList.add('hidden');
+                showInfoMessage('Event deleted', 'success');
+                renderPage();
+            }
+        });
+    }
+
+    // Setup double-click handlers for events
+    setupEventDoubleClickListeners();
+}
+
+function resetEventModalToAddMode() {
+    _editingEventId = null;
+    _selectedEventColor = null;
+
+    // Clear auto-save timer
+    if (_eventEditAutoSaveTimer) {
+        clearTimeout(_eventEditAutoSaveTimer);
+        _eventEditAutoSaveTimer = null;
+    }
+
+    const modal = document.getElementById('add-event-modal');
+    const modalTitle = document.getElementById('add-event-title');
+    const saveBtn = document.getElementById('save-event-btn');
+    const deleteBtn = document.getElementById('delete-event-btn');
+    const autosaveStatus = document.getElementById('event-autosave-status');
+
+    if (modalTitle) modalTitle.textContent = '📌 Add Event Note';
+    if (saveBtn) {
+        saveBtn.textContent = '📌 Add Event';
+        saveBtn.classList.remove('hidden');
+    }
+    if (deleteBtn) deleteBtn.classList.add('hidden');
+    if (autosaveStatus) {
+        autosaveStatus.classList.add('hidden');
+        autosaveStatus.textContent = '';
+        autosaveStatus.className = 'autosave-status hidden';
+    }
+
+    // Clear form
+    const titleInput = document.getElementById('event-title-input');
+    if (titleInput) titleInput.value = '';
+    const notesInput = document.getElementById('event-notes-input');
+    if (notesInput) notesInput.value = '';
+    const recurrenceInput = document.getElementById('event-recurrence-input');
+    if (recurrenceInput) recurrenceInput.value = '';
+
+    // Reset color picker
+    if (modal) {
         modal.querySelectorAll('.event-color-opt').forEach(b => b.classList.remove('selected'));
         modal.querySelector('.event-color-opt[data-color=""]')?.classList.add('selected');
-        selectedEventColor = null;
+    }
+}
 
-        modal.classList.add('hidden');
-        showInfoMessage('Event added to Parking Lot!', 'success');
-        renderPage();
+async function openAddEventModalForEdit(eventId) {
+    const event = await getEventById(eventId);
+    if (!event) {
+        showInfoMessage('Event not found', 'error');
+        return;
+    }
+
+    _editingEventId = eventId;
+
+    const modal = document.getElementById('add-event-modal');
+    const modalTitle = document.getElementById('add-event-title');
+    const saveBtn = document.getElementById('save-event-btn');
+    const deleteBtn = document.getElementById('delete-event-btn');
+    const autosaveStatus = document.getElementById('event-autosave-status');
+
+    // Update modal title for edit mode
+    if (modalTitle) modalTitle.textContent = '✏️ Edit Event';
+    // Hide save button in edit mode (auto-save handles saving)
+    if (saveBtn) saveBtn.classList.add('hidden');
+    if (deleteBtn) deleteBtn.classList.remove('hidden');
+    // Show auto-save indicator
+    if (autosaveStatus) autosaveStatus.classList.remove('hidden');
+
+    // Update color labels from settings
+    await updateEventColorLabels();
+
+    // Populate form with event data
+    const titleInput = document.getElementById('event-title-input');
+    if (titleInput) titleInput.value = event.title || '';
+    const notesInput = document.getElementById('event-notes-input');
+    if (notesInput) notesInput.value = event.notes || '';
+    const recurrenceInput = document.getElementById('event-recurrence-input');
+    if (recurrenceInput) recurrenceInput.value = event.recurrence || '';
+
+    // Set color
+    _selectedEventColor = event.colorCode || null;
+    if (modal) {
+        modal.querySelectorAll('.event-color-opt').forEach(b => {
+            b.classList.remove('selected');
+            if ((b.dataset.color || null) === _selectedEventColor) {
+                b.classList.add('selected');
+            }
+        });
+    }
+
+    // Setup auto-save BEFORE opening modal
+    setupEventEditModeAutoSave();
+
+    // Open modal
+    if (modal) modal.classList.remove('hidden');
+}
+
+function setupEventDoubleClickListeners() {
+    // Double-click on events in Parking Lot
+    const parkingLot = document.getElementById('unassigned-tasks-list');
+    if (parkingLot) {
+        parkingLot.addEventListener('dblclick', (e) => {
+            const eventItem = e.target.closest('.event-item');
+            if (eventItem) {
+                const eventId = eventItem.getAttribute('data-event-id');
+                if (eventId) openAddEventModalForEdit(eventId);
+            }
+        });
+    }
+
+    // Double-click on events in Assigned list
+    const assignedList = document.getElementById('assigned-tasks-list');
+    if (assignedList) {
+        assignedList.addEventListener('dblclick', (e) => {
+            const eventItem = e.target.closest('.event-item');
+            if (eventItem) {
+                const eventId = eventItem.getAttribute('data-event-id');
+                if (eventId) openAddEventModalForEdit(eventId);
+            }
+        });
+    }
+
+    // Double-click on events in grid cells
+    const gridContainer = document.getElementById('planner-grid');
+    if (gridContainer) {
+        gridContainer.addEventListener('dblclick', (e) => {
+            const eventItem = e.target.closest('.event-item');
+            if (eventItem) {
+                const eventId = eventItem.getAttribute('data-event-id');
+                if (eventId) openAddEventModalForEdit(eventId);
+            }
+        });
+    }
+}
+
+// --- Event Edit Auto-Save ---
+
+function setupEventEditModeAutoSave() {
+    if (!_editingEventId) return;
+
+    const modal = document.getElementById('add-event-modal');
+    if (!modal) return;
+
+    // Get all form inputs
+    const inputs = modal.querySelectorAll('input, textarea, select');
+
+    // Remove any existing auto-save listeners (clean slate via cloning)
+    inputs.forEach(input => {
+        const newInput = input.cloneNode(true);
+        input.parentNode.replaceChild(newInput, input);
+    });
+
+    // Re-select inputs after clone
+    const freshInputs = modal.querySelectorAll('input, textarea, select');
+
+    // Add auto-save listeners
+    freshInputs.forEach(input => {
+        const eventType = input.tagName === 'SELECT' ? 'change' : 'input';
+        input.addEventListener(eventType, () => {
+            if (!_editingEventId) return;
+            triggerEventEditAutoSave();
+        });
+    });
+
+    // Also listen for color picker changes
+    modal.querySelectorAll('.event-color-opt').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (!_editingEventId) return;
+            _selectedEventColor = btn.dataset.color || null;
+            modal.querySelectorAll('.event-color-opt').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            triggerEventEditAutoSave();
+        });
+    });
+}
+
+function triggerEventEditAutoSave() {
+    // Show saving status
+    const autosaveStatus = document.getElementById('event-autosave-status');
+    if (autosaveStatus) {
+        autosaveStatus.textContent = 'Saving...';
+        autosaveStatus.className = 'autosave-status saving';
+    }
+
+    // Clear existing timer
+    if (_eventEditAutoSaveTimer) {
+        clearTimeout(_eventEditAutoSaveTimer);
+    }
+
+    // Debounce: save after 800ms of inactivity
+    _eventEditAutoSaveTimer = setTimeout(async () => {
+        await performEventEditAutoSave();
+    }, 800);
+}
+
+async function performEventEditAutoSave() {
+    if (!_editingEventId) return;
+
+    const event = await getEventById(_editingEventId);
+    if (!event) return;
+
+    const titleInput = document.getElementById('event-title-input');
+    const title = titleInput?.value.trim();
+    if (!title) {
+        // Don't save if title is empty - show error status
+        const autosaveStatus = document.getElementById('event-autosave-status');
+        if (autosaveStatus) {
+            autosaveStatus.textContent = 'Title required';
+            autosaveStatus.className = 'autosave-status error';
+        }
+        return;
+    }
+
+    // Collect form values
+    const notes = document.getElementById('event-notes-input')?.value.trim() || '';
+    const recurrence = document.getElementById('event-recurrence-input')?.value || null;
+
+    // Update event
+    event.title = title;
+    event.notes = notes;
+    event.recurrence = recurrence;
+    event.colorCode = _selectedEventColor;
+
+    await updateEvent(event);
+
+    // Show saved status
+    const autosaveStatus = document.getElementById('event-autosave-status');
+    if (autosaveStatus) {
+        autosaveStatus.textContent = '✓ Saved';
+        autosaveStatus.className = 'autosave-status saved';
+    }
+
+    // Refresh page in background
+    renderPage();
+}
+
+// --- Event Color Labels ---
+
+async function updateEventColorLabels() {
+    const modal = document.getElementById('add-event-modal');
+    if (!modal) return;
+
+    const colorLabels = await getEventColorLabels();
+
+    modal.querySelectorAll('.event-color-opt').forEach(btn => {
+        const color = btn.dataset.color;
+        if (color && colorLabels[color]) {
+            btn.setAttribute('title', colorLabels[color]);
+        } else if (!color) {
+            btn.setAttribute('title', 'Default (No color)');
+        }
     });
 }
 

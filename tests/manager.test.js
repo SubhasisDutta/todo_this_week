@@ -500,10 +500,38 @@ describe('renderSidebarLists', () => {
         expect(list.querySelectorAll('.task-item').length).toBe(1);
     });
 
-    test('shows empty message when no assigned tasks', () => {
-        renderSidebarLists([], []);
+    test('shows empty message when no assigned items', () => {
+        renderSidebarLists([], [], [], []);
         const list = document.getElementById('assigned-tasks-list');
-        expect(list.innerHTML).toContain('No tasks scheduled');
+        expect(list.innerHTML).toContain('No items scheduled');
+    });
+
+    test('sorts unassigned tasks by lastModified descending (latest first)', () => {
+        const unassigned = [
+            { id: 't1', title: 'Oldest Task', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], lastModified: '2024-01-01T10:00:00.000Z' },
+            { id: 't2', title: 'Newest Task', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], lastModified: '2024-01-03T10:00:00.000Z' },
+            { id: 't3', title: 'Middle Task', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], lastModified: '2024-01-02T10:00:00.000Z' },
+        ];
+        renderSidebarLists(unassigned, []);
+        const list = document.getElementById('unassigned-tasks-list');
+        const titles = Array.from(list.querySelectorAll('.task-title')).map(el => el.textContent);
+        // Titles may have icon prefixes, so check if they contain the expected text
+        expect(titles[0]).toContain('Newest Task');
+        expect(titles[1]).toContain('Middle Task');
+        expect(titles[2]).toContain('Oldest Task');
+    });
+
+    test('handles tasks without lastModified (treats as oldest)', () => {
+        const unassigned = [
+            { id: 't1', title: 'No Timestamp', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [] },
+            { id: 't2', title: 'With Timestamp', priority: 'SOMEDAY', completed: false, type: 'home', energy: 'Low', schedule: [], lastModified: '2024-01-01T10:00:00.000Z' },
+        ];
+        renderSidebarLists(unassigned, []);
+        const list = document.getElementById('unassigned-tasks-list');
+        const titles = Array.from(list.querySelectorAll('.task-title')).map(el => el.textContent);
+        // Titles may have icon prefixes, so check if they contain the expected text
+        expect(titles[0]).toContain('With Timestamp');
+        expect(titles[1]).toContain('No Timestamp');
     });
 });
 

@@ -254,6 +254,9 @@ async function populateSettingsForm() {
 
     // Populate attribute toggles
     populateAttributeToggles(settings);
+
+    // Populate event color labels
+    populateEventColorLabels(settings);
 }
 
 // All toggleable attributes including priority and type (which can now be disabled)
@@ -310,6 +313,68 @@ async function saveAttributeToggles() {
 async function getEnabledAttributes() {
     const settings = await getSettings();
     return settings.enabledAttributes || { priority: true, type: true, energy: true };
+}
+
+// Event color labels
+const EVENT_COLORS = ['red', 'blue', 'green', 'purple', 'orange', 'yellow', 'brown'];
+
+const DEFAULT_EVENT_COLOR_LABELS = {
+    red: 'Red',
+    blue: 'Blue',
+    green: 'Green',
+    purple: 'Purple',
+    orange: 'Orange',
+    yellow: 'Yellow',
+    brown: 'Brown'
+};
+
+// Populate event color label inputs from settings
+function populateEventColorLabels(settings) {
+    const colorLabels = settings.eventColorLabels || DEFAULT_EVENT_COLOR_LABELS;
+
+    EVENT_COLORS.forEach(color => {
+        const input = document.getElementById(`color-label-${color}`);
+        if (input) {
+            input.value = colorLabels[color] || DEFAULT_EVENT_COLOR_LABELS[color];
+        }
+    });
+}
+
+// Setup event color label listeners for auto-save
+function setupEventColorLabelListeners() {
+    EVENT_COLORS.forEach(color => {
+        const input = document.getElementById(`color-label-${color}`);
+        if (input) {
+            input.addEventListener('change', async () => {
+                await saveEventColorLabels();
+                showInfoMessage('Event color labels saved!', 'success');
+            });
+        }
+    });
+}
+
+// Save event color labels to settings
+async function saveEventColorLabels() {
+    const settings = await getSettings();
+
+    if (!settings.eventColorLabels) {
+        settings.eventColorLabels = { ...DEFAULT_EVENT_COLOR_LABELS };
+    }
+
+    EVENT_COLORS.forEach(color => {
+        const input = document.getElementById(`color-label-${color}`);
+        if (input) {
+            settings.eventColorLabels[color] = input.value.trim() || DEFAULT_EVENT_COLOR_LABELS[color];
+        }
+    });
+
+    await saveSettings(settings);
+}
+
+// Get event color labels (helper for other modules)
+async function getEventColorLabels() {
+    const settings = await getSettings();
+    return settings.eventColorLabels || DEFAULT_EVENT_COLOR_LABELS;
 }
 
 async function saveSettingsFromForm() {
@@ -1041,6 +1106,9 @@ function notionPageToTask(page, mapping, valueMappings) {
         }
     }
 
+    // Use Notion's last_edited_time for lastModified
+    const lastModified = page.last_edited_time || new Date().toISOString();
+
     return {
         notionPageId: page.id,
         title,
@@ -1053,6 +1121,7 @@ function notionPageToTask(page, mapping, valueMappings) {
         energy,
         notes,
         completedAt: completed ? new Date().toISOString() : null,
+        lastModified,
         // Additional attributes
         impact,
         value,
@@ -1371,7 +1440,7 @@ async function performNotionSync(renderPageCallback) {
                     notionData.completedAt,
                     null, // no recurrence
                     page.id, // notionPageId
-                    null, // lastModified (auto-set)
+                    notionData.lastModified, // Use Notion's last_edited_time
                     null, // colorCode
                     // Attributes from Notion
                     notionData.status || 'inbox', // status from Notion mapping
@@ -1503,10 +1572,10 @@ async function importNewNotionTasks(renderPageCallback) {
                 notionData.completedAt,
                 null, // recurrence
                 page.id, // notionPageId
-                null, // lastModified (auto-set)
+                notionData.lastModified, // Use Notion's last_edited_time
                 null, // colorCode
                 // Attributes from Notion
-                'inbox', // status
+                notionData.status || 'inbox',
                 notionData.impact || 'TBD',
                 notionData.value || 'TBD',
                 notionData.complexity || 'TBD',
@@ -1996,6 +2065,9 @@ async function setupSettingsModalListeners(renderPageCallback) {
 
     // Setup attribute toggle listeners for auto-save
     setupAttributeToggleListeners(renderPageCallback);
+
+    // Setup event color label listeners for auto-save
+    setupEventColorLabelListeners();
 
     // Setup nuke modal listeners
     setupNukeModalListeners(renderPageCallback);

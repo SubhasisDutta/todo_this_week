@@ -73,6 +73,16 @@ const DEFAULT_SETTINGS = {
         action: false,
         estimates: false,
         interval: false
+    },
+    // Event color labels - user-customizable names for event colors
+    eventColorLabels: {
+        red: 'Red',
+        blue: 'Blue',
+        green: 'Green',
+        purple: 'Purple',
+        orange: 'Orange',
+        yellow: 'Yellow',
+        brown: 'Brown'
     }
 };
 

@@ -320,6 +320,42 @@
                 </div>
             </section>
 
+            <!-- Event Color Labels -->
+            <section class="settings-section">
+                <h3>Event Color Labels</h3>
+                <p class="settings-section-desc">Customize the meaning of each event color.</p>
+                <div class="event-color-labels-grid">
+                    <div class="color-label-item">
+                        <span class="color-preview" style="background-color: #e74c3c;"></span>
+                        <input type="text" id="color-label-red" class="neumorphic-input" placeholder="Red">
+                    </div>
+                    <div class="color-label-item">
+                        <span class="color-preview" style="background-color: #3498db;"></span>
+                        <input type="text" id="color-label-blue" class="neumorphic-input" placeholder="Blue">
+                    </div>
+                    <div class="color-label-item">
+                        <span class="color-preview" style="background-color: #2ecc71;"></span>
+                        <input type="text" id="color-label-green" class="neumorphic-input" placeholder="Green">
+                    </div>
+                    <div class="color-label-item">
+                        <span class="color-preview" style="background-color: #9b59b6;"></span>
+                        <input type="text" id="color-label-purple" class="neumorphic-input" placeholder="Purple">
+                    </div>
+                    <div class="color-label-item">
+                        <span class="color-preview" style="background-color: #e67e22;"></span>
+                        <input type="text" id="color-label-orange" class="neumorphic-input" placeholder="Orange">
+                    </div>
+                    <div class="color-label-item">
+                        <span class="color-preview" style="background-color: #f1c40f;"></span>
+                        <input type="text" id="color-label-yellow" class="neumorphic-input" placeholder="Yellow">
+                    </div>
+                    <div class="color-label-item">
+                        <span class="color-preview" style="background-color: #8b4513;"></span>
+                        <input type="text" id="color-label-brown" class="neumorphic-input" placeholder="Brown">
+                    </div>
+                </div>
+            </section>
+
             <!-- Danger Zone -->
             <section class="settings-section danger-zone-section">
                 <h3>⚠️ Danger Zone</h3>
@@ -908,6 +944,26 @@
                         <h4 class="faq-question">Can I have more than one MIT per day?</h4>
                         <p class="faq-answer">No, MIT is intentionally limited to exactly one per day. This forces you to identify the single most important thing. If you star a different item, it replaces the previous MIT for that day. This constraint is a key part of the productivity methodology.</p>
                     </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">How do I edit an event?</h4>
+                        <p class="faq-answer">Double-click any event in the Parking Lot, on the grid, or in the Assigned sidebar to open the Edit Event modal. You can change the title, notes, recurrence, and color. Changes auto-save when you close the modal. To delete an event, click the Delete button in the edit modal.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">What do the event colors mean?</h4>
+                        <p class="faq-answer">Event colors are customizable categories. By default, they're named by color (Red, Blue, Green, etc.). Go to Settings → Event Color Labels to rename them based on your workflow (e.g., "Meetings", "Personal", "Health"). The Stats tab shows color distribution based on your labels.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">Why are tasks in the Parking Lot ordered a certain way?</h4>
+                        <p class="faq-answer">Tasks in the Parking Lot are sorted by last modified time, with the most recently modified tasks at the top. This helps you quickly find tasks you've been working on. Events appear after tasks, separated by a dashed line.</p>
+                    </div>
+
+                    <div class="faq-item">
+                        <h4 class="faq-question">How do I know if my task edits are saved?</h4>
+                        <p class="faq-answer">When editing a task, look for the auto-save indicator in the modal header. It shows "Saving..." while saving and "✓ Auto-saved" when complete. Changes are saved automatically after about 1 second of inactivity, so you don't need to click a Save button.</p>
+                    </div>
                 </div>
 
             </div><!-- end .help-content -->
@@ -922,6 +978,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="add-task-title">➕ Add New Task</h2>
+                <span id="edit-autosave-status" class="autosave-status hidden"></span>
                 <button id="add-task-close-btn" class="neumorphic-btn icon-btn" aria-label="Close">✕</button>
             </div>
 
@@ -1526,6 +1583,7 @@
         <div class="modal-content modal-content-small">
             <div class="modal-header">
                 <h2 id="add-event-title">📌 Add Event Note</h2>
+                <span id="event-autosave-status" class="autosave-status hidden"></span>
                 <button id="add-event-close-btn" class="neumorphic-btn icon-btn" aria-label="Close">✕</button>
             </div>
             <div class="add-event-form">
@@ -1557,10 +1615,13 @@
                         <button type="button" class="color-swatch event-color-opt" data-color="green" title="Green"></button>
                         <button type="button" class="color-swatch event-color-opt" data-color="purple" title="Purple"></button>
                         <button type="button" class="color-swatch event-color-opt" data-color="orange" title="Orange"></button>
+                        <button type="button" class="color-swatch event-color-opt" data-color="yellow" title="Yellow"></button>
+                        <button type="button" class="color-swatch event-color-opt" data-color="brown" title="Brown"></button>
                     </div>
                 </div>
             </div>
             <div class="modal-actions">
+                <button id="delete-event-btn" class="neumorphic-btn danger-btn hidden" style="margin-right: auto;">🗑️ Delete</button>
                 <button id="save-event-btn" class="neumorphic-btn primary-btn">📌 Add Event</button>
             </div>
         </div>

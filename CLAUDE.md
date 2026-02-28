@@ -102,6 +102,15 @@ Tasks are stored in `chrome.storage.local` under the `tasks` key as an array of 
     action: boolean,
     estimates: boolean,
     interval: boolean
+  },
+  eventColorLabels: {        // User-customizable event color names (v2.3.0)
+    red: string,             // Default: 'Red'
+    blue: string,            // Default: 'Blue'
+    green: string,           // Default: 'Green'
+    purple: string,          // Default: 'Purple'
+    orange: string,          // Default: 'Orange'
+    yellow: string,          // Default: 'Yellow'
+    brown: string            // Default: 'Brown'
   }
 }
 
@@ -322,6 +331,10 @@ Centralized constant in `settings.js` for Notion column mapping. Contains valid 
 | `renderEventAndMitStats()` | Returns HTML string for MIT and Event stats cards in Stats tab. |
 | `setupEventModalListeners()` | Modal open/close, color picker, form validation, save via `addNewEvent()` |
 | `getDayDateStr(dayName)` | Maps grid column day name to `YYYY-MM-DD` date string using `currentDayDates` |
+| `setupEventEditModeAutoSave()` | Sets up auto-save listeners on event edit modal inputs. Debounced 800ms save. |
+| `triggerEventEditAutoSave()` | Shows "Saving..." status and triggers debounced auto-save for events. |
+| `performEventEditAutoSave()` | Performs the actual event update and shows "✓ Saved" status. |
+| `updateEventColorLabels()` | Updates color swatch tooltips from settings `eventColorLabels`. |
 
 ### Module-Level Variables (v2.2.0)
 
@@ -329,6 +342,7 @@ Centralized constant in `settings.js` for Notion column mapping. Contains valid 
 |----------|-------------|
 | `currentDayDates` | `{}` — Maps day names (e.g., 'monday') to `Date` objects. Computed in `generateDayHeaders()`. Used by `calculateEventExpiry()` and MIT date calculations. |
 | `draggedItemInfo` | `null` — Replaces old `draggedTaskInfo`. Contains `{ itemId, itemType: 'task'\|'event', sourceDay, sourceBlockId }` during drag operations. |
+| `_eventEditAutoSaveTimer` | `null` — Debounce timer ID for event edit auto-save. Cleared on modal close. |
 
 ## Key Features Implementation
 
@@ -567,6 +581,66 @@ Replaces the Priority and Location tabs with a unified, attribute-based grouping
 - Stored in `task.colorCode`
 - CSS: `.task-item[data-color-code="red"]` etc.
 
+### Version 2.3.0 Changes
+
+#### Parking Lot Ordering
+- Tasks in Parking Lot now sorted by `lastModified` timestamp (latest first)
+- Events sorted by `createdAt` timestamp (latest first)
+- Ensures recently modified items appear at the top for quick access
+
+#### Edit Task Modal Auto-Save Indicator
+- Removed "Save Changes" button in edit mode (auto-save handles saving)
+- Added visual auto-save status indicator tag near modal title
+- States: "Saving..." (pulse animation), "✓ Saved" (green), "Title required" (red error)
+- CSS: `.autosave-status`, `.autosave-status.saving`, `.autosave-status.saved`, `.autosave-status.error`
+
+#### Event Editing via Double-Click
+- Double-click any event in Parking Lot or grid to open edit modal
+- Edit modal shows event title, notes, recurrence, and color picker
+- Delete button available in edit mode with confirmation
+- JS: `openAddEventModalForEdit()`, `resetEventModalToAddMode()`, `setupEventDoubleClickListeners()`
+
+#### Event Color Categories
+- Added Yellow and Brown colors to event color palette (now 7 total colors)
+- Event Color Labels settings section in Settings modal
+- Users can customize what each color means (e.g., "Red" → "Urgent")
+- Labels stored in `settings.eventColorLabels`
+- CSS: Color swatch and item styles for yellow and brown variants
+- JS: `EVENT_COLORS`, `DEFAULT_EVENT_COLOR_LABELS`, `getEventColorLabels()`, `populateEventColorLabels()`, `saveEventColorLabels()`
+
+#### Stats Tab Color Distribution
+- Event stats card now shows "By Category" section with color distribution bars
+- Visual bar chart showing count of events per color category
+- Uses user-defined color labels from settings
+
+#### Notion Import lastModified Sync
+- `notionPageToTask()` now extracts `last_edited_time` from Notion pages
+- Sets task `lastModified` to match Notion's edit time on import
+- Both `performNotionSync()` and `importNewNotionTasks()` use Notion's timestamp
+
+#### Event Edit Auto-Save
+- Event editing now auto-saves after 800ms of inactivity (same as tasks)
+- Auto-save status indicator in edit modal header: "Saving...", "✓ Saved", "Title required"
+- Save button hidden in edit mode (auto-save handles saving)
+- JS: `setupEventEditModeAutoSave()`, `triggerEventEditAutoSave()`, `performEventEditAutoSave()`, `_eventEditAutoSaveTimer`
+
+#### Multi-Block Event Assignment
+- Assigned events now appear in sidebar below "Assigned Tasks" section
+- Drag events from assigned sidebar to add to additional time blocks
+- Events can now be assigned to multiple blocks (like tasks)
+- Prevents duplicate schedule entries when dropping on same block
+- `renderSidebarLists()` now accepts 4th parameter `assignedEvents`
+
+#### Event Color Label Tooltips
+- Color swatches in event modal now show custom labels on hover
+- Labels update dynamically from settings when opening modal
+- JS: `updateEventColorLabels()` called on modal open
+
+#### Test Coverage
+- Added tests for Parking Lot lastModified ordering in `manager.test.js`
+- Added tests for event color labels in `settings.test.js`
+- Total test count: 567+ tests
+
 ### Version 2.2.0 Changes
 
 #### Event Notes
@@ -574,7 +648,7 @@ Replaces the Priority and Location tabs with a unified, attribute-based grouping
 - Events appear in Parking Lot sidebar with purple separator, visually distinct from tasks (dashed border, lavender gradient, pill shape)
 - Drag-and-drop onto grid cells with `expiresAt` timestamp calculation
 - `cleanupExpiredEvents()` auto-deletes expired events and creates recurring next instances
-- Color coding support (same 5 colors as tasks)
+- Color coding support (now 7 colors: red, blue, green, purple, orange, yellow, brown)
 - Add Event modal with title, notes, recurrence, and color picker
 - Event stats card in Stats tab
 

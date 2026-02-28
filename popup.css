@@ -1355,6 +1355,33 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
 }
 .modal-header h2 { margin: 0; font-size: 1.3em; }
 
+/* Auto-save status indicator for edit mode */
+.autosave-status {
+    font-size: 0.75em;
+    padding: 4px 10px;
+    border-radius: 12px;
+    margin-left: 12px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+.autosave-status.saving {
+    background: linear-gradient(135deg, #fff9e6, #fff3cd);
+    color: #856404;
+    animation: pulse-saving 1s infinite;
+}
+.autosave-status.saved {
+    background: linear-gradient(135deg, #d4edda, #c3e6cb);
+    color: #155724;
+}
+.autosave-status.error {
+    background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+    color: #721c24;
+}
+@keyframes pulse-saving {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
 /* --- Settings Sections --- */
 .settings-section {
     margin-bottom: 24px;
@@ -3353,6 +3380,8 @@ body.manager-page { /* Assuming we can add class="manager-page" to body in manag
 .task-item[data-color-code="green"] { border-left: 4px solid #2ecc71 !important; }
 .task-item[data-color-code="purple"] { border-left: 4px solid #9b59b6 !important; }
 .task-item[data-color-code="orange"] { border-left: 4px solid #e67e22 !important; }
+.task-item[data-color-code="yellow"] { border-left: 4px solid #f1c40f !important; }
+.task-item[data-color-code="brown"] { border-left: 4px solid #8b4513 !important; }
 
 /* --- Task Details Modal --- */
 .task-details-content {
@@ -3734,6 +3763,38 @@ body.resizing {
 .attribute-icon {
     font-size: 1.2em;
     flex-shrink: 0;
+}
+
+/* Event Color Labels Grid */
+.event-color-labels-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.color-label-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    border-radius: var(--border-radius-md);
+    box-shadow: 3px 3px 6px var(--shadow-dark), -3px -3px 6px var(--shadow-light);
+}
+
+.color-label-item .color-preview {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+}
+
+.color-label-item input {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.9em;
+    padding: 6px 10px;
 }
 
 .attribute-label {
@@ -4609,6 +4670,8 @@ body.resizing {
 .event-item[data-color-code="green"] { border-left-color: #2ecc71; background: linear-gradient(135deg, #e5ffe5 0%, #d1fae5 100%); }
 .event-item[data-color-code="purple"] { border-left-color: #9b59b6; background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 100%); }
 .event-item[data-color-code="orange"] { border-left-color: #e67e22; background: linear-gradient(135deg, #fff5e5 0%, #fed7aa 100%); }
+.event-item[data-color-code="yellow"] { border-left-color: #f1c40f; background: linear-gradient(135deg, #fffde7 0%, #fef3c7 100%); }
+.event-item[data-color-code="brown"] { border-left-color: #8b4513; background: linear-gradient(135deg, #f5ebe0 0%, #e6d5c3 100%); }
 
 .event-type-icon {
     font-size: 1em;
@@ -4640,6 +4703,8 @@ body.resizing {
 .grid-cell .event-item[data-color-code="green"] { border-color: #2ecc71; }
 .grid-cell .event-item[data-color-code="purple"] { border-color: #9b59b6; }
 .grid-cell .event-item[data-color-code="orange"] { border-color: #e67e22; }
+.grid-cell .event-item[data-color-code="yellow"] { border-color: #f1c40f; }
+.grid-cell .event-item[data-color-code="brown"] { border-color: #8b4513; }
 
 /* Event notes toggle */
 .event-item .task-notes-toggle {
@@ -4697,6 +4762,8 @@ body.resizing {
 .color-swatch[data-color="green"] { background-color: #2ecc71; }
 .color-swatch[data-color="purple"] { background-color: #9b59b6; }
 .color-swatch[data-color="orange"] { background-color: #e67e22; }
+.color-swatch[data-color="yellow"] { background-color: #f1c40f; }
+.color-swatch[data-color="brown"] { background-color: #8b4513; }
 
 /* ============================
    MIT STAR STYLES (v2.2.0)
@@ -4912,6 +4979,71 @@ body.resizing {
     letter-spacing: 0.5px;
 }
 
+/* Event Color Distribution in Stats */
+.stats-event-colors {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--inset-bg);
+}
+
+.stats-subsection-title {
+    font-size: 0.75em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+
+.stats-color-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.stats-color-bar-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.stats-color-bar-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 100px;
+    font-size: 0.85em;
+    color: var(--text-secondary);
+}
+
+.stats-color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.stats-color-bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--inset-bg);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.stats-color-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.stats-color-bar-count {
+    min-width: 24px;
+    text-align: right;
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
 /* ============================
    DARK MODE — EVENTS (v2.2.0)
    ============================ */
@@ -4930,6 +5062,8 @@ body.resizing {
 :root[data-theme="dark"] .event-item[data-color-code="green"] { border-left-color: #4ade80; background: linear-gradient(135deg, #052e16 0%, #064e3b 100%); }
 :root[data-theme="dark"] .event-item[data-color-code="purple"] { border-left-color: #a78bfa; background: linear-gradient(135deg, #2d1b69 0%, #1e1145 100%); }
 :root[data-theme="dark"] .event-item[data-color-code="orange"] { border-left-color: #fb923c; background: linear-gradient(135deg, #431407 0%, #451a03 100%); }
+:root[data-theme="dark"] .event-item[data-color-code="yellow"] { border-left-color: #fbbf24; background: linear-gradient(135deg, #422006 0%, #78350f 100%); }
+:root[data-theme="dark"] .event-item[data-color-code="brown"] { border-left-color: #a0522d; background: linear-gradient(135deg, #44403c 0%, #292524 100%); }
 
 :root[data-theme="dark"] .grid-cell .event-item { border-color: #a78bfa; }
 :root[data-theme="dark"] .grid-cell .event-item[data-color-code="red"] { border-color: #f87171; }
@@ -4937,6 +5071,8 @@ body.resizing {
 :root[data-theme="dark"] .grid-cell .event-item[data-color-code="green"] { border-color: #4ade80; }
 :root[data-theme="dark"] .grid-cell .event-item[data-color-code="purple"] { border-color: #a78bfa; }
 :root[data-theme="dark"] .grid-cell .event-item[data-color-code="orange"] { border-color: #fb923c; }
+:root[data-theme="dark"] .grid-cell .event-item[data-color-code="yellow"] { border-color: #fbbf24; }
+:root[data-theme="dark"] .grid-cell .event-item[data-color-code="brown"] { border-color: #a0522d; }
 
 :root[data-theme="dark"] .parking-lot-separator {
     border-top-color: #a78bfa;

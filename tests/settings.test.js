@@ -35,7 +35,9 @@ loadScript(path.join(__dirname, '..', 'settings.js'), [
     'parseTimeToInputFormat', 'formatTimeDisplay',
     'addTimeBlockToWorkingCopy', 'validateAndSaveTimeBlocks', 'markTimeBlocksUnsaved', 'markTimeBlocksSaved',
     'notionPageToTask', 'normalizeSheetRow', 'getEnabledAttributes',
-    'autoMapSelectValues'
+    'autoMapSelectValues',
+    'EVENT_COLORS', 'DEFAULT_EVENT_COLOR_LABELS', 'populateEventColorLabels',
+    'setupEventColorLabelListeners', 'saveEventColorLabels', 'getEventColorLabels'
 ]);
 
 // Minimal DOM setup for settings tests
@@ -794,6 +796,42 @@ describe('notionPageToTask', () => {
         expect(result.estimates).toBe('Unknown');
         expect(result.interval).toBeNull();
     });
+
+    test('extracts last_edited_time from Notion page as lastModified', () => {
+        const notionTimestamp = '2024-06-15T14:30:00.000Z';
+        const page = {
+            id: 'notion-page-456',
+            last_edited_time: notionTimestamp,
+            properties: {
+                'Title': { type: 'title', title: [{ plain_text: 'Test Task' }] }
+            }
+        };
+        const mapping = { title: 'Title' };
+        const valueMappings = {};
+
+        const result = notionPageToTask(page, mapping, valueMappings);
+
+        expect(result.lastModified).toBe(notionTimestamp);
+        expect(result.notionPageId).toBe('notion-page-456');
+    });
+
+    test('uses current timestamp when last_edited_time is missing', () => {
+        const beforeTest = new Date().toISOString();
+        const page = {
+            id: 'notion-page-789',
+            properties: {
+                'Title': { type: 'title', title: [{ plain_text: 'Test Task' }] }
+            }
+        };
+        const mapping = { title: 'Title' };
+        const valueMappings = {};
+
+        const result = notionPageToTask(page, mapping, valueMappings);
+
+        // lastModified should be a valid ISO timestamp (fallback to current time)
+        expect(result.lastModified).toBeDefined();
+        expect(new Date(result.lastModified).getTime()).toBeGreaterThanOrEqual(new Date(beforeTest).getTime());
+    });
 });
 
 describe('normalizeSheetRow', () => {
@@ -949,5 +987,60 @@ describe('autoMapSelectValues', () => {
             'done': 'Done',
             'archive': 'Archive'
         });
+    });
+});
+
+describe('Event Color Labels', () => {
+    beforeEach(() => {
+        resetChromeStorage();
+        setupSettingsDOM();
+    });
+
+    test('EVENT_COLORS contains all 7 colors', () => {
+        expect(EVENT_COLORS).toContain('red');
+        expect(EVENT_COLORS).toContain('blue');
+        expect(EVENT_COLORS).toContain('green');
+        expect(EVENT_COLORS).toContain('purple');
+        expect(EVENT_COLORS).toContain('orange');
+        expect(EVENT_COLORS).toContain('yellow');
+        expect(EVENT_COLORS).toContain('brown');
+        expect(EVENT_COLORS.length).toBe(7);
+    });
+
+    test('DEFAULT_EVENT_COLOR_LABELS has all colors with default names', () => {
+        expect(DEFAULT_EVENT_COLOR_LABELS.red).toBe('Red');
+        expect(DEFAULT_EVENT_COLOR_LABELS.blue).toBe('Blue');
+        expect(DEFAULT_EVENT_COLOR_LABELS.green).toBe('Green');
+        expect(DEFAULT_EVENT_COLOR_LABELS.purple).toBe('Purple');
+        expect(DEFAULT_EVENT_COLOR_LABELS.orange).toBe('Orange');
+        expect(DEFAULT_EVENT_COLOR_LABELS.yellow).toBe('Yellow');
+        expect(DEFAULT_EVENT_COLOR_LABELS.brown).toBe('Brown');
+    });
+
+    test('getEventColorLabels returns default labels when none set', async () => {
+        const labels = await getEventColorLabels();
+        expect(labels.red).toBe('Red');
+        expect(labels.yellow).toBe('Yellow');
+        expect(labels.brown).toBe('Brown');
+    });
+
+    test('getEventColorLabels returns custom labels from settings', async () => {
+        seedSettings({
+            theme: 'light',
+            eventColorLabels: {
+                red: 'Urgent',
+                blue: 'Work',
+                green: 'Personal',
+                purple: 'Creative',
+                orange: 'Social',
+                yellow: 'Ideas',
+                brown: 'Errands'
+            }
+        });
+
+        const labels = await getEventColorLabels();
+        expect(labels.red).toBe('Urgent');
+        expect(labels.yellow).toBe('Ideas');
+        expect(labels.brown).toBe('Errands');
     });
 });
