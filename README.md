@@ -44,6 +44,7 @@ The popup (500px wide) provides quick access through three tabs:
 Access the planner by clicking the "PLANNER" button in the popup. It opens in a new tab with five views and a header containing:
 - **➕ Add New Task** button — Opens a modal to create new tasks (available from any tab)
 - **Help (?)** and **Settings (⚙️)** buttons with hover tooltips
+![Settings Modal](screenshot/Screenshot_5.jpg)
 
 - **SCHEDULE Tab** — A three-column layout:
   - *Parking Lot* sidebar listing unscheduled tasks and events (events shown with purple separator)
@@ -52,6 +53,7 @@ Access the planner by clicking the "PLANNER" button in the popup. It opens in a 
   - Today's column is visually highlighted. Time block slot limits are enforced during drag-and-drop.
   - **Add Event** button creates event notes that appear in the Parking Lot
   - **MIT Stars** on grid items: click to mark as your Most Important Thing for that day (exactly 1 per day)
+  ![Schedule Tab](screenshot/Screenshot_1.jpg)
 
 - **GROUPS Tab** — Bento grid view of tasks grouped by enabled attributes:
   - Each attribute box shows active task count and mini donut chart showing distribution
@@ -60,10 +62,12 @@ Access the planner by clicking the "PLANNER" button in the popup. It opens in a 
   - Completed tasks disclosure toggle in each column (collapsed by default)
   - Double-click any task to open Task Details modal
   - Search bar filters tasks within drill-down view
+  ![Groups Tab](screenshot/Screenshot_3.jpg)
 
 - **ARCHIVE Tab** — Completed tasks grouped by completion date, sorted by last modified (most recent first) within each group. Features a wider search bar and individual restore buttons; a "Clear All Completed" button removes all completed tasks (with undo support).
 
 - **STATS Tab** — Visual HTML/CSS charts showing task completion rate, priority distribution, energy distribution, tasks per day, event stats (total, scheduled today, day distribution), and MIT stats (streak, 30-day completion rate, weekly status).
+![Stats Tab](screenshot/Screenshot_2.jpg)
 
 ### Settings Modal
 
@@ -80,6 +84,7 @@ Access via the "Import/Export" button in the SCHEDULE tab header:
 - **Export JSON** — Download all tasks as a timestamped JSON file
 - **Export CSV** — Download all tasks as a timestamped CSV file for spreadsheet use
 - **Import JSON** — Upload a JSON file to merge with existing tasks
+![Import/Export Modal](screenshot/Screenshot_4.jpg)
 
 ### Time Blocks Modal
 
