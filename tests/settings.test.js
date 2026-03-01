@@ -1044,3 +1044,64 @@ describe('Event Color Labels', () => {
         expect(labels.brown).toBe('Errands');
     });
 });
+
+// --- Dark Mode CSS Variables Tests (v2.3.0) ---
+
+describe('Dark Mode CSS Variables', () => {
+    test('applySettings with dark theme sets data-theme attribute', () => {
+        applySettings({ theme: 'dark', fontFamily: 'system', fontSize: 'medium' });
+        expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    });
+
+    test('applySettings with light theme sets data-theme to light', () => {
+        applySettings({ theme: 'light', fontFamily: 'system', fontSize: 'medium' });
+        expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    });
+
+    test('dark theme can be toggled from settings', async () => {
+        // Start with light theme
+        seedSettings({ theme: 'light', fontFamily: 'system', fontSize: 'medium', hasSeenSampleTasks: true });
+        await initSettings();
+        expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+
+        // Switch to dark theme
+        applySettings({ theme: 'dark', fontFamily: 'system', fontSize: 'medium' });
+        expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    });
+
+    test('dark mode persists through settings save and reload', async () => {
+        // Save dark theme
+        await saveSettings({ theme: 'dark', fontFamily: 'inter', fontSize: 'large' });
+
+        // Load settings and apply
+        const settings = await getSettings();
+        applySettings(settings);
+
+        expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+        expect(settings.theme).toBe('dark');
+    });
+
+    test('initSettings applies dark theme from stored settings', async () => {
+        seedSettings({
+            theme: 'dark',
+            fontFamily: 'roboto-mono',
+            fontSize: 'small',
+            hasSeenSampleTasks: true
+        });
+
+        await initSettings();
+
+        expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    });
+
+    test('theme defaults to light when not specified', async () => {
+        // Empty settings
+        seedSettings({ hasSeenSampleTasks: true });
+
+        await initSettings();
+
+        // Should default to light theme
+        const settings = await getSettings();
+        expect(settings.theme).toBe('light');
+    });
+});

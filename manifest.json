@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Weekly Task Planner",
   "version": "2.3.0",
-  "description": "A weekly task planner with priority management, scheduling, visual time blocking, Event Notes with auto-expiry, recurrence and color categories, MIT (Most Important Thing) daily star system with streak tracking, Parking Lot sorted by last modified, edit task modal with auto-save indicator, event editing via double-click, and Notion import with lastModified sync.",
+  "description": "A weekly task planner with priority management, scheduling with insights and visual time blocking.",
   "permissions": [
     "storage",
     "tabs",

@@ -3611,6 +3611,9 @@ async function updateCurrentTimeIndicator() {
         const range = parseTimeRange(block.time);
         if (!range) return;
 
+        // Handle midnight wraparound (end=0 means midnight, treat as 24 for comparison)
+        const effectiveEnd = range.end === 0 ? 24 : range.end;
+
         // Get today's cell for this block
         const todayCell = document.querySelector(
             `.grid-cell[data-day='${todayName}'][data-block-id='${blockId}']`
@@ -3620,17 +3623,17 @@ async function updateCurrentTimeIndicator() {
         if (!todayCell) return;
 
         // Check if this block is in the past
-        if (range.end <= currentTime) {
+        if (effectiveEnd <= currentTime) {
             todayCell.classList.add('past-block');
             if (timeLabel) timeLabel.classList.add('past-block');
         }
         // Check if current time is within this block
-        else if (range.start <= currentTime && currentTime < range.end) {
+        else if (range.start <= currentTime && currentTime < effectiveEnd) {
             todayCell.classList.add('current-block');
             if (timeLabel) timeLabel.classList.add('current-block');
 
-            // Calculate position within block
-            const blockDuration = range.end - range.start;
+            // Calculate position within block (use effectiveEnd for midnight wraparound)
+            const blockDuration = effectiveEnd - range.start;
             const elapsed = currentTime - range.start;
             const percentComplete = (elapsed / blockDuration) * 100;
 
@@ -4250,7 +4253,10 @@ async function highlightCurrentBlockOnly() {
     // Find and show current block
     blocks.forEach((block, index) => {
         const range = parseTimeRange(block.time);
-        if (range && range.start <= currentTime && currentTime < range.end) {
+        if (!range) return;
+        // Handle midnight wraparound (end=0 means midnight, treat as 24 for comparison)
+        const effectiveEnd = range.end === 0 ? 24 : range.end;
+        if (range.start <= currentTime && currentTime < effectiveEnd) {
             // Show cells for current block (all days)
             document.querySelectorAll(`[data-block-id="${block.id}"]`).forEach(el => {
                 el.classList.remove('focus-hidden');
@@ -4577,6 +4583,19 @@ function setupTrackingListeners() {
     });
 }
 
+// --- Feature: Print Schedule ---
+
+function printSchedule() {
+    window.print();
+}
+
+function setupPrintButton() {
+    const printBtn = document.getElementById('print-schedule-btn');
+    if (printBtn) {
+        printBtn.addEventListener('click', printSchedule);
+    }
+}
+
 // --- Initialize New Features ---
 
 function setupNewScheduleFeatures() {
@@ -4586,6 +4605,7 @@ function setupNewScheduleFeatures() {
     setupFocusModeButton();
     setupResizeListeners();
     setupTrackingListeners();
+    setupPrintButton();
 }
 
 // Hook into original renderPage to add new features

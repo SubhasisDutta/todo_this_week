@@ -18,7 +18,7 @@ This is a **Weekly Task Manager** — a Chrome/Chromium browser extension (Manif
 - `manager.js` (~4600 lines) — Full-page planner: weekly grid, event rendering, MIT stars, drag-and-drop scheduling (tasks + events), inline editing, archive tab, stats tab (including event and MIT stats), search/filter, undo toast, keyboard undo, settings wiring, add task/event modals, MIT follow-up modal, shared rendering helpers
 - `popup.html` (~102 lines) — Popup markup (3 tabs: TODAY, Display, ADD — with notes textarea and recurrence select)
 - `manager.html` (~900 lines) — Planner markup (5 tabs: SCHEDULE, GROUPS, ARCHIVE, STATS + settings/help/add-task/add-event/MIT-followup/import-export/time-blocks modals, help has 8 tabs including FAQ)
-- `popup.css` (~2300 lines) — Unified styles: neumorphic design, dark mode, modals, charts, archive, help, toast, search, notes, tooltips, FAQ styling, import/export tabs, event items, MIT stars
+- `popup.css` (~2600 lines) — Unified styles: neumorphic design, comprehensive dark mode overrides, modals, charts, archive, help, toast, search, notes, tooltips, FAQ styling, import/export tabs, event items, MIT stars, print styles
 
 ### Extension Configuration
 
@@ -34,7 +34,7 @@ This is a **Weekly Task Manager** — a Chrome/Chromium browser extension (Manif
 - `tests/popup.test.js` — ~17 tests for popup.js
 - `tests/manager.test.js` — ~122 tests for manager.js (includes async grid, new tabs, search filter, add task modal, tooltips, FAQ, shared helpers)
 - `tests/integration.test.js` — ~18 end-to-end tests (includes recurring tasks, undo lifecycle)
-- `tests/settings.test.js` — ~61 tests for settings.js (includes time block editing, overlap validation, import/export modal tabs, LOCAL_VALUE_OPTIONS)
+- `tests/settings.test.js` — ~84 tests for settings.js (includes time block editing, overlap validation, import/export modal tabs, LOCAL_VALUE_OPTIONS)
 - `tests/features.test.js` — ~35 tests for notes, completedAt, undo/redo, recurring tasks, archive grouping
 - `tests/search.test.js` — ~17 tests for search/filter functionality (including schedule search)
 - `tests/schedule-features.test.js` — ~91 tests for schedule tab features (context menu, magic fill, buffer zones, focus mode, fluid resizing, time tracking, task details modal)
@@ -636,10 +636,31 @@ Replaces the Priority and Location tabs with a unified, attribute-based grouping
 - Labels update dynamically from settings when opening modal
 - JS: `updateEventColorLabels()` called on modal open
 
+#### Dark Mode Comprehensive Fixes
+- Added 300+ lines of dark mode CSS overrides in `popup.css`
+- Typography: h1, h2, h3, section titles, day column headers with proper contrast
+- Tabs: Tab links, active states, content backgrounds use CSS variables
+- Buttons: Neumorphic buttons with dark theme shadows and text colors
+- Form inputs: Input fields, labels, placeholders with visible text
+- Task items: Backgrounds, titles, links, completion states adapted for dark theme
+- Planner grid: Headers, cells, time labels, current time indicator
+- Sidebars: Parking lot, task lists, unassigned sections
+- Block colors: Darker versions (sakura, purple, yellow, sage, skyblue, orange)
+- Energy indicators: Dark mode versions for low, medium, high energy
+- Auto-save status: Saving, saved, error states with dark backgrounds
+- CSS classes: All components now use `var(--text-primary)`, `var(--text-secondary)`, `var(--text-muted)` instead of hardcoded colors
+
+#### Print Schedule Feature
+- New print button in SCHEDULE tab header
+- Prints weekly grid in landscape orientation with colorful headers
+- Preserves block colors and hides non-grid elements
+- CSS: `@media print` styles with `print-color-adjust: exact`
+- JS: `printSchedule()`, `setupPrintButton()`
+
 #### Test Coverage
 - Added tests for Parking Lot lastModified ordering in `manager.test.js`
 - Added tests for event color labels in `settings.test.js`
-- Total test count: 567+ tests
+- Total test count: 573+ tests
 
 ### Version 2.2.0 Changes
 
@@ -737,17 +758,32 @@ Defined in `:root` in `popup.css`:
 --focus-ring                                          /* Accessibility focus */
 ```
 
+### Dark Mode (v2.3.0)
+Dark mode is applied via `data-theme="dark"` attribute on the `<html>` element. The comprehensive dark mode overrides (lines 60-361 in `popup.css`) include:
+
+- `:root[data-theme="dark"]` — Redefines all CSS custom properties for dark backgrounds and light text
+- Typography overrides for h1, h2, h3, labels, day headers
+- Tab styling with dark backgrounds and proper text contrast
+- Neumorphic buttons and inputs with dark shadows
+- Task items, titles, and completion states
+- Planner grid headers, cells, time labels
+- Block colors adapted for dark theme (e.g., `.block-color-sakura` becomes `#5c3d4a`)
+- Energy indicators (low, medium, high) with dark backgrounds
+- Auto-save status indicators (saving, saved, error)
+- Modals, sidebars, and all interactive components
+
 ### Key CSS Classes
 - `priority-CRITICAL`, `priority-IMPORTANT`, `priority-SOMEDAY` — Priority-based styling
-- `energy-low-incomplete`, `energy-high-incomplete` — Energy level indicators
+- `energy-low-incomplete`, `energy-medium-incomplete`, `energy-high-incomplete` — Energy level indicators
 - `task-completed` — Strikethrough + opacity for completed tasks
 - `block-color-*` — Time block color coding (sakura, yellow, purple, sage, skyblue, orange)
 - `neumorphic-btn`, `neumorphic-input`, `neumorphic-inset-card` — Design system components
 - `save-status`, `.saving`, `.saved`, `.unsaved` — Auto-save indicator states
+- `autosave-status`, `.autosave-status.saving`, `.autosave-status.saved`, `.autosave-status.error` — Modal auto-save indicators
 - `import-export-tabs`, `.ie-panel`, `.ie-section-title`, `.ie-action-card` — Import/export modal tabbed interface
 - `completed-disclosure`, `.completed-disclosure-summary`, `.completed-count`, `.completed-tasks-list` — Completed tasks accordion
 - `event-item` — Event note styling: pill shape, dashed purple border, lavender gradient (v2.2.0)
-- `event-item[data-color-code="red|blue|green|purple|orange"]` — Event color variants
+- `event-item[data-color-code="red|blue|green|purple|orange|yellow|brown"]` — Event color variants (7 colors)
 - `parking-lot-separator` — Dashed purple line separating tasks from events in Parking Lot
 - `mit-star-btn`, `.mit-star-btn.active` — MIT star toggle button on grid items
 - `mit-item` — Golden glow box-shadow on starred items
@@ -756,6 +792,7 @@ Defined in `:root` in `popup.css`:
 - `stats-event-card` — Purple gradient stats card for event data
 - `stats-mit-weekly` — 7-day MIT status indicator row
 - `modal-content-small`, `.modal-content-medium` — Modal size variants (480px, 560px)
+- `current-time-indicator` — Red line showing current time position on today's column
 
 ## Accessibility
 
@@ -780,7 +817,7 @@ The codebase uses the following ARIA patterns:
 ```bash
 cd tests             # All test infrastructure is in tests/
 npm install          # Install Jest + jsdom
-npm test             # Run all ~541+ tests
+npm test             # Run all ~573+ tests
 npm run test:watch   # Watch mode
 npm run test:coverage # Coverage report
 ```
@@ -821,7 +858,7 @@ This makes all listed symbols available as globals in the test scope.
 
 The `loadScript` regex also handles `async function` DOMContentLoaded handlers (needed because manager.js and popup.js DOMContentLoaded handlers are now `async`).
 
-### Test Suites (~541+ total)
+### Test Suites (~567+ total)
 - **task_utils.test.js (~104):** Task class (new fields including lastModified, colorCode, and 10 v1.7.0 attributes), getTasks backfill (including energy migration 'low'→'Low'), CRUD, settings CRUD, time blocks, undo/redo stacks, createRecurringInstance, seedSampleTasks, toast notifications (showInfoMessage), validateTask, debounce, withTaskLock, parseTimeRange, validateTimeBlockOverlap, validate24HourCoverage (gap detection, full coverage, invalid format), ATTRIBUTE_OPTIONS, DEFAULT_ENABLED_ATTRIBUTES
 - **popup.test.js (~17):** createTaskItem (notes, recurrence), renderTasks, renderAllTabs, tab switching, add-task validation, open-manager button
 - **manager.test.js (~122):** generateDayHeaders/generatePlannerGrid (now async), createTaskElement (notes/recurrence badges), renderSidebarLists, Groups tab (calculateAttributeDistribution, createBentoBox, renderGroupsTab), renderArchiveTab (with lastModified sorting), renderStatsTab, applySearchFilter, setupTabSwitching, renderPage, highlightCurrentDay, setupAddTaskModalListeners, header tooltips, FAQ tab, collapsible parking lot, drag guide lines, hover popover, current time indicator

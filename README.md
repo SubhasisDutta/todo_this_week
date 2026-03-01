@@ -1,8 +1,8 @@
 # Weekly Task Manager
 
-**Version 2.2.0**
+**Version 2.3.0**
 
-A Chrome/Chromium browser extension for managing weekly tasks with priority levels, categories, energy tracking, 10 toggleable task attributes, Event Notes with auto-expiry and recurrence, a Most Important Thing (MIT) daily star system, and a visual weekly planner grid. Schedule tasks and events into time blocks, track completion and MIT streaks across the week, and keep everything in sync between the popup and full-page planner.
+A Chrome/Chromium browser extension for managing weekly tasks with priority levels, categories, energy tracking, 10 toggleable task attributes, Event Notes with auto-expiry and recurrence, a Most Important Thing (MIT) daily star system, and a visual weekly planner grid. Schedule tasks and events into time blocks, track completion and MIT streaks across the week, and keep everything in sync between the popup and full-page planner. Features a polished dark mode with comprehensive contrast fixes for all UI components.
 
 ## Features
 
@@ -69,7 +69,7 @@ Access the planner by clicking the "PLANNER" button in the popup. It opens in a 
 
 Click the ⚙️ button (top-right in the planner) to open Settings:
 
-- **Appearance** — Toggle Dark/Light mode, choose font family and font size
+- **Appearance** — Toggle Dark/Light mode (with comprehensive contrast fixes for all UI components), choose font family and font size
 - **Notion Import** — Connect your Notion workspace and import tasks from a database
 - **Google Sheets Import** — Import tasks from a published Google Sheets CSV URL
 
@@ -168,7 +168,7 @@ npm run test:watch
 npm run test:coverage
 ```
 
-The test suite includes **541+ tests** across 10 test files:
+The test suite includes **573+ tests** across 10 test files:
 
 | Test Suite | Tests | Coverage |
 |-----------|-------|----------|
@@ -176,7 +176,7 @@ The test suite includes **541+ tests** across 10 test files:
 | `popup.test.js` | ~17 | Task item rendering, tab switching, completion handlers, drag-and-drop |
 | `manager.test.js` | ~122 | Grid generation, Groups tab, archive tab, stats, search filter, add task modal, context menu, focus mode, time tracking |
 | `integration.test.js` | ~18 | Task lifecycle, scheduling, cascade completion, ordering, import/merge, recurring tasks, undo/redo |
-| `settings.test.js` | ~61 | applySettings, initSettings, modal open/close, form population, time block editing, Notion import, enabled attributes |
+| `settings.test.js` | ~84 | applySettings, initSettings, modal open/close, form population, time block editing, Notion import, enabled attributes, dark mode CSS variables |
 | `features.test.js` | ~35 | Notes field, completedAt, lastModified, undo/redo stacks, recurring task creation, archive grouping |
 | `search.test.js` | ~17 | applySearchFilter logic, schedule/archive/groups search |
 | `schedule-features.test.js` | ~91 | Context menu, magic fill, buffer zones, focus mode, fluid resizing, time tracking, task details modal |
@@ -193,7 +193,7 @@ The test suite includes **541+ tests** across 10 test files:
 
 ```
 todo_this_week/
-  manifest.json          # Chrome Extension Manifest V3 config (v2.2.0)
+  manifest.json          # Chrome Extension Manifest V3 config (v2.3.0)
   popup.html             # Popup interface markup (TODAY, Display, ADD tabs)
   popup.js               # Popup logic (rendering, tabs, completion, drag-and-drop)
   popup.css              # Unified styles (popup + manager): neumorphic + dark mode
@@ -234,6 +234,7 @@ todo_this_week/
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.3.0 | 2026-02-28 | Dark mode comprehensive contrast fixes for all UI components (typography, tabs, buttons, forms, task items, planner grid, sidebars, modals, auto-save indicators), improved block colors for dark theme, print schedule feature, 573+ tests |
 | 2.2.0 | 2026-02-26 | Event Notes with auto-expiry and recurrence, MIT (Most Important Thing) daily star system with streak tracking and follow-up modal, event and MIT stats in Stats tab, cross-tab sync for events and MIT history, 541+ tests |
 | 2.1.0 | 2026-02-23 | Status-completion synchronization (completed derived from status), code optimizations (extracted helper functions), 472 tests |
 | 2.0.0 | 2026-02-22 | Removed Projects, Sprint, and Why attributes (10 attributes total), added completed tasks disclosure toggle in Groups tab drill-down, Energy attribute simplified to Low/High |
