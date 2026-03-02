@@ -1,5 +1,8 @@
 # Weekly Task Manager
 
+## Chrome Extension
+[App Store Install](https://tinyurl.com/tasks-planner)
+
 **Version 2.3.0**
 
 A Chrome/Chromium browser extension for managing weekly tasks with priority levels, categories, energy tracking, 10 toggleable task attributes, Event Notes with auto-expiry and recurrence, a Most Important Thing (MIT) daily star system, and a visual weekly planner grid. Schedule tasks and events into time blocks, track completion and MIT streaks across the week, and keep everything in sync between the popup and full-page planner. Features a polished dark mode with comprehensive contrast fixes for all UI components.
