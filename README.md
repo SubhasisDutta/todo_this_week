@@ -1,7 +1,7 @@
 # Weekly Task Manager
 
 ## Chrome Extension
-[App Store Install](https://tinyurl.com/tasks-planner)
+[Chrome Web Store Install](https://tinyurl.com/tasks-planner)
 
 **Version 2.3.0**
 
